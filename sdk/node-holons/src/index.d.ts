@@ -373,11 +373,11 @@ export namespace observability {
         METRICS: 'metrics';
         EVENTS: 'events';
         PROM: 'prom';
-        OTEL: 'otel';
     }>;
 
     const Level: Readonly<Record<string, number>>;
-    const EventType: Readonly<Record<string, number>>;
+    const EventName: Readonly<Record<string, string>>;
+    const Attr: Readonly<Record<string, string>>;
 
     class LogRing {
         constructor(capacity?: number);
@@ -420,12 +420,17 @@ export namespace observability {
         enabled(family: string): boolean;
         logger(name: string): Logger;
         counter(name: string, help?: string, labels?: Record<string, string>): { inc(amount?: number): void } | null;
-        emit(type: number, payload?: Record<string, unknown>, options?: { private?: boolean }): void;
-        emitPrivate(type: number, payload?: Record<string, unknown>): void;
+        gauge(name: string, help?: string, labels?: Record<string, string>): { set(value: number): void; add(delta: number): void } | null;
+        histogram(name: string, help?: string, labels?: Record<string, string>, bounds?: number[] | null): { observe(value: number): void; observeDuration(seconds: number): void } | null;
+        emit(eventName: string, payload?: Record<string, unknown>, options?: { private?: boolean }): void;
+        emitPrivate(eventName: string, payload?: Record<string, unknown>): void;
         close(): void;
     }
 
     function Private(fields?: Record<string, unknown>): Record<string, unknown>;
+    function toAnyValue(value: unknown): Record<string, unknown>;
+    function stringAttribute(recordOrAttrs: Record<string, unknown> | Record<string, unknown>[], key: string): string;
+    function bodyString(record: Record<string, unknown>): string;
     function configure(cfg?: Record<string, unknown>): Observability;
     function fromEnv(base?: Record<string, unknown>): Observability;
     function current(): Observability;

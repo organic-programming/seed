@@ -6,10 +6,12 @@ const protobuf = require('protobufjs');
 
 const PROTO_ROOT = findExistingRoot('holons/v1/manifest.proto', [
     process.env.HOLONS_PROTO_ROOT,
+    ...ancestorCandidates(process.cwd(), ['holons', 'grace-op', '_protos']),
+    ...ancestorCandidates(__dirname, ['holons', 'grace-op', '_protos']),
+    ...ancestorCandidates(process.cwd(), ['holons', 'grace-op', '.op', 'protos']),
+    ...ancestorCandidates(__dirname, ['holons', 'grace-op', '.op', 'protos']),
     ...ancestorCandidates(process.cwd(), ['.op', 'protos']),
     ...ancestorCandidates(__dirname, ['.op', 'protos']),
-    ...ancestorCandidates(__dirname, ['holons', 'grace-op', '_protos']),
-    ...ancestorCandidates(__dirname, ['holons', 'grace-op', '.op', 'protos']),
     ...ancestorCandidates(__dirname, ['_protos']),
 ]);
 

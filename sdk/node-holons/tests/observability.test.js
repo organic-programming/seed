@@ -19,7 +19,6 @@ const { sampleStaticDescribeResponse } = require('./helpers/static_describe');
 test.beforeEach(() => {
   obs.reset();
   delete process.env.OP_OBS;
-  delete process.env.OP_SESSIONS;
   delete process.env.OP_RUN_DIR;
   delete process.env.OP_INSTANCE_UID;
   describe.useStaticResponse(null);
@@ -42,7 +41,7 @@ test('parseOpObs basic', () => {
   }
 });
 
-test('checkEnv rejects otel and unknown', () => {
+test('checkEnv rejects unknown OP_OBS tokens', () => {
   process.env.OP_OBS = 'logs,otel';
   assert.throws(() => obs.checkEnv(), obs.InvalidTokenError);
 
@@ -51,11 +50,6 @@ test('checkEnv rejects otel and unknown', () => {
 
   process.env.OP_OBS = 'logs,sessions';
   assert.throws(() => obs.checkEnv(), obs.InvalidTokenError);
-
-  process.env.OP_OBS = '';
-  process.env.OP_SESSIONS = 'metrics';
-  assert.throws(() => obs.checkEnv(), obs.InvalidTokenError);
-  delete process.env.OP_SESSIONS;
 
   process.env.OP_OBS = 'logs,metrics,events,prom,all';
   obs.checkEnv();
@@ -68,18 +62,45 @@ test('disabled is no-op', () => {
   assert.equal(o.counter('t_total'), null);
 });
 
-test('logs ring + fields + redact', () => {
+test('logs ring emits LogRecord with typed AnyValue attributes', () => {
   process.env.OP_OBS = 'logs';
   const o = obs.configure({ slug: 'g', instanceUid: 'uid', redactedFields: ['password'] });
   const l = o.logger('r');
-  l.info('hello', { who: 'bob', password: 'secret' });
+  l.info('hello', {
+    who: 'bob',
+    ok: true,
+    count: 3,
+    ratio: 1.5,
+    object: { value: 1 },
+    password: 'secret',
+  });
   const entries = o.logRing.drain();
   assert.equal(entries.length, 1);
-  assert.equal(entries[0].message, 'hello');
-  assert.equal(entries[0].fields.who, 'bob');
-  assert.equal(entries[0].fields.password, '<redacted>');
-  assert.equal(entries[0].slug, 'g');
-  assert.equal(entries[0].instance_uid, 'uid');
+  const record = entries[0];
+  assert.equal(obs.bodyString(record), 'hello');
+  assert.equal(record.severity_number, obs.Level.INFO);
+  assert.equal(record.severity_text, 'INFO');
+  assert.equal(obs.stringAttribute(record, obs.Attr.HOLONS_SLUG), 'g');
+  assert.equal(obs.stringAttribute(record, obs.Attr.SERVICE_NAME), 'g');
+  assert.equal(obs.stringAttribute(record, obs.Attr.HOLONS_INSTANCE_UID), 'uid');
+  assert.equal(obs.stringAttribute(record, obs.Attr.SERVICE_INSTANCE_ID), 'uid');
+  assert.equal(obs.stringAttribute(record, 'who'), 'bob');
+  assert.deepEqual(attr(record, 'ok').value, { bool_value: true });
+  assert.deepEqual(attr(record, 'count').value, { int_value: 3 });
+  assert.deepEqual(attr(record, 'ratio').value, { double_value: 1.5 });
+  assert.deepEqual(attr(record, 'object').value, { string_value: '[object Object]' });
+  assert.deepEqual(attr(record, 'password').value, { string_value: '<redacted>' });
+});
+
+test('logs include current session context attributes when available', () => {
+  process.env.OP_OBS = 'logs';
+  const o = obs.configure({ slug: 'g', instanceUid: 'uid' });
+  obs.withSessionContext({ sessionId: 'session-1', rpcMethod: '/greeting.v1.GreetingService/SayHello' }, () => {
+    o.logger('r').info('inside session');
+  });
+  const record = o.logRing.drain()[0];
+  assert.equal(obs.stringAttribute(record, obs.Attr.HOLONS_SESSION_ID), 'session-1');
+  assert.equal(obs.stringAttribute(record, obs.Attr.RPC_METHOD), '/greeting.v1.GreetingService/SayHello');
 });
 
 test('counter increments and histogram percentile', () => {
@@ -102,18 +123,19 @@ test('event bus fan-out', () => {
   const o = obs.configure({ slug: 'g', instanceUid: 'uid' });
   const received = [];
   o.eventBus.subscribe((e) => received.push(e));
-  o.emit(obs.EventType.INSTANCE_READY, { listener: 'stdio://' });
+  o.emit(obs.EventName.INSTANCE_READY, { listener: 'stdio://' });
   assert.equal(received.length, 1);
-  assert.equal(received[0].type, obs.EventType.INSTANCE_READY);
+  assert.equal(received[0].event_name, obs.EventName.INSTANCE_READY);
+  assert.equal(obs.stringAttribute(received[0], 'listener'), 'stdio://');
 });
 
 test('chain append and enrichment', () => {
   const c1 = obs.appendDirectChild([], 'gabriel-greeting-rust', '1c2d');
   assert.equal(c1.length, 1);
-  assert.equal(c1[0].slug, 'gabriel-greeting-rust');
+  assert.equal(c1[0], 'gabriel-greeting-rust');
   const c2 = obs.enrichForMultilog(c1, 'gabriel-greeting-go', 'ea34');
   assert.equal(c2.length, 2);
-  assert.equal(c2[1].slug, 'gabriel-greeting-go');
+  assert.equal(c2[1], 'gabriel-greeting-go');
   assert.equal(c1.length, 1); // original unchanged
 });
 
@@ -144,7 +166,7 @@ test('disk writers and meta.json use instance run dir', () => {
   const o = obs.configure({ slug: 'gabriel', instanceUid: 'uid-1', runDir: root });
   obs.enableDiskWriters(o.cfg.runDir);
   o.logger('test').info('ready', { port: 123 });
-  o.emit(obs.EventType.INSTANCE_READY, { listener: 'tcp://127.0.0.1:123' });
+  o.emit(obs.EventName.INSTANCE_READY, { listener: 'tcp://127.0.0.1:123' });
   obs.writeMetaJson(o.cfg.runDir, {
     slug: 'gabriel',
     uid: 'uid-1',
@@ -157,7 +179,7 @@ test('disk writers and meta.json use instance run dir', () => {
   });
 
   assert.match(fs.readFileSync(path.join(root, 'gabriel', 'uid-1', 'stdout.log'), 'utf8'), /ready/);
-  assert.match(fs.readFileSync(path.join(root, 'gabriel', 'uid-1', 'events.jsonl'), 'utf8'), /INSTANCE_READY/);
+  assert.match(fs.readFileSync(path.join(root, 'gabriel', 'uid-1', 'events.jsonl'), 'utf8'), /instance\.ready/);
   const meta = obs.readMetaJson(o.cfg.runDir);
   assert.equal(meta.slug, 'gabriel');
   assert.equal(meta.uid, 'uid-1');
@@ -169,23 +191,51 @@ test('HolonObservability handlers replay logs, metrics, and events', async () =>
   const o = obs.configure({ slug: 'gabriel', instanceUid: 'uid-1' });
   o.logger('test').info('hello');
   o.counter('requests_total', 'requests').inc();
-  o.emit(obs.EventType.INSTANCE_READY, { listener: 'stdio://' });
+  o.emit(obs.EventName.INSTANCE_READY, { listener: 'stdio://' });
 
   const handlers = obs.makeHolonObservabilityHandlers(o);
   const logs = new FakeStreamCall({ follow: false });
   handlers.Logs(logs);
-  assert.deepEqual(logs.writes.map((entry) => entry.message), ['hello']);
+  assert.deepEqual(logs.writes.map((entry) => obs.bodyString(entry)), ['hello']);
   assert.equal(logs.ended, true);
 
-  const metrics = await new Promise((resolve, reject) => {
-    handlers.Metrics({ request: {} }, (err, out) => (err ? reject(err) : resolve(out)));
-  });
-  assert.equal(metrics.slug, 'gabriel');
-  assert.ok(metrics.samples.some((sample) => sample.name === 'requests_total' && sample.counter === 1));
+  const metrics = new FakeStreamCall({});
+  handlers.Metrics(metrics);
+  const requests = metrics.writes.find((metric) => metric.name === 'requests_total');
+  assert.ok(requests);
+  assert.equal(requests.sum.is_monotonic, true);
+  assert.equal(requests.sum.aggregation_temporality, 'AGGREGATION_TEMPORALITY_CUMULATIVE');
+  assert.equal(requests.sum.data_points[0].as_int, 1);
+  assert.equal(obs.stringAttribute(requests.sum.data_points[0].attributes, obs.Attr.HOLONS_SLUG), 'gabriel');
+  assert.equal(obs.stringAttribute(requests.sum.data_points[0].attributes, obs.Attr.HOLONS_INSTANCE_UID), 'uid-1');
 
   const events = new FakeStreamCall({ follow: false });
   handlers.Events(events);
-  assert.deepEqual(events.writes.map((event) => event.type), ['INSTANCE_READY']);
+  assert.deepEqual(events.writes.map((event) => event.event_name), [obs.EventName.INSTANCE_READY]);
+});
+
+test('metric oneofs encode counters, gauges, and histograms', () => {
+  process.env.OP_OBS = 'metrics';
+  const o = obs.configure({ slug: 'gabriel', instanceUid: 'uid-1' });
+  o.counter('requests_total', 'requests').inc(2);
+  o.gauge('temperature_celsius', 'temperature').set(21.5);
+  const histogram = o.histogram('latency_seconds', 'latency', {}, [0.1, 1.0]);
+  histogram.observe(0.05);
+  histogram.observe(2.0);
+
+  const metrics = obs.toProtoMetrics(o.registry.snapshot(), o.cfg, o.startUnixNano);
+  const counter = metrics.find((metric) => metric.name === 'requests_total');
+  const gauge = metrics.find((metric) => metric.name === 'temperature_celsius');
+  const hist = metrics.find((metric) => metric.name === 'latency_seconds');
+  assert.equal(counter.sum.data_points[0].as_int, 2);
+  assert.equal(counter.sum.is_monotonic, true);
+  assert.equal(gauge.gauge.data_points[0].as_double, 21.5);
+  assert.deepEqual(hist.histogram.data_points[0].bucket_counts, [1, 0, 1]);
+  assert.deepEqual(hist.histogram.data_points[0].explicit_bounds, [0.1, 1.0]);
+  assert.equal(hist.histogram.data_points[0].count, 2);
+  assert.equal(hist.histogram.data_points[0].sum, 2.05);
+  assert.equal(hist.histogram.data_points[0].min, 0.05);
+  assert.equal(hist.histogram.data_points[0].max, 2.0);
 });
 
 test('Logs(follow=true) replays ring before live entries', () => {
@@ -196,25 +246,25 @@ test('Logs(follow=true) replays ring before live entries', () => {
   const handlers = obs.makeHolonObservabilityHandlers(o);
   const logs = new FakeStreamCall({ follow: true });
   handlers.Logs(logs);
-  assert.deepEqual(logs.writes.map((entry) => entry.message), ['before']);
+  assert.deepEqual(logs.writes.map((entry) => obs.bodyString(entry)), ['before']);
 
   o.logger('test').info('after');
-  assert.deepEqual(logs.writes.map((entry) => entry.message), ['before', 'after']);
+  assert.deepEqual(logs.writes.map((entry) => obs.bodyString(entry)), ['before', 'after']);
   logs.emit('close');
 });
 
 test('Events(follow=true) replays ring before live entries', () => {
   process.env.OP_OBS = 'events';
   const o = obs.configure({ slug: 'gabriel', instanceUid: 'uid-1' });
-  o.emit(obs.EventType.INSTANCE_READY, { listener: 'stdio://' });
+  o.emit(obs.EventName.INSTANCE_READY, { listener: 'stdio://' });
 
   const handlers = obs.makeHolonObservabilityHandlers(o);
   const events = new FakeStreamCall({ follow: true });
   handlers.Events(events);
-  assert.deepEqual(events.writes.map((event) => event.type), ['INSTANCE_READY']);
+  assert.deepEqual(events.writes.map((event) => event.event_name), [obs.EventName.INSTANCE_READY]);
 
-  o.emit(obs.EventType.CONFIG_RELOADED, { source: 'test' });
-  assert.deepEqual(events.writes.map((event) => event.type), ['INSTANCE_READY', 'CONFIG_RELOADED']);
+  o.emit(obs.EventName.CONFIG_RELOADED, { source: 'test' });
+  assert.deepEqual(events.writes.map((event) => event.event_name), [obs.EventName.INSTANCE_READY, obs.EventName.CONFIG_RELOADED]);
   events.emit('close');
 });
 
@@ -223,20 +273,20 @@ test('private log and event emissions remain local but not follow-streamed', () 
   const o = obs.configure({ slug: 'gabriel', instanceUid: 'uid-1' });
   o.logger('test').private().info('secret');
   o.logger('test').info('public');
-  o.emitPrivate(obs.EventType.CONFIG_RELOADED, { source: 'secret' });
-  o.emit(obs.EventType.INSTANCE_READY, { listener: 'stdio://' });
+  o.emitPrivate(obs.EventName.CONFIG_RELOADED, { source: 'secret' });
+  o.emit(obs.EventName.INSTANCE_READY, { listener: 'stdio://' });
 
   const handlers = obs.makeHolonObservabilityHandlers(o);
   const logs = new FakeStreamCall({ follow: true });
   handlers.Logs(logs);
-  assert.deepEqual(o.logRing.drain().map((entry) => entry.message), ['secret', 'public']);
-  assert.deepEqual(logs.writes.map((entry) => entry.message), ['public']);
+  assert.deepEqual(o.logRing.drain().map((entry) => obs.bodyString(entry)), ['secret', 'public']);
+  assert.deepEqual(logs.writes.map((entry) => obs.bodyString(entry)), ['public']);
   logs.emit('close');
 
   const events = new FakeStreamCall({ follow: true });
   handlers.Events(events);
   assert.equal(o.eventBus.drain().length, 2);
-  assert.deepEqual(events.writes.map((event) => event.type), ['INSTANCE_READY']);
+  assert.deepEqual(events.writes.map((event) => event.event_name), [obs.EventName.INSTANCE_READY]);
   events.emit('close');
 });
 
@@ -278,26 +328,34 @@ test('MemberRelay forwards logs and events with child chain hop', () => {
   });
   relay.start();
   logStream.emit('data', {
-    ts: { seconds: '1', nanos: 0 },
-    level: 'INFO',
-    slug: 'child-node',
-    instance_uid: 'child-uid',
-    message: 'relay-log',
-    fields: {},
+    time_unix_nano: '1000000000',
+    observed_time_unix_nano: '1000000000',
+    severity_number: obs.Level.INFO,
+    severity_text: 'INFO',
+    body: { string_value: 'relay-log' },
+    attributes: [
+      obs.keyValue(obs.Attr.HOLONS_SLUG, 'child-node'),
+      obs.keyValue(obs.Attr.HOLONS_INSTANCE_UID, 'child-uid'),
+    ],
     chain: [],
   });
   eventStream.emit('data', {
-    ts: { seconds: '1', nanos: 0 },
-    type: 'INSTANCE_READY',
-    slug: 'child-node',
-    instance_uid: 'child-uid',
-    payload: {},
+    time_unix_nano: '1000000000',
+    observed_time_unix_nano: '1000000000',
+    severity_number: obs.Level.INFO,
+    severity_text: 'INFO',
+    body: { string_value: obs.EventName.INSTANCE_READY },
+    event_name: obs.EventName.INSTANCE_READY,
+    attributes: [
+      obs.keyValue(obs.Attr.HOLONS_SLUG, 'child-node'),
+      obs.keyValue(obs.Attr.HOLONS_INSTANCE_UID, 'child-uid'),
+    ],
     chain: [],
   });
   relay.stop();
 
-  assert.deepEqual(parent.logRing.drain()[0].chain, [{ slug: 'child-node', instance_uid: 'child-uid' }]);
-  assert.deepEqual(parent.eventBus.drain()[0].chain, [{ slug: 'child-node', instance_uid: 'child-uid' }]);
+  assert.deepEqual(parent.logRing.drain()[0].chain, ['child-node']);
+  assert.deepEqual(parent.eventBus.drain()[0].chain, ['child-node']);
 });
 
 test('serve auto-registers HolonObservability when OP_OBS is set', async (t) => {
@@ -324,7 +382,7 @@ test('serve auto-registers HolonObservability when OP_OBS is set', async (t) => 
   const current = obs.current();
   current.logger('test').info('served');
   current.counter('requests_total', 'requests').inc();
-  current.emit(obs.EventType.CONFIG_RELOADED, { source: 'test' });
+  current.emit(obs.EventName.CONFIG_RELOADED, { source: 'test' });
 
   const parsed = transport.parseURI(server.__holonsRuntime.publicURI);
   const client = new ObservabilityClient(
@@ -334,14 +392,14 @@ test('serve auto-registers HolonObservability when OP_OBS is set', async (t) => 
   t.after(() => client.close());
 
   const logs = await collectStream(client.Logs.bind(client), { follow: false });
-  assert.ok(logs.some((entry) => entry.message === 'served'));
+  assert.ok(logs.some((entry) => obs.bodyString(entry) === 'served'));
 
-  const metrics = await unary(client.Metrics.bind(client), {});
-  assert.ok(metrics.samples.some((sample) => sample.name === 'requests_total'));
+  const metrics = await collectStream(client.Metrics.bind(client), {});
+  assert.ok(metrics.some((metric) => metric.name === 'requests_total' && metric.sum?.data_points?.[0]?.as_int === '1'));
 
   const events = await collectStream(client.Events.bind(client), { follow: false });
-  assert.ok(events.some((event) => event.type === 'INSTANCE_READY'));
-  assert.ok(events.some((event) => event.type === 'CONFIG_RELOADED'));
+  assert.ok(events.some((event) => event.event_name === obs.EventName.INSTANCE_READY));
+  assert.ok(events.some((event) => event.event_name === obs.EventName.CONFIG_RELOADED));
 
   const metaPath = path.join(root, current.cfg.slug, 'uid-1', 'meta.json');
   const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
@@ -371,6 +429,12 @@ const ObservabilityClient = grpc.makeGenericClientConstructor(
   {},
 );
 
+function attr(record, key) {
+  const found = (record.attributes || []).find((item) => item.key === key);
+  assert.ok(found, `missing attribute ${key}`);
+  return found;
+}
+
 function quietLogger() {
   return {
     error() {},
@@ -398,12 +462,6 @@ function collectStream(method, request) {
     stream.on('data', (entry) => out.push(entry));
     stream.on('error', reject);
     stream.on('end', () => resolve(out));
-  });
-}
-
-function unary(method, request) {
-  return new Promise((resolve, reject) => {
-    method(request, (err, out) => (err ? reject(err) : resolve(out || {})));
   });
 }
 

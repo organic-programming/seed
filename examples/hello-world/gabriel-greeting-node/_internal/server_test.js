@@ -144,9 +144,12 @@ test('RPC SayHello emits observability signals', async (t) => {
   });
   assert.equal(counter.value, 1);
 
-  const entry = obs.logRing.drain().find((logEntry) => logEntry.message === 'Greeted Bob in English (en)');
+  const entry = obs.logRing.drain().find((logEntry) => observability.bodyString(logEntry) === 'Greeted Bob in English (en)');
   assert.ok(entry);
-  assert.deepEqual(Object.keys(entry.fields).sort(), [
+  const attrs = ['duration_ns', 'greeting', 'lang_code', 'language', 'name', 'transport']
+    .map((key) => entry.attributes.find((attr) => attr.key === key));
+  assert.equal(attrs.every(Boolean), true);
+  assert.deepEqual(attrs.map((attr) => attr.key).sort(), [
     'duration_ns',
     'greeting',
     'lang_code',
@@ -154,10 +157,20 @@ test('RPC SayHello emits observability signals', async (t) => {
     'name',
     'transport',
   ]);
-  assert.equal(entry.fields.lang_code, 'en');
-  assert.equal(entry.fields.language, 'English');
-  assert.equal(entry.fields.name, 'Bob');
-  assert.equal(entry.fields.greeting, 'Hello Bob');
-  assert.equal(entry.fields.transport, 'unknown');
-  assert.ok(Number.parseInt(entry.fields.duration_ns, 10) >= 0);
+  assert.deepEqual(attr(entry, 'holons.slug').value, { string_value: 'gabriel-greeting-node' });
+  assert.deepEqual(attr(entry, 'service.name').value, { string_value: 'gabriel-greeting-node' });
+  assert.ok(attr(entry, 'holons.session_id').value.string_value);
+  assert.deepEqual(attr(entry, 'lang_code').value, { string_value: 'en' });
+  assert.deepEqual(attr(entry, 'language').value, { string_value: 'English' });
+  assert.deepEqual(attr(entry, 'name').value, { string_value: 'Bob' });
+  assert.deepEqual(attr(entry, 'greeting').value, { string_value: 'Hello Bob' });
+  assert.deepEqual(attr(entry, 'transport').value, { string_value: 'unknown' });
+  assert.equal(Object.prototype.hasOwnProperty.call(attr(entry, 'duration_ns').value, 'int_value'), true);
+  assert.ok(Number(attr(entry, 'duration_ns').value.int_value) >= 0);
 });
+
+function attr(record, key) {
+  const found = (record.attributes || []).find((item) => item.key === key);
+  assert.ok(found, `missing attribute ${key}`);
+  return found;
+}

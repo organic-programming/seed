@@ -5,6 +5,7 @@
     "main": "src/index.js",
     "types": "src/index.d.ts",
     "scripts": {
+        "generate:protos": "node scripts/generate-protos.js",
         "test": "node --test tests/"
     },
     "keywords": [

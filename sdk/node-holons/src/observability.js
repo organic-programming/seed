@@ -1,21 +1,15 @@
 /**
- * @fileoverview Node.js reference implementation of the cross-SDK
- * observability layer. Mirrors sdk/go-holons/pkg/observability and the
- * Python port in sdk/python-holons/holons/observability.py.
- *
- * Activation follows the OP_OBS env discipline from OBSERVABILITY.md:
- * logs/metrics/events/prom are off by default; the parent launcher
- * turns families on; code tunes granularity within enabled families.
- * Zero cost when disabled — loggers and metrics return shared stubs.
+ * @fileoverview Node.js implementation of the cross-SDK observability layer.
+ * The wire shape mirrors holons/v1/observability.proto: logs and events are
+ * LogRecord values, metrics are Metric values.
  */
 
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-const crypto = require('crypto');
-const http = require('http');
+const fs = require('node:fs');
+const path = require('node:path');
+const http = require('node:http');
+const { AsyncLocalStorage } = require('node:async_hooks');
 const grpc = require('@grpc/grpc-js');
 
 const observabilityWire = require('./gen/holons/v1/observability');
@@ -27,17 +21,17 @@ const Family = Object.freeze({
   METRICS: 'metrics',
   EVENTS: 'events',
   PROM: 'prom',
-  OTEL: 'otel', // reserved v2
 });
 
 const V1_TOKENS = new Set(['logs', 'metrics', 'events', 'prom', 'all']);
 
 class InvalidTokenError extends Error {
-  constructor(token, reason) {
-    super(`OP_OBS: ${reason}: ${token}`);
+  constructor(token, reason, variable = 'OP_OBS') {
+    super(`${variable}: ${reason}: ${token}`);
     this.name = 'InvalidTokenError';
     this.token = token;
     this.reason = reason;
+    this.variable = variable;
   }
 }
 
@@ -47,12 +41,6 @@ function parseOpObs(raw) {
   for (const tokRaw of raw.split(',')) {
     const tok = tokRaw.trim();
     if (!tok) continue;
-    if (tok === 'otel') {
-      throw new InvalidTokenError('otel', 'otel export is reserved for v2; not implemented in v1');
-    }
-    if (tok === 'sessions') {
-      throw new InvalidTokenError('sessions', 'sessions are reserved for v2; not implemented in v1');
-    }
     if (!V1_TOKENS.has(tok)) {
       throw new InvalidTokenError(tok, 'unknown OP_OBS token');
     }
@@ -69,80 +57,237 @@ function parseOpObs(raw) {
 }
 
 function checkEnv(env = process.env) {
-  if ((env.OP_SESSIONS || '').trim()) {
-    throw new InvalidTokenError(env.OP_SESSIONS.trim(), 'sessions are reserved for v2; not implemented in v1');
-  }
   const raw = (env.OP_OBS || '').trim();
   if (!raw) return;
   for (const tokRaw of raw.split(',')) {
     const tok = tokRaw.trim();
     if (!tok) continue;
-    if (tok === 'otel') {
-      throw new InvalidTokenError('otel', 'otel export is reserved for v2; not implemented in v1');
-    }
-    if (tok === 'sessions') {
-      throw new InvalidTokenError('sessions', 'sessions are reserved for v2; not implemented in v1');
-    }
     if (!V1_TOKENS.has(tok)) {
       throw new InvalidTokenError(tok, 'unknown OP_OBS token');
     }
   }
 }
 
-// --- Levels ------------------------------------------------------------------
+// --- Severity and events ------------------------------------------------------
 
 const Level = Object.freeze({
-  UNSET: 0, TRACE: 1, DEBUG: 2, INFO: 3, WARN: 4, ERROR: 5, FATAL: 6,
+  UNSET: 0,
+  TRACE: 1,
+  DEBUG: 5,
+  INFO: 9,
+  WARN: 13,
+  ERROR: 17,
+  FATAL: 21,
 });
-const LEVEL_NAMES = { 1: 'TRACE', 2: 'DEBUG', 3: 'INFO', 4: 'WARN', 5: 'ERROR', 6: 'FATAL' };
-const PROTO_LEVEL_NAMES = {
-  0: 'LOG_LEVEL_UNSPECIFIED',
-  1: 'TRACE',
-  2: 'DEBUG',
-  3: 'INFO',
-  4: 'WARN',
-  5: 'ERROR',
-  6: 'FATAL',
-};
-function levelName(l) { return LEVEL_NAMES[l] || 'UNSPECIFIED'; }
 
-function parseLevel(s) {
-  if (!s) return Level.INFO;
-  const u = String(s).trim().toUpperCase();
-  return { TRACE: Level.TRACE, DEBUG: Level.DEBUG, INFO: Level.INFO,
-    WARN: Level.WARN, WARNING: Level.WARN,
-    ERROR: Level.ERROR, FATAL: Level.FATAL }[u] || Level.INFO;
-}
-
-// --- Event types -------------------------------------------------------------
-
-const EventType = Object.freeze({
-  UNSPECIFIED: 0,
-  INSTANCE_SPAWNED: 1, INSTANCE_READY: 2, INSTANCE_EXITED: 3, INSTANCE_CRASHED: 4,
-  SESSION_STARTED: 5, SESSION_ENDED: 6,
-  HANDLER_PANIC: 7, CONFIG_RELOADED: 8,
+const SEVERITY_TEXT = Object.freeze({
+  [Level.TRACE]: 'TRACE',
+  [Level.DEBUG]: 'DEBUG',
+  [Level.INFO]: 'INFO',
+  [Level.WARN]: 'WARN',
+  [Level.ERROR]: 'ERROR',
+  [Level.FATAL]: 'FATAL',
 });
-const EVENT_TYPE_NAMES = {
-  1: 'INSTANCE_SPAWNED', 2: 'INSTANCE_READY', 3: 'INSTANCE_EXITED', 4: 'INSTANCE_CRASHED',
-  5: 'SESSION_STARTED', 6: 'SESSION_ENDED', 7: 'HANDLER_PANIC', 8: 'CONFIG_RELOADED',
-};
-const PROTO_EVENT_TYPE_NAMES = {
-  0: 'EVENT_TYPE_UNSPECIFIED',
-  ...EVENT_TYPE_NAMES,
-};
-function eventTypeName(t) { return EVENT_TYPE_NAMES[t] || 'UNSPECIFIED'; }
 
-// --- Chain helpers -----------------------------------------------------------
+const SEVERITY_PROTO = Object.freeze({
+  [Level.UNSET]: 'SEVERITY_NUMBER_UNSPECIFIED',
+  [Level.TRACE]: 'SEVERITY_NUMBER_TRACE',
+  [Level.DEBUG]: 'SEVERITY_NUMBER_DEBUG',
+  [Level.INFO]: 'SEVERITY_NUMBER_INFO',
+  [Level.WARN]: 'SEVERITY_NUMBER_WARN',
+  [Level.ERROR]: 'SEVERITY_NUMBER_ERROR',
+  [Level.FATAL]: 'SEVERITY_NUMBER_FATAL',
+});
 
-function appendDirectChild(src, childSlug, childUid) {
-  return [...(src || []), { slug: childSlug, instance_uid: childUid }];
+const PROTO_TO_SEVERITY = Object.freeze(Object.fromEntries(
+  Object.entries(SEVERITY_PROTO).map(([value, name]) => [name, Number(value)]),
+));
+
+function levelName(level) {
+  return SEVERITY_TEXT[Number(level)] || 'UNSPECIFIED';
 }
 
-function enrichForMultilog(wire, streamSourceSlug, streamSourceUid) {
-  return appendDirectChild(wire, streamSourceSlug, streamSourceUid);
+function parseLevel(value) {
+  if (!value) return Level.INFO;
+  if (typeof value === 'number') return normalizeSeverity(value) || Level.INFO;
+  const upper = String(value).trim().toUpperCase();
+  return Level[upper] || PROTO_TO_SEVERITY[upper] || Level.INFO;
 }
 
-// --- Ring buffer for log entries --------------------------------------------
+function normalizeSeverity(value) {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const upper = value.trim().toUpperCase();
+    if (/^-?\d+$/.test(upper)) return Number(upper);
+    if (Object.prototype.hasOwnProperty.call(Level, upper)) return Level[upper];
+    if (Object.prototype.hasOwnProperty.call(PROTO_TO_SEVERITY, upper)) return PROTO_TO_SEVERITY[upper];
+    if (upper === 'WARNING') return Level.WARN;
+  }
+  return Level.UNSET;
+}
+
+const EventName = Object.freeze({
+  INSTANCE_SPAWNED: 'instance.spawned',
+  INSTANCE_READY: 'instance.ready',
+  INSTANCE_EXITED: 'instance.exited',
+  INSTANCE_CRASHED: 'instance.crashed',
+  SESSION_STARTED: 'session.started',
+  SESSION_ENDED: 'session.ended',
+  HANDLER_PANIC: 'handler.panic',
+  CONFIG_RELOADED: 'config.reloaded',
+});
+
+const CANONICAL_EVENT_NAMES = new Set(Object.values(EventName));
+
+function requireCanonicalEventName(value) {
+  const name = String(value || '').trim();
+  if (!CANONICAL_EVENT_NAMES.has(name)) {
+    throw new Error(`unknown observability event_name: ${name || '<empty>'}`);
+  }
+  return name;
+}
+
+// --- Attributes and AnyValue --------------------------------------------------
+
+const Attr = Object.freeze({
+  HOLONS_SLUG: 'holons.slug',
+  HOLONS_INSTANCE_UID: 'holons.instance_uid',
+  HOLONS_SESSION_ID: 'holons.session_id',
+  HOLONS_TRANSPORT: 'holons.transport',
+  SERVICE_NAME: 'service.name',
+  SERVICE_INSTANCE_ID: 'service.instance.id',
+  RPC_METHOD: 'rpc.method',
+  LOGGER_NAME: 'logger.name',
+  CODE_CALLER: 'code.caller',
+});
+
+const SYSTEM_ATTRIBUTES = new Set(Object.values(Attr));
+
+function toAnyValue(value) {
+  if (typeof value === 'boolean') return { bool_value: value };
+  if (typeof value === 'number') {
+    if (Number.isSafeInteger(value)) return { int_value: value };
+    return { double_value: value };
+  }
+  if (typeof value === 'string') return { string_value: value };
+  return { string_value: String(value) };
+}
+
+function keyValue(key, value) {
+  return { key: String(key), value: toAnyValue(value) };
+}
+
+function anyValueToString(value) {
+  if (!value) return '';
+  if (Object.prototype.hasOwnProperty.call(value, 'string_value')) return String(value.string_value || '');
+  if (Object.prototype.hasOwnProperty.call(value, 'bool_value')) return value.bool_value ? 'true' : 'false';
+  if (Object.prototype.hasOwnProperty.call(value, 'int_value')) return String(value.int_value);
+  if (Object.prototype.hasOwnProperty.call(value, 'double_value')) return String(value.double_value);
+  return '';
+}
+
+function anyValueRaw(value) {
+  if (!value) return '';
+  if (Object.prototype.hasOwnProperty.call(value, 'string_value')) return value.string_value || '';
+  if (Object.prototype.hasOwnProperty.call(value, 'bool_value')) return Boolean(value.bool_value);
+  if (Object.prototype.hasOwnProperty.call(value, 'int_value')) return Number(value.int_value);
+  if (Object.prototype.hasOwnProperty.call(value, 'double_value')) return Number(value.double_value);
+  return '';
+}
+
+function stringAttribute(attrsOrRecord, key) {
+  const attrs = Array.isArray(attrsOrRecord) ? attrsOrRecord : (attrsOrRecord && attrsOrRecord.attributes) || [];
+  for (const attr of attrs) {
+    if (attr && attr.key === key) return anyValueToString(attr.value);
+  }
+  return '';
+}
+
+function rawAttribute(attrsOrRecord, key) {
+  const attrs = Array.isArray(attrsOrRecord) ? attrsOrRecord : (attrsOrRecord && attrsOrRecord.attributes) || [];
+  for (const attr of attrs) {
+    if (attr && attr.key === key) return anyValueRaw(attr.value);
+  }
+  return '';
+}
+
+function userAttributes(record) {
+  const out = {};
+  for (const attr of (record && record.attributes) || []) {
+    if (!attr || SYSTEM_ATTRIBUTES.has(attr.key)) continue;
+    out[attr.key] = anyValueToString(attr.value);
+  }
+  return out;
+}
+
+function bodyString(record) {
+  return anyValueToString(record && record.body);
+}
+
+function resourceAttributes(cfg = {}, sessionId = '') {
+  const attrs = [];
+  const slug = String(cfg.slug || '').trim();
+  const uid = String(cfg.instanceUid || '').trim();
+  const session = String(sessionId || '').trim();
+  if (slug) {
+    attrs.push(keyValue(Attr.HOLONS_SLUG, slug));
+    attrs.push(keyValue(Attr.SERVICE_NAME, slug));
+  }
+  if (uid) {
+    attrs.push(keyValue(Attr.HOLONS_INSTANCE_UID, uid));
+    attrs.push(keyValue(Attr.SERVICE_INSTANCE_ID, uid));
+  }
+  if (session) {
+    attrs.push(keyValue(Attr.HOLONS_SESSION_ID, session));
+  }
+  return attrs;
+}
+
+function sortedObjectAttributes(values = {}, redact = new Set()) {
+  const attrs = [];
+  for (const key of Object.keys(values || {}).sort()) {
+    const value = values[key];
+    if (key === '__holons_private') continue;
+    if (redact.has ? redact.has(key) : false) attrs.push(keyValue(key, '<redacted>'));
+    else attrs.push(keyValue(key, value));
+  }
+  return attrs;
+}
+
+// --- Session context ----------------------------------------------------------
+
+const sessionContext = new AsyncLocalStorage();
+
+function currentSessionContext() {
+  const store = sessionContext.getStore() || {};
+  return {
+    sessionId: String(store.sessionId || store.session_id || ''),
+    rpcMethod: String(store.rpcMethod || store.rpc_method || ''),
+  };
+}
+
+function withSessionContext(context, fn) {
+  const normalized = {
+    sessionId: String((context && (context.sessionId || context.session_id)) || ''),
+    rpcMethod: String((context && (context.rpcMethod || context.rpc_method)) || ''),
+  };
+  return sessionContext.run(normalized, fn);
+}
+
+// --- Chain helpers ------------------------------------------------------------
+
+function appendDirectChild(src, childSlug) {
+  const chain = Array.isArray(src) ? [...src] : [];
+  const slug = String(childSlug || '').trim();
+  if (slug) chain.push(slug);
+  return chain;
+}
+
+function enrichForMultilog(wire, streamSourceSlug) {
+  return appendDirectChild(wire, streamSourceSlug);
+}
+
+// --- Ring buffer for LogRecord values ----------------------------------------
 
 class LogRing {
   constructor(capacity = 1024) {
@@ -150,17 +295,17 @@ class LogRing {
     this._buf = [];
     this._subs = [];
   }
-  push(entry) {
-    this._buf.push(entry);
+  push(record) {
+    this._buf.push(record);
     if (this._buf.length > this._capacity) {
       this._buf.splice(0, this._buf.length - this._capacity);
     }
     for (const fn of [...this._subs]) {
-      try { fn(entry); } catch (_) { /* ignore */ }
+      try { fn(record); } catch (_) { /* ignore subscriber failures */ }
     }
   }
   drain() { return [...this._buf]; }
-  drainSince(cutoff) { return this._buf.filter((e) => e.timestamp >= cutoff); }
+  drainSince(cutoffSeconds) { return this._buf.filter((record) => recordSeconds(record) >= cutoffSeconds); }
   subscribe(fn) {
     this._subs.push(fn);
     return () => {
@@ -177,8 +322,6 @@ class LogRing {
   get capacity() { return this._capacity; }
 }
 
-// --- Event bus ---------------------------------------------------------------
-
 class EventBus {
   constructor(capacity = 256) {
     this._capacity = Math.max(1, capacity);
@@ -186,18 +329,18 @@ class EventBus {
     this._subs = [];
     this._closed = false;
   }
-  emit(event) {
+  emit(record) {
     if (this._closed) return;
-    this._buf.push(event);
+    this._buf.push(record);
     if (this._buf.length > this._capacity) {
       this._buf.splice(0, this._buf.length - this._capacity);
     }
     for (const fn of [...this._subs]) {
-      try { fn(event); } catch (_) { /* ignore */ }
+      try { fn(record); } catch (_) { /* ignore subscriber failures */ }
     }
   }
   drain() { return [...this._buf]; }
-  drainSince(cutoff) { return this._buf.filter((e) => e.timestamp >= cutoff); }
+  drainSince(cutoffSeconds) { return this._buf.filter((record) => recordSeconds(record) >= cutoffSeconds); }
   subscribe(fn) {
     this._subs.push(fn);
     return () => {
@@ -225,7 +368,10 @@ class Counter {
     this.labels = { ...labels };
     this._v = 0;
   }
-  inc(n = 1) { if (n >= 0) this._v += n; }
+  inc(n = 1) {
+    const amount = Math.trunc(Number(n));
+    if (amount >= 0) this._v += amount;
+  }
   add(n) { this.inc(n); }
   value() { return this._v; }
 }
@@ -257,22 +403,34 @@ class Histogram {
     this._counts = new Array(this._bounds.length).fill(0);
     this._total = 0;
     this._sum = 0;
+    this._min = 0;
+    this._max = 0;
   }
-  observe(v) {
+  observe(value) {
+    const v = Number(value);
+    if (this._total === 0 || v < this._min) this._min = v;
+    if (this._total === 0 || v > this._max) this._max = v;
     this._total += 1;
     this._sum += v;
-    for (let i = 0; i < this._bounds.length; i++) {
+    for (let i = 0; i < this._bounds.length; i += 1) {
       if (v <= this._bounds[i]) this._counts[i] += 1;
     }
   }
   observeDuration(seconds) { this.observe(seconds); }
   snapshot() {
-    return { bounds: [...this._bounds], counts: [...this._counts], total: this._total, sum: this._sum };
+    return {
+      bounds: [...this._bounds],
+      counts: [...this._counts],
+      total: this._total,
+      sum: this._sum,
+      min: this._min,
+      max: this._max,
+    };
   }
   static quantile(snap, q) {
-    if (snap.total === 0) return NaN;
+    if (!snap || snap.total === 0) return NaN;
     const target = snap.total * q;
-    for (let i = 0; i < snap.counts.length; i++) {
+    for (let i = 0; i < snap.counts.length; i += 1) {
       if (snap.counts[i] >= target) return snap.bounds[i];
     }
     return Infinity;
@@ -312,26 +470,24 @@ class Registry {
   snapshot() {
     const counters = [...this._counters.values()]
       .map((c) => ({ name: c.name, help: c.help, labels: { ...c.labels }, value: c.value() }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort(compareMetricSamples);
     const gauges = [...this._gauges.values()]
       .map((g) => ({ name: g.name, help: g.help, labels: { ...g.labels }, value: g.value() }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort(compareMetricSamples);
     const histograms = [...this._histograms.values()]
       .map((h) => ({ name: h.name, help: h.help, labels: { ...h.labels }, snap: h.snapshot() }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort(compareMetricSamples);
     return { capturedAt: new Date(), counters, gauges, histograms };
   }
 }
 
-// --- Logger ------------------------------------------------------------------
-
-function stringify(v) {
-  if (v === null || v === undefined) return '';
-  if (typeof v === 'boolean') return v ? 'true' : 'false';
-  if (v instanceof Error) return v.message;
-  if (typeof v === 'object') try { return JSON.stringify(v); } catch (_) { return String(v); }
-  return String(v);
+function compareMetricSamples(a, b) {
+  const byName = a.name.localeCompare(b.name);
+  if (byName) return byName;
+  return JSON.stringify(a.labels || {}).localeCompare(JSON.stringify(b.labels || {}));
 }
+
+// --- Logger ------------------------------------------------------------------
 
 class Logger {
   constructor(obs, name) {
@@ -340,46 +496,45 @@ class Logger {
     this._level = obs ? obs.cfg.defaultLogLevel : Level.FATAL;
   }
   get name() { return this._name; }
-  setLevel(l) { this._level = l; }
-  enabled(l) { return this._obs && l >= this._level; }
+  setLevel(level) { this._level = normalizeSeverity(level) || Level.INFO; }
+  enabled(level) { return this._obs && normalizeSeverity(level) >= this._level; }
   _log(level, message, fields, options = {}) {
-    if (!this.enabled(level)) return;
+    const severity = normalizeSeverity(level);
+    if (!this.enabled(severity)) return;
     const redact = this._obs.cfg.redactedFields || new Set();
-    const outFields = {};
     let isPrivate = Boolean(options.private);
-    if (fields) {
-      for (const k of Object.keys(fields)) {
-        if (k === '__holons_private') {
-          isPrivate = isPrivate || Boolean(fields[k]);
-          continue;
-        }
-        if (redact.has ? redact.has(k) : redact.includes && redact.includes(k)) {
-          outFields[k] = '<redacted>';
-        } else {
-          outFields[k] = stringify(fields[k]);
-        }
+    const context = currentSessionContext();
+    const attrs = resourceAttributes(this._obs.cfg, context.sessionId || this._obs.cfg.sessionId);
+    if (this._name) attrs.push(keyValue(Attr.LOGGER_NAME, this._name));
+
+    for (const key of Object.keys(fields || {}).sort()) {
+      if (key === '__holons_private') {
+        isPrivate = isPrivate || Boolean(fields[key]);
+        continue;
       }
+      if (redact.has(key)) attrs.push(keyValue(key, '<redacted>'));
+      else attrs.push(keyValue(key, fields[key]));
     }
+    if (context.rpcMethod) attrs.push(keyValue(Attr.RPC_METHOD, context.rpcMethod));
     const caller = callerFrame();
-    const entry = {
-      timestamp: Date.now() / 1000,
-      level,
-      slug: this._obs.cfg.slug || '',
-      instance_uid: this._obs.cfg.instanceUid || '',
-      session_id: '', // P2 fills via async context when wired
-      rpc_method: '',
-      message,
-      fields: outFields,
-      caller,
+    if (caller) attrs.push(keyValue(Attr.CODE_CALLER, caller));
+
+    const now = nowUnixNanoString();
+    this._obs.logRing.push({
+      time_unix_nano: now,
+      observed_time_unix_nano: now,
+      severity_number: severity,
+      severity_text: levelName(severity),
+      body: { string_value: String(message) },
+      attributes: attrs,
       chain: [],
       private: isPrivate,
-    };
-    if (this._obs.logRing) this._obs.logRing.push(entry);
+    });
   }
   trace(msg, fields, options) { this._log(Level.TRACE, msg, fields, options); }
   debug(msg, fields, options) { this._log(Level.DEBUG, msg, fields, options); }
-  info(msg, fields, options)  { this._log(Level.INFO,  msg, fields, options); }
-  warn(msg, fields, options)  { this._log(Level.WARN,  msg, fields, options); }
+  info(msg, fields, options) { this._log(Level.INFO, msg, fields, options); }
+  warn(msg, fields, options) { this._log(Level.WARN, msg, fields, options); }
   error(msg, fields, options) { this._log(Level.ERROR, msg, fields, options); }
   fatal(msg, fields, options) { this._log(Level.FATAL, msg, fields, options); }
   private() { return new PrivateLogger(this); }
@@ -391,8 +546,8 @@ class PrivateLogger {
   }
   trace(msg, fields) { this._base.trace(msg, fields, { private: true }); }
   debug(msg, fields) { this._base.debug(msg, fields, { private: true }); }
-  info(msg, fields)  { this._base.info(msg, fields, { private: true }); }
-  warn(msg, fields)  { this._base.warn(msg, fields, { private: true }); }
+  info(msg, fields) { this._base.info(msg, fields, { private: true }); }
+  warn(msg, fields) { this._base.warn(msg, fields, { private: true }); }
   error(msg, fields) { this._base.error(msg, fields, { private: true }); }
   fatal(msg, fields) { this._base.fatal(msg, fields, { private: true }); }
 }
@@ -402,11 +557,9 @@ function Private(fields = {}) {
 }
 
 function callerFrame() {
-  // Best-effort file:line extraction from a fresh Error stack.
   const err = new Error();
   const stack = (err.stack || '').split('\n');
-  // Skip this function + Logger._log + level method + caller.
-  for (let i = 3; i < stack.length; i++) {
+  for (let i = 3; i < stack.length; i += 1) {
     const m = stack[i].match(/\(([^()]+):(\d+):\d+\)$/) || stack[i].match(/at ([^\s]+):(\d+):\d+/);
     if (m) return `${path.basename(m[1])}:${m[2]}`;
   }
@@ -418,7 +571,7 @@ const _disabledLogger = Object.freeze({
   _name: '',
   _level: Level.FATAL,
   enabled() { return false; },
-  setLevel() { /* noop */ },
+  setLevel() {},
   trace() {}, debug() {}, info() {}, warn() {}, error() {}, fatal() {},
   private() { return this; },
 });
@@ -433,6 +586,7 @@ class Observability {
     this.registry = families.has(Family.METRICS) ? new Registry() : null;
     this.eventBus = families.has(Family.EVENTS) ? new EventBus(cfg.eventsRingSize || 256) : null;
     this._loggers = new Map();
+    this.startUnixNano = cfg.startUnixNano || nowUnixNanoString();
   }
   enabled(family) { return this.families.has(family); }
   isOrganismRoot() {
@@ -440,44 +594,37 @@ class Observability {
   }
   logger(name) {
     if (!this.families.has(Family.LOGS)) return _disabledLogger;
-    let l = this._loggers.get(name);
-    if (!l) { l = new Logger(this, name); this._loggers.set(name, l); }
-    return l;
+    let logger = this._loggers.get(name);
+    if (!logger) { logger = new Logger(this, name); this._loggers.set(name, logger); }
+    return logger;
   }
   counter(name, help = '', labels = {}) { return this.registry ? this.registry.counter(name, help, labels) : null; }
   gauge(name, help = '', labels = {}) { return this.registry ? this.registry.gauge(name, help, labels) : null; }
   histogram(name, help = '', labels = {}, bounds = null) { return this.registry ? this.registry.histogram(name, help, labels, bounds) : null; }
-  emit(type, payload, options = {}) {
+  emit(eventName, payload, options = {}) {
     if (!this.eventBus) return;
+    const name = requireCanonicalEventName(eventName);
     const redact = this.cfg.redactedFields || new Set();
-    const p = {};
     let isPrivate = Boolean(options.private);
-    if (payload) {
-      for (const k of Object.keys(payload)) {
-        if (k === '__holons_private') {
-          isPrivate = isPrivate || Boolean(payload[k]);
-          continue;
-        }
-        if (redact.has ? redact.has(k) : (redact.includes && redact.includes(k))) {
-          p[k] = '<redacted>';
-        } else {
-          p[k] = stringify(payload[k]);
-        }
-      }
-    }
+    if (payload && Boolean(payload.__holons_private)) isPrivate = true;
+    const context = currentSessionContext();
+    const attrs = resourceAttributes(this.cfg, context.sessionId || this.cfg.sessionId);
+    attrs.push(...sortedObjectAttributes(payload || {}, redact));
+    const now = nowUnixNanoString();
     this.eventBus.emit({
-      timestamp: Date.now() / 1000,
-      type,
-      slug: this.cfg.slug || '',
-      instance_uid: this.cfg.instanceUid || '',
-      session_id: '',
-      payload: p,
+      time_unix_nano: now,
+      observed_time_unix_nano: now,
+      severity_number: Level.INFO,
+      severity_text: 'INFO',
+      body: { string_value: name },
+      attributes: attrs,
+      event_name: name,
       chain: [],
       private: isPrivate,
     });
   }
-  emitPrivate(type, payload) {
-    this.emit(type, payload, { private: true });
+  emitPrivate(eventName, payload) {
+    this.emit(eventName, payload, { private: true });
   }
   close() {
     if (this.eventBus) this.eventBus.close();
@@ -489,20 +636,22 @@ let _current = null;
 function configure(cfg = {}) {
   checkEnv();
   const slug = cfg.slug || (process.argv[1] ? path.basename(process.argv[1]) : '');
-  const instanceUid = cfg.instanceUid || crypto.randomUUID();
+  const instanceUid = cfg.instanceUid || '';
   const runRoot = cfg.runDir || '';
   const families = parseOpObs(process.env.OP_OBS || '');
   const normalized = {
     slug,
     instanceUid,
+    sessionId: cfg.sessionId || nowUnixNanoString(),
     organismUid: cfg.organismUid || '',
     organismSlug: cfg.organismSlug || '',
     promAddr: cfg.promAddr || '',
     runDir: runRoot ? deriveRunDir(runRoot, slug, instanceUid) : '',
-    defaultLogLevel: cfg.defaultLogLevel || Level.INFO,
+    defaultLogLevel: parseLevel(cfg.defaultLogLevel || Level.INFO),
     redactedFields: cfg.redactedFields ? new Set(cfg.redactedFields) : new Set(),
     logsRingSize: cfg.logsRingSize,
     eventsRingSize: cfg.eventsRingSize,
+    startUnixNano: nowUnixNanoString(),
   };
   const obs = new Observability(normalized, families);
   _current = obs;
@@ -522,8 +671,14 @@ function fromEnv(base = {}) {
 function current() {
   if (_current) return _current;
   return new Observability({
-    slug: '', instanceUid: '', organismUid: '', organismSlug: '',
-    defaultLogLevel: Level.FATAL, redactedFields: new Set(),
+    slug: '',
+    instanceUid: '',
+    sessionId: '',
+    organismUid: '',
+    organismSlug: '',
+    defaultLogLevel: Level.FATAL,
+    redactedFields: new Set(),
+    startUnixNano: nowUnixNanoString(),
   }, new Set());
 }
 
@@ -537,12 +692,26 @@ function deriveRunDir(root, slug, uid) {
   return path.join(root, slug, uid);
 }
 
-// --- Proto conversion + gRPC service ----------------------------------------
+// --- Proto conversion and gRPC service ---------------------------------------
 
-function timestamp(unixSeconds) {
-  const seconds = Math.trunc(Number(unixSeconds) || 0);
-  const nanos = Math.trunc(((Number(unixSeconds) || 0) - seconds) * 1_000_000_000);
-  return { seconds: String(seconds), nanos };
+function nowUnixNanoString() {
+  return String(BigInt(Date.now()) * 1000000n);
+}
+
+function dateToUnixNanoString(date) {
+  return String(BigInt(date.getTime()) * 1000000n);
+}
+
+function recordSeconds(record) {
+  const raw = record && record.time_unix_nano;
+  if (!raw) return 0;
+  return Number(BigInt(String(raw)) / 1000000000n);
+}
+
+function secondsToUnixNanoString(seconds) {
+  const whole = Math.trunc(Number(seconds) || 0);
+  const nanos = Math.trunc(((Number(seconds) || 0) - whole) * 1_000_000_000);
+  return String(BigInt(whole) * 1000000000n + BigInt(nanos));
 }
 
 function durationSeconds(duration) {
@@ -550,116 +719,122 @@ function durationSeconds(duration) {
   return Number(duration.seconds || 0) + Number(duration.nanos || 0) / 1e9;
 }
 
-function toProtoLogEntry(entry) {
-  return {
-    ts: timestamp(entry.timestamp),
-    level: PROTO_LEVEL_NAMES[entry.level] || 'LOG_LEVEL_UNSPECIFIED',
-    slug: entry.slug || '',
-    instance_uid: entry.instance_uid || '',
-    session_id: entry.session_id || '',
-    rpc_method: entry.rpc_method || '',
-    message: entry.message || '',
-    fields: { ...(entry.fields || {}) },
-    caller: entry.caller || '',
-    chain: (entry.chain || []).map((hop) => ({
-      slug: hop.slug || '',
-      instance_uid: hop.instance_uid || '',
-    })),
-  };
+function cloneAnyValue(value) {
+  if (!value) return undefined;
+  if (Object.prototype.hasOwnProperty.call(value, 'string_value')) return { string_value: String(value.string_value || '') };
+  if (Object.prototype.hasOwnProperty.call(value, 'bool_value')) return { bool_value: Boolean(value.bool_value) };
+  if (Object.prototype.hasOwnProperty.call(value, 'int_value')) return { int_value: value.int_value };
+  if (Object.prototype.hasOwnProperty.call(value, 'double_value')) return { double_value: Number(value.double_value) };
+  return undefined;
 }
 
-function fromProtoLogEntry(entry) {
-  return {
-    timestamp: fromProtoTimestamp(entry.ts),
-    level: normalizeLogLevel(entry.level),
-    slug: entry.slug || '',
-    instance_uid: entry.instance_uid || '',
-    session_id: entry.session_id || '',
-    rpc_method: entry.rpc_method || '',
-    message: entry.message || '',
-    fields: { ...(entry.fields || {}) },
-    caller: entry.caller || '',
-    chain: (entry.chain || []).map(fromProtoHop),
-  };
+function cloneAttributes(attrs) {
+  return (attrs || []).filter(Boolean).map((attr) => ({
+    key: String(attr.key || ''),
+    value: cloneAnyValue(attr.value) || { string_value: '' },
+  }));
 }
 
-function histogramToProto(snap) {
-  return {
-    buckets: (snap.bounds || []).map((upper, index) => ({
-      upper_bound: upper,
-      count: Number((snap.counts || [])[index] || 0),
-    })),
-    count: Number(snap.total || 0),
-    sum: Number(snap.sum || 0),
+function cloneLogRecord(record) {
+  const out = {
+    time_unix_nano: record && record.time_unix_nano ? String(record.time_unix_nano) : '0',
+    severity_number: normalizeSeverity(record && record.severity_number),
+    severity_text: String((record && record.severity_text) || levelName(normalizeSeverity(record && record.severity_number))),
+    body: cloneAnyValue(record && record.body) || { string_value: '' },
+    attributes: cloneAttributes(record && record.attributes),
+    dropped_attributes_count: Number((record && record.dropped_attributes_count) || 0),
+    flags: Number((record && record.flags) || 0),
+    trace_id: (record && record.trace_id) || Buffer.alloc(0),
+    span_id: (record && record.span_id) || Buffer.alloc(0),
+    observed_time_unix_nano: record && record.observed_time_unix_nano ? String(record.observed_time_unix_nano) : '0',
+    event_name: String((record && record.event_name) || ''),
+    chain: [...((record && record.chain) || [])].map(String),
   };
+  if (record && record.private) out.private = true;
+  return out;
 }
 
-function toProtoMetricSamples(snapshot) {
-  const samples = [];
-  for (const c of snapshot.counters || []) {
-    samples.push({
-      name: c.name,
-      help: c.help || '',
-      labels: { ...(c.labels || {}) },
-      counter: Number(c.value || 0),
+function toProtoLogRecord(record) {
+  const out = cloneLogRecord(record || {});
+  delete out.private;
+  return out;
+}
+
+function fromProtoLogRecord(record) {
+  return cloneLogRecord(record || {});
+}
+
+function histogramBucketCounts(snap) {
+  const cumulative = snap.counts || [];
+  const counts = [];
+  let prev = 0;
+  for (const count of cumulative) {
+    const delta = Math.max(0, Number(count || 0) - prev);
+    counts.push(delta);
+    prev = Number(count || 0);
+  }
+  counts.push(Math.max(0, Number(snap.total || 0) - prev));
+  return counts;
+}
+
+function toProtoMetrics(snapshot, cfg = {}, startUnixNano = '0') {
+  const out = [];
+  const timeUnixNano = dateToUnixNanoString(snapshot.capturedAt || new Date());
+  for (const counter of snapshot.counters || []) {
+    const attrs = [...resourceAttributes(cfg), ...sortedObjectAttributes(counter.labels || {})];
+    out.push({
+      name: counter.name,
+      description: counter.help || '',
+      sum: {
+        aggregation_temporality: 'AGGREGATION_TEMPORALITY_CUMULATIVE',
+        is_monotonic: true,
+        data_points: [{
+          start_time_unix_nano: startUnixNano,
+          time_unix_nano: timeUnixNano,
+          as_int: Math.trunc(Number(counter.value || 0)),
+          attributes: attrs,
+        }],
+      },
     });
   }
-  for (const g of snapshot.gauges || []) {
-    samples.push({
-      name: g.name,
-      help: g.help || '',
-      labels: { ...(g.labels || {}) },
-      gauge: Number(g.value || 0),
+  for (const gauge of snapshot.gauges || []) {
+    const attrs = [...resourceAttributes(cfg), ...sortedObjectAttributes(gauge.labels || {})];
+    out.push({
+      name: gauge.name,
+      description: gauge.help || '',
+      gauge: {
+        data_points: [{
+          start_time_unix_nano: startUnixNano,
+          time_unix_nano: timeUnixNano,
+          as_double: Number(gauge.value || 0),
+          attributes: attrs,
+        }],
+      },
     });
   }
-  for (const h of snapshot.histograms || []) {
-    samples.push({
-      name: h.name,
-      help: h.help || '',
-      labels: { ...(h.labels || {}) },
-      histogram: histogramToProto(h.snap || {}),
+  for (const histogram of snapshot.histograms || []) {
+    const snap = histogram.snap || {};
+    const attrs = [...resourceAttributes(cfg), ...sortedObjectAttributes(histogram.labels || {})];
+    out.push({
+      name: histogram.name,
+      description: histogram.help || '',
+      histogram: {
+        aggregation_temporality: 'AGGREGATION_TEMPORALITY_CUMULATIVE',
+        data_points: [{
+          start_time_unix_nano: startUnixNano,
+          time_unix_nano: timeUnixNano,
+          count: Number(snap.total || 0),
+          sum: Number(snap.sum || 0),
+          bucket_counts: histogramBucketCounts(snap),
+          explicit_bounds: [...(snap.bounds || [])],
+          attributes: attrs,
+          min: Number(snap.min || 0),
+          max: Number(snap.max || 0),
+        }],
+      },
     });
   }
-  return samples;
-}
-
-function toProtoEvent(event) {
-  return {
-    ts: timestamp(event.timestamp),
-    type: PROTO_EVENT_TYPE_NAMES[event.type] || 'EVENT_TYPE_UNSPECIFIED',
-    slug: event.slug || '',
-    instance_uid: event.instance_uid || '',
-    session_id: event.session_id || '',
-    payload: { ...(event.payload || {}) },
-    chain: (event.chain || []).map((hop) => ({
-      slug: hop.slug || '',
-      instance_uid: hop.instance_uid || '',
-    })),
-  };
-}
-
-function fromProtoEvent(event) {
-  return {
-    timestamp: fromProtoTimestamp(event.ts),
-    type: normalizeEventType(event.type),
-    slug: event.slug || '',
-    instance_uid: event.instance_uid || '',
-    session_id: event.session_id || '',
-    payload: { ...(event.payload || {}) },
-    chain: (event.chain || []).map(fromProtoHop),
-  };
-}
-
-function fromProtoHop(hop) {
-  return {
-    slug: hop.slug || '',
-    instance_uid: hop.instance_uid || '',
-  };
-}
-
-function fromProtoTimestamp(ts) {
-  if (!ts) return 0;
-  return Number(ts.seconds || 0) + Number(ts.nanos || 0) / 1e9;
+  return out;
 }
 
 function makeHolonObservabilityHandlers(obs = current()) {
@@ -670,30 +845,27 @@ function makeHolonObservabilityHandlers(obs = current()) {
         return;
       }
       const request = call.request || {};
-      const minLevel = requestMinLevel(request.min_level);
+      const minSeverity = normalizeSeverity(request.min_severity_number) || Level.INFO;
       const cutoff = request.since ? Date.now() / 1000 - durationSeconds(request.since) : 0;
+      const sessionIds = request.session_ids || [];
+      const rpcMethods = request.rpc_methods || [];
       if (!request.follow) {
-        const entries = cutoff ? obs.logRing.drainSince(cutoff) : obs.logRing.drain();
-        for (const entry of entries) {
-          if (matchLog(entry, minLevel, request.session_ids, request.rpc_methods, false)) {
-            call.write(toProtoLogEntry(entry));
-          }
+        const records = cutoff ? obs.logRing.drainSince(cutoff) : obs.logRing.drain();
+        for (const record of records) {
+          if (matchLog(record, minSeverity, sessionIds, rpcMethods)) call.write(toProtoLogRecord(record));
         }
         call.end();
         return;
       }
       let closed = false;
-      // Replay-then-live: snapshot and subscriber registration stay adjacent.
-      const { snapshot, stop } = obs.logRing.subscribeWithSnapshot((entry) => {
-        if (closed || !matchLog(entry, minLevel, request.session_ids, request.rpc_methods, true)) return;
-        call.write(toProtoLogEntry(entry));
+      const { snapshot, stop } = obs.logRing.subscribeWithSnapshot((record) => {
+        if (closed || !matchLog(record, minSeverity, sessionIds, rpcMethods)) return;
+        call.write(toProtoLogRecord(record));
       });
-      for (const entry of snapshot) {
+      for (const record of snapshot) {
         if (closed) break;
-        if (cutoff && entry.timestamp < cutoff) continue;
-        if (matchLog(entry, minLevel, request.session_ids, request.rpc_methods, true)) {
-          call.write(toProtoLogEntry(entry));
-        }
+        if (cutoff && recordSeconds(record) < cutoff) continue;
+        if (matchLog(record, minSeverity, sessionIds, rpcMethods)) call.write(toProtoLogRecord(record));
       }
       const cleanup = () => {
         if (closed) return;
@@ -705,24 +877,19 @@ function makeHolonObservabilityHandlers(obs = current()) {
       call.on('close', cleanup);
     },
 
-    Metrics(call, callback) {
+    Metrics(call) {
       if (!obs.enabled(Family.METRICS) || !obs.registry) {
-        callback(failedPrecondition('metrics family is not enabled (OP_OBS)'));
+        failStream(call, 'metrics family is not enabled (OP_OBS)');
         return;
       }
       const request = call.request || {};
-      const snapshot = obs.registry.snapshot();
-      let samples = toProtoMetricSamples(snapshot);
+      let metrics = toProtoMetrics(obs.registry.snapshot(), obs.cfg, obs.startUnixNano);
       if (request.name_prefixes && request.name_prefixes.length) {
         const prefixes = request.name_prefixes.filter(Boolean);
-        samples = samples.filter((sample) => prefixes.some((prefix) => sample.name.startsWith(prefix)));
+        metrics = metrics.filter((metric) => prefixes.some((prefix) => metric.name.startsWith(prefix)));
       }
-      callback(null, {
-        captured_at: timestamp(snapshot.capturedAt.getTime() / 1000),
-        slug: obs.cfg.slug || '',
-        instance_uid: obs.cfg.instanceUid || '',
-        samples,
-      });
+      for (const metric of metrics) call.write(metric);
+      call.end();
     },
 
     Events(call) {
@@ -731,30 +898,25 @@ function makeHolonObservabilityHandlers(obs = current()) {
         return;
       }
       const request = call.request || {};
-      const wanted = new Set((request.types || []).map(normalizeEventType));
+      const wanted = new Set((request.event_names || []).filter(Boolean));
       const cutoff = request.since ? Date.now() / 1000 - durationSeconds(request.since) : 0;
       if (!request.follow) {
-        const events = cutoff ? obs.eventBus.drainSince(cutoff) : obs.eventBus.drain();
-        for (const event of events) {
-          if (matchEvent(event, wanted, false)) {
-            call.write(toProtoEvent(event));
-          }
+        const records = cutoff ? obs.eventBus.drainSince(cutoff) : obs.eventBus.drain();
+        for (const record of records) {
+          if (matchEvent(record, wanted)) call.write(toProtoLogRecord(record));
         }
         call.end();
         return;
       }
       let closed = false;
-      // Replay-then-live: snapshot and subscriber registration stay adjacent.
-      const { snapshot, stop } = obs.eventBus.subscribeWithSnapshot((event) => {
-        if (closed || !matchEvent(event, wanted, true)) return;
-        call.write(toProtoEvent(event));
+      const { snapshot, stop } = obs.eventBus.subscribeWithSnapshot((record) => {
+        if (closed || !matchEvent(record, wanted)) return;
+        call.write(toProtoLogRecord(record));
       });
-      for (const event of snapshot) {
+      for (const record of snapshot) {
         if (closed) break;
-        if (cutoff && event.timestamp < cutoff) continue;
-        if (matchEvent(event, wanted, true)) {
-          call.write(toProtoEvent(event));
-        }
+        if (cutoff && recordSeconds(record) < cutoff) continue;
+        if (matchEvent(record, wanted)) call.write(toProtoLogRecord(record));
       }
       const cleanup = () => {
         if (closed) return;
@@ -772,41 +934,18 @@ function registerService(server, obs = current()) {
   server.addService(observabilityWire.HOLON_OBSERVABILITY_SERVICE_DEF, makeHolonObservabilityHandlers(obs));
 }
 
-function requestMinLevel(value) {
-  const level = normalizeLogLevel(value);
-  return level || Level.INFO;
-}
-
-function normalizeLogLevel(value) {
-  if (typeof value === 'number') return value;
-  if (typeof value === 'string') {
-    if (Object.prototype.hasOwnProperty.call(Level, value)) return Level[value];
-    if (value === 'LOG_LEVEL_UNSPECIFIED') return Level.UNSET;
-  }
-  return Level.UNSET;
-}
-
-function normalizeEventType(value) {
-  if (typeof value === 'number') return value;
-  if (typeof value === 'string') {
-    if (Object.prototype.hasOwnProperty.call(EventType, value)) return EventType[value];
-    if (value === 'EVENT_TYPE_UNSPECIFIED') return EventType.UNSPECIFIED;
-  }
-  return EventType.UNSPECIFIED;
-}
-
-function matchLog(entry, minLevel, sessionIds, rpcMethods, follow = false) {
-  if (follow && entry.private) return false;
-  if (entry.level < minLevel) return false;
-  if (sessionIds && sessionIds.length && !sessionIds.includes(entry.session_id || '')) return false;
-  if (rpcMethods && rpcMethods.length && !rpcMethods.includes(entry.rpc_method || '')) return false;
+function matchLog(record, minSeverity, sessionIds, rpcMethods) {
+  if (record.private) return false;
+  if (normalizeSeverity(record.severity_number) < minSeverity) return false;
+  if (sessionIds && sessionIds.length && !sessionIds.includes(stringAttribute(record, Attr.HOLONS_SESSION_ID))) return false;
+  if (rpcMethods && rpcMethods.length && !rpcMethods.includes(stringAttribute(record, Attr.RPC_METHOD))) return false;
   return true;
 }
 
-function matchEvent(event, wanted, follow = false) {
-  if (follow && event.private) return false;
+function matchEvent(record, wanted) {
+  if (record.private) return false;
   if (!wanted || wanted.size === 0) return true;
-  return wanted.has(Number(event.type || 0));
+  return wanted.has(record.event_name || '');
 }
 
 function failedPrecondition(message) {
@@ -825,7 +964,7 @@ function failStream(call, message) {
   call.emit('error', err);
 }
 
-// --- Prometheus exposition --------------------------------------------------
+// --- Prometheus exposition ----------------------------------------------------
 
 class PromServer {
   constructor(addr = ':0') {
@@ -980,7 +1119,7 @@ function formatPromFloat(value) {
   return String(number);
 }
 
-// --- Member observability relay --------------------------------------------
+// --- Member observability relay ---------------------------------------------
 
 class MemberRelay {
   constructor({ childSlug, childUid, client, observability = current(), retryDelayMs = 2000 }) {
@@ -1019,9 +1158,9 @@ class MemberRelay {
     stream.on('data', (proto) => {
       const obs = this.observability;
       if (!obs.enabled(Family.LOGS) || !obs.logRing) return;
-      const entry = fromProtoLogEntry(proto);
-      entry.chain = appendDirectChild(entry.chain, this.childSlug, this.childUid);
-      obs.logRing.push(entry);
+      const record = fromProtoLogRecord(proto);
+      record.chain = appendDirectChild(record.chain, this.childSlug);
+      obs.logRing.push(record);
     });
     stream.on('error', restart);
     stream.on('end', restart);
@@ -1039,9 +1178,9 @@ class MemberRelay {
     stream.on('data', (proto) => {
       const obs = this.observability;
       if (!obs.enabled(Family.EVENTS) || !obs.eventBus) return;
-      const event = fromProtoEvent(proto);
-      event.chain = appendDirectChild(event.chain, this.childSlug, this.childUid);
-      obs.eventBus.emit(event);
+      const record = fromProtoLogRecord(proto);
+      record.chain = appendDirectChild(record.chain, this.childSlug);
+      obs.eventBus.emit(record);
     });
     stream.on('error', restart);
     stream.on('end', restart);
@@ -1049,7 +1188,7 @@ class MemberRelay {
   }
 }
 
-// --- Disk writers -----------------------------------------------------------
+// --- Disk writers ------------------------------------------------------------
 
 function enableDiskWriters(runDir) {
   const obs = _current;
@@ -1058,39 +1197,55 @@ function enableDiskWriters(runDir) {
   fs.mkdirSync(runDir, { recursive: true });
   if (obs.enabled(Family.LOGS) && obs.logRing) {
     const fp = path.join(runDir, 'stdout.log');
-    obs.logRing.subscribe((e) => {
-      const rec = {
-        kind: 'log',
-        ts: new Date(e.timestamp * 1000).toISOString(),
-        level: levelName(e.level),
-        slug: e.slug,
-        instance_uid: e.instance_uid,
-        message: e.message,
-      };
-      if (e.session_id) rec.session_id = e.session_id;
-      if (e.rpc_method) rec.rpc_method = e.rpc_method;
-      if (Object.keys(e.fields || {}).length) rec.fields = e.fields;
-      if (e.caller) rec.caller = e.caller;
-      if (e.chain && e.chain.length) rec.chain = e.chain;
+    obs.logRing.subscribe((record) => {
+      const rec = logDiskRecord(record);
       try { fs.appendFileSync(fp, JSON.stringify(rec) + '\n'); } catch (_) {}
     });
   }
   if (obs.enabled(Family.EVENTS) && obs.eventBus) {
     const fp = path.join(runDir, 'events.jsonl');
-    obs.eventBus.subscribe((e) => {
-      const rec = {
-        kind: 'event',
-        ts: new Date(e.timestamp * 1000).toISOString(),
-        type: eventTypeName(e.type),
-        slug: e.slug,
-        instance_uid: e.instance_uid,
-      };
-      if (e.session_id) rec.session_id = e.session_id;
-      if (Object.keys(e.payload || {}).length) rec.payload = e.payload;
-      if (e.chain && e.chain.length) rec.chain = e.chain;
+    obs.eventBus.subscribe((record) => {
+      const rec = eventDiskRecord(record);
       try { fs.appendFileSync(fp, JSON.stringify(rec) + '\n'); } catch (_) {}
     });
   }
+}
+
+function logDiskRecord(record) {
+  const rec = {
+    kind: 'log',
+    ts: new Date(recordSeconds(record) * 1000).toISOString(),
+    level: record.severity_text || levelName(record.severity_number),
+    slug: stringAttribute(record, Attr.HOLONS_SLUG),
+    instance_uid: stringAttribute(record, Attr.HOLONS_INSTANCE_UID),
+    message: bodyString(record),
+  };
+  const sessionId = stringAttribute(record, Attr.HOLONS_SESSION_ID);
+  const rpcMethod = stringAttribute(record, Attr.RPC_METHOD);
+  const caller = stringAttribute(record, Attr.CODE_CALLER);
+  const fields = userAttributes(record);
+  if (sessionId) rec.session_id = sessionId;
+  if (rpcMethod) rec.rpc_method = rpcMethod;
+  if (Object.keys(fields).length) rec.fields = fields;
+  if (caller) rec.caller = caller;
+  if (record.chain && record.chain.length) rec.chain = record.chain;
+  return rec;
+}
+
+function eventDiskRecord(record) {
+  const rec = {
+    kind: 'event',
+    ts: new Date(recordSeconds(record) * 1000).toISOString(),
+    event_name: record.event_name || '',
+    slug: stringAttribute(record, Attr.HOLONS_SLUG),
+    instance_uid: stringAttribute(record, Attr.HOLONS_INSTANCE_UID),
+  };
+  const sessionId = stringAttribute(record, Attr.HOLONS_SESSION_ID);
+  const payload = userAttributes(record);
+  if (sessionId) rec.session_id = sessionId;
+  if (Object.keys(payload).length) rec.payload = payload;
+  if (record.chain && record.chain.length) rec.chain = record.chain;
+  return rec;
 }
 
 function writeMetaJson(runDir, meta) {
@@ -1108,18 +1263,51 @@ function readMetaJson(runDir) {
 }
 
 module.exports = {
-  Family, Level, EventType, InvalidTokenError,
-  Counter, Gauge, Histogram, Registry, LogRing, EventBus,
-  Logger, Observability, Private,
-  MemberRelay, PromServer,
-  parseOpObs, checkEnv, parseLevel, levelName, eventTypeName,
-  appendDirectChild, enrichForMultilog,
-  configure, fromEnv, current, reset,
+  Family,
+  Level,
+  EventName,
+  Attr,
+  InvalidTokenError,
+  Counter,
+  Gauge,
+  Histogram,
+  Registry,
+  LogRing,
+  EventBus,
+  Logger,
+  Observability,
+  Private,
+  MemberRelay,
+  PromServer,
+  parseOpObs,
+  checkEnv,
+  parseLevel,
+  levelName,
+  appendDirectChild,
+  enrichForMultilog,
+  configure,
+  fromEnv,
+  current,
+  reset,
   deriveRunDir,
-  fromProtoLogEntry, fromProtoEvent,
-  toProtoLogEntry, toProtoMetricSamples, toProtoEvent,
+  withSessionContext,
+  currentSessionContext,
+  toAnyValue,
+  keyValue,
+  anyValueToString,
+  rawAttribute,
+  stringAttribute,
+  userAttributes,
+  bodyString,
+  resourceAttributes,
+  fromProtoLogRecord,
+  toProtoLogRecord,
+  toProtoMetrics,
   toPrometheusText,
-  makeHolonObservabilityHandlers, registerService,
-  enableDiskWriters, writeMetaJson, readMetaJson,
+  makeHolonObservabilityHandlers,
+  registerService,
+  enableDiskWriters,
+  writeMetaJson,
+  readMetaJson,
   DEFAULT_BUCKETS,
 };

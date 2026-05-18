@@ -49,6 +49,7 @@ async function listenAndServe(listenUri, reflect = false) {
     server.addService(grpcPb.GreetingServiceService, new GreetingService());
   }, {
     reflect,
+    slug: 'gabriel-greeting-node',
     logger: console,
   });
 }

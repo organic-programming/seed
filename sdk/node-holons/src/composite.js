@@ -236,7 +236,7 @@ async function readLogs(options) {
     }
     const client = new ObservabilityClient(target, grpc.credentials.createInsecure());
     try {
-        return await collectStream(client.Logs.bind(client), { min_level: 'INFO', follow: false }, 2000);
+        return await collectStream(client.Logs.bind(client), { min_severity_number: observability.Level.INFO, follow: false }, 2000);
     } finally {
         client.close();
     }
@@ -262,8 +262,8 @@ function matchRelayedLog(entries, options) {
     const leafUID = options.leafUID || options.LeafUID || '';
     const expected = options.expectedChain || options.ExpectedChain || [];
     for (const entry of entries) {
-        if (entry.message !== 'tick received') continue;
-        if ((entry.fields || {}).sender !== sender || (entry.fields || {}).responder_uid !== leafUID) continue;
+        if (observability.bodyString(entry) !== 'tick received') continue;
+        if (observability.stringAttribute(entry, 'sender') !== sender || observability.stringAttribute(entry, 'responder_uid') !== leafUID) continue;
         const evidence = compareChain(entry.chain || [], expected);
         if (evidence) return { pass: false, evidence: compactEvidence(`matching log bad chain: ${evidence}`) };
         return { pass: true, evidence: JSON.stringify(entry) };
@@ -272,16 +272,16 @@ function matchRelayedLog(entries, options) {
 }
 
 function matchRelayedEvent(events, options) {
-    const typ = normalizeEventType(options.eventType || options.EventType || observability.EventType.INSTANCE_READY);
+    const eventName = normalizeEventName(options.eventName || options.EventName || observability.EventName.INSTANCE_READY);
     const leafUID = options.leafUID || options.LeafUID || '';
     const expected = options.expectedChain || options.ExpectedChain || [];
     for (const event of events) {
-        if (normalizeEventType(event.type) !== typ || event.instance_uid !== leafUID) continue;
+        if ((event.event_name || '') !== eventName || observability.stringAttribute(event, observability.Attr.HOLONS_INSTANCE_UID) !== leafUID) continue;
         const evidence = compareChain(event.chain || [], expected);
         if (evidence) return { pass: false, evidence: compactEvidence(`matching event bad chain: ${evidence}`) };
         return { pass: true, evidence: JSON.stringify(event) };
     }
-    return { pass: false, evidence: compactEvidence(`no relayed ${eventTypeName(typ)} event leaf_uid=${leafUID} events=${events.length}`) };
+    return { pass: false, evidence: compactEvidence(`no relayed ${eventName} event leaf_uid=${leafUID} events=${events.length}`) };
 }
 
 function listenURIForSpawn(transport, uid) {
@@ -358,17 +358,19 @@ async function resolveRelayIdentity(target, desc) {
     try {
         const events = await collectStream(client.Events.bind(client), { follow: false }, 1000).catch(() => []);
         for (const event of events) {
-            if ((event.chain || []).length === 0 && event.instance_uid) {
-                return { slug: event.slug || slugFromDescribe(desc), uid: event.instance_uid };
+            const uid = observability.stringAttribute(event, observability.Attr.HOLONS_INSTANCE_UID);
+            if ((event.chain || []).length === 0 && uid) {
+                return { slug: observability.stringAttribute(event, observability.Attr.HOLONS_SLUG) || slugFromDescribe(desc), uid };
             }
         }
         const logs = await collectStream(client.Logs.bind(client), { follow: false }, 1000).catch(() => []);
         for (const entry of logs) {
-            if ((entry.chain || []).length === 0 && entry.instance_uid) {
-                return { slug: entry.slug || slugFromDescribe(desc), uid: entry.instance_uid };
+            const uid = observability.stringAttribute(entry, observability.Attr.HOLONS_INSTANCE_UID);
+            if ((entry.chain || []).length === 0 && uid) {
+                return { slug: observability.stringAttribute(entry, observability.Attr.HOLONS_SLUG) || slugFromDescribe(desc), uid };
             }
         }
-        throw new Error('peer did not expose a local log or event with slug and instance_uid');
+        throw new Error('peer did not expose a local log or event with holons.slug and holons.instance_uid');
     } finally {
         client.close();
     }
@@ -437,27 +439,24 @@ function targetFromOptions(options) {
 function compareChain(got, want) {
     if (got.length !== want.length) return `chain length ${got.length} want ${want.length}`;
     for (let i = 0; i < want.length; i += 1) {
-        const g = got[i];
+        const g = String(got[i] || '');
         const w = want[i];
-        const wantSlug = w.slug || w.Slug || '';
-        const wantUID = w.instance_uid || w.instanceUid || w.InstanceUID || w.uid || w.UID || '';
-        if ((g.slug || '') !== wantSlug || (g.instance_uid || '') !== wantUID) {
-            return `hop ${i}=${g.slug || ''}/${g.instance_uid || ''} want ${wantSlug}/${wantUID}`;
+        const wantSlug = typeof w === 'string' ? w : (w.slug || w.Slug || '');
+        if (g !== wantSlug) {
+            return `hop ${i}=${g} want ${wantSlug}`;
         }
     }
     return '';
 }
 
-function normalizeEventType(value) {
-    if (typeof value === 'number') return value;
-    if (typeof value === 'string' && Object.prototype.hasOwnProperty.call(observability.EventType, value)) {
-        return observability.EventType[value];
+function normalizeEventName(value) {
+    if (typeof value === 'string' && Object.values(observability.EventName).includes(value)) {
+        return value;
     }
-    return observability.EventType.INSTANCE_READY;
-}
-
-function eventTypeName(value) {
-    return Object.entries(observability.EventType).find(([, number]) => number === value)?.[0] || String(value);
+    if (typeof value === 'string' && Object.prototype.hasOwnProperty.call(observability.EventName, value)) {
+        return observability.EventName[value];
+    }
+    return observability.EventName.INSTANCE_READY;
 }
 
 function slugFromDescribe(desc) {

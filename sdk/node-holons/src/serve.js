@@ -146,7 +146,7 @@ function startObservabilityRuntime(obs, publicURI, transportName, metricsAddr = 
     if (!obs.cfg.runDir) return;
     observability.enableDiskWriters(obs.cfg.runDir);
     if (obs.enabled(observability.Family.EVENTS)) {
-        obs.emit(observability.EventType.INSTANCE_READY, {
+        obs.emit(observability.EventName.INSTANCE_READY, {
             listener: publicURI,
             metrics_addr: metricsAddr || '',
         });
@@ -253,13 +253,14 @@ function normalizeMemberRef(raw) {
 async function resolveRelayMemberIdentity(client, member) {
     if (member.uid) return member;
     try {
-        const events = await collectStream(client.Events.bind(client), { types: ['INSTANCE_READY'], follow: false }, 2000);
+        const events = await collectStream(client.Events.bind(client), { event_names: [observability.EventName.INSTANCE_READY], follow: false }, 2000);
         for (const event of events) {
-            if (event.instance_uid && !(event.chain || []).length) {
+            const uid = observability.stringAttribute(event, observability.Attr.HOLONS_INSTANCE_UID);
+            if (uid && !(event.chain || []).length) {
                 return {
                     ...member,
-                    slug: String(event.slug || '').trim() || member.slug,
-                    uid: String(event.instance_uid || '').trim(),
+                    slug: observability.stringAttribute(event, observability.Attr.HOLONS_SLUG) || member.slug,
+                    uid,
                 };
             }
         }
@@ -267,13 +268,20 @@ async function resolveRelayMemberIdentity(client, member) {
         // fall back to Metrics
     }
     try {
-        const snapshot = await unary(client.Metrics.bind(client), {}, 2000);
-        if (snapshot.instance_uid) {
-            return {
-                ...member,
-                slug: String(snapshot.slug || '').trim() || member.slug,
-                uid: String(snapshot.instance_uid || '').trim(),
-            };
+        const metrics = await collectStream(client.Metrics.bind(client), {}, 2000);
+        for (const metric of metrics) {
+            const attrs = metric.sum?.data_points?.[0]?.attributes
+                || metric.gauge?.data_points?.[0]?.attributes
+                || metric.histogram?.data_points?.[0]?.attributes
+                || [];
+            const uid = observability.stringAttribute(attrs, observability.Attr.HOLONS_INSTANCE_UID);
+            if (uid) {
+                return {
+                    ...member,
+                    slug: observability.stringAttribute(attrs, observability.Attr.HOLONS_SLUG) || member.slug,
+                    uid,
+                };
+            }
         }
     } catch {
         // leave unresolved
@@ -297,17 +305,6 @@ function collectStream(method, request, timeoutMs) {
         stream.on('end', () => {
             clearTimeout(timer);
             resolve(out);
-        });
-    });
-}
-
-function unary(method, request, timeoutMs) {
-    return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error('timeout')), timeoutMs);
-        method(request, (err, out) => {
-            clearTimeout(timer);
-            if (err) reject(err);
-            else resolve(out || {});
         });
     });
 }
