@@ -351,6 +351,9 @@ typedef struct {
 const char *holons_default_uri(void);
 holons_scheme_t holons_scheme_from_uri(const char *uri);
 const char *holons_scheme_name(holons_scheme_t scheme);
+const char *holons_current_transport(void);
+int holons_set_current_transport_from_uri(const char *uri, char *err, size_t err_len);
+void holons_clear_current_transport(void);
 
 int holons_parse_flags(int argc, char **argv, char *out_uri, size_t out_uri_len);
 int holons_parse_uri(const char *uri, holons_uri_t *out, char *err, size_t err_len);

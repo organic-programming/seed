@@ -4,9 +4,8 @@
  *
  * C programs get the core activation model (OP_OBS parsing +
  * zero-cost disabled), a structured log API with six levels,
- * atomic counters, and JSONL disk output. Histograms / prom HTTP /
- * organism relay land as follow-ups once the C SDK core has its
- * transport-level hooks ready.
+ * typed OTLP-shaped attributes, atomic counters, gauges, histograms,
+ * and JSONL disk output.
  */
 
 #ifndef HOLON_OBSERVABILITY_H
@@ -26,15 +25,15 @@ extern "C" {
 #define HOLON_FAMILY_PROM    0x08u
 #define HOLON_FAMILY_OTEL    0x10u /* reserved v2 */
 
-/* Levels mirror the proto LogLevel enum. */
+/* Levels mirror the proto SeverityNumber enum values emitted by the SDK. */
 typedef enum {
     HOLON_LEVEL_UNSET = 0,
     HOLON_LEVEL_TRACE = 1,
-    HOLON_LEVEL_DEBUG = 2,
-    HOLON_LEVEL_INFO  = 3,
-    HOLON_LEVEL_WARN  = 4,
-    HOLON_LEVEL_ERROR = 5,
-    HOLON_LEVEL_FATAL = 6,
+    HOLON_LEVEL_DEBUG = 5,
+    HOLON_LEVEL_INFO  = 9,
+    HOLON_LEVEL_WARN  = 13,
+    HOLON_LEVEL_ERROR = 17,
+    HOLON_LEVEL_FATAL = 21,
 } holon_level_t;
 
 /* Event types mirror the proto EventType enum. */
@@ -50,10 +49,103 @@ typedef enum {
     HOLON_EVENT_CONFIG_RELOADED  = 8,
 } holon_event_type_t;
 
+#define HOLON_EVENT_NAME_INSTANCE_SPAWNED "instance.spawned"
+#define HOLON_EVENT_NAME_INSTANCE_READY   "instance.ready"
+#define HOLON_EVENT_NAME_INSTANCE_EXITED  "instance.exited"
+#define HOLON_EVENT_NAME_INSTANCE_CRASHED "instance.crashed"
+#define HOLON_EVENT_NAME_SESSION_STARTED  "session.started"
+#define HOLON_EVENT_NAME_SESSION_ENDED    "session.ended"
+#define HOLON_EVENT_NAME_HANDLER_PANIC    "handler.panic"
+#define HOLON_EVENT_NAME_CONFIG_RELOADED  "config.reloaded"
+
+typedef enum {
+    HOLONS_ANYVALUE_STRING = 1,
+    HOLONS_ANYVALUE_BOOL = 2,
+    HOLONS_ANYVALUE_INT = 3,
+    HOLONS_ANYVALUE_DOUBLE = 4,
+} holons_anyvalue_type_t;
+
+typedef struct {
+    holons_anyvalue_type_t type;
+    union {
+        const char *string_value;
+        int bool_value;
+        int64_t int_value;
+        double double_value;
+    } value;
+} holons_anyvalue_t;
+
+typedef struct {
+    const char *key;
+    holons_anyvalue_t value;
+} holons_field_t;
+
+typedef struct {
+    unsigned char *data;
+    size_t len;
+} holons_packed_message_t;
+
+static inline holons_anyvalue_t holons_anyvalue_string(const char *value) {
+    holons_anyvalue_t out;
+    out.type = HOLONS_ANYVALUE_STRING;
+    out.value.string_value = value;
+    return out;
+}
+
+static inline holons_anyvalue_t holons_anyvalue_bool(int value) {
+    holons_anyvalue_t out;
+    out.type = HOLONS_ANYVALUE_BOOL;
+    out.value.bool_value = value != 0;
+    return out;
+}
+
+static inline holons_anyvalue_t holons_anyvalue_int(int64_t value) {
+    holons_anyvalue_t out;
+    out.type = HOLONS_ANYVALUE_INT;
+    out.value.int_value = value;
+    return out;
+}
+
+static inline holons_anyvalue_t holons_anyvalue_double(double value) {
+    holons_anyvalue_t out;
+    out.type = HOLONS_ANYVALUE_DOUBLE;
+    out.value.double_value = value;
+    return out;
+}
+
+static inline holons_field_t holons_field_string(const char *key, const char *value) {
+    holons_field_t out;
+    out.key = key;
+    out.value = holons_anyvalue_string(value);
+    return out;
+}
+
+static inline holons_field_t holons_field_bool(const char *key, int value) {
+    holons_field_t out;
+    out.key = key;
+    out.value = holons_anyvalue_bool(value);
+    return out;
+}
+
+static inline holons_field_t holons_field_int(const char *key, int64_t value) {
+    holons_field_t out;
+    out.key = key;
+    out.value = holons_anyvalue_int(value);
+    return out;
+}
+
+static inline holons_field_t holons_field_double(const char *key, double value) {
+    holons_field_t out;
+    out.key = key;
+    out.value = holons_anyvalue_double(value);
+    return out;
+}
+
 /* Configuration passed to holon_obs_configure. */
 typedef struct {
     const char *slug;
     const char *instance_uid;
+    const char *session_id;
     const char *organism_uid;
     const char *organism_slug;
     const char *run_dir;
@@ -98,20 +190,30 @@ int holon_obs_current_run_dir(char *out, size_t out_len);
 int holon_obs_enabled(uint32_t family);
 
 /*
- * Structured logging. `fields` is an optional NULL-terminated array of
- * alternating key / value C strings (keys ending the array with NULL).
- * When `fields == NULL` or an empty list, no fields are emitted. The
- * call is a no-op when the level is below the configured threshold or
- * logs are disabled.
+ * Structured logging. Prefer the `_fields` variants for typed attributes.
+ * The legacy functions accept an optional NULL-terminated alternating
+ * key/value C string array and emit every value as string_value.
  */
 void holon_obs_log(holon_level_t level, const char *message, const char *const *fields);
 void holon_obs_log_named(const char *logger_name,
                          holon_level_t level,
                          const char *message,
                          const char *const *fields);
+void holon_obs_log_fields(holon_level_t level,
+                          const char *message,
+                          const holons_field_t *fields,
+                          size_t field_count);
+void holon_obs_log_named_fields(const char *logger_name,
+                                holon_level_t level,
+                                const char *message,
+                                const holons_field_t *fields,
+                                size_t field_count);
 
-/* Emits a lifecycle event. `payload` has the same alternating-kv shape. */
+/* Emits a lifecycle event. Prefer `_fields` for typed payload attributes. */
 void holon_obs_emit(holon_event_type_t type, const char *const *payload);
+void holon_obs_emit_fields(holon_event_type_t type,
+                           const holons_field_t *payload,
+                           size_t payload_count);
 
 /*
  * Atomic counter increment. Name must be a stable C string. Labels are
@@ -136,6 +238,25 @@ int64_t holon_obs_counter_value(const char *name, const char *const *labels);
 void holon_obs_gauge_set(const char *name, const char *const *labels, double v);
 void holon_obs_gauge_add(const char *name, const char *const *labels, double d);
 double holon_obs_gauge_value(const char *name, const char *const *labels);
+
+void holon_obs_histogram_observe(const char *name,
+                                 const char *help,
+                                 const char *const *labels,
+                                 double v);
+
+int holon_obs_pack_log_record(holon_level_t level,
+                              const char *message,
+                              const holons_field_t *fields,
+                              size_t field_count,
+                              unsigned char **out,
+                              size_t *out_len);
+int holon_obs_pack_event_record(holon_event_type_t type,
+                                const holons_field_t *payload,
+                                size_t payload_count,
+                                unsigned char **out,
+                                size_t *out_len);
+int holon_obs_snapshot_metrics(holons_packed_message_t **out, size_t *out_count);
+void holon_obs_free_packed_messages(holons_packed_message_t *messages, size_t count);
 
 /*
  * Enables disk writers under run_dir/stdout.log and run_dir/events.jsonl.

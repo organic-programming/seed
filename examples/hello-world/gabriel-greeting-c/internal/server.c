@@ -8,7 +8,6 @@
 
 #include <ctype.h>
 #include <errno.h>
-#include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -78,8 +77,7 @@ static void emit_greeting_observability(
     const greeting_v1_SayHelloRequest *request,
     const greeting_v1_SayHelloResponse *response, upb_Arena *arena,
     int64_t start_ns) {
-  /* C Serve does not yet expose a handler-visible current transport. */
-  const char *transport = "unknown";
+  const char *transport = holons_current_transport();
   const char *lang_code =
       arena_copy_view_z(arena, greeting_v1_SayHelloResponse_lang_code(response));
   const char *language =
@@ -88,28 +86,22 @@ static void emit_greeting_observability(
       arena_copy_view_z(arena, greeting_v1_SayHelloResponse_greeting(response));
   const char *name = resolved_name(request, arena);
   const int64_t duration_ns = monotonic_nanos() - start_ns;
-  char duration_text[32];
   const char *message =
       arena_format_greeting_message(arena, name, language, lang_code);
-  const char *fields[13];
+  holons_field_t fields[6];
   const char *labels[7];
 
-  snprintf(duration_text, sizeof(duration_text), "%" PRId64, duration_ns);
+  if (transport == NULL || transport[0] == '\0') {
+    transport = "unknown";
+  }
 
-  fields[0] = "lang_code";
-  fields[1] = lang_code;
-  fields[2] = "language";
-  fields[3] = language;
-  fields[4] = "name";
-  fields[5] = name;
-  fields[6] = "greeting";
-  fields[7] = greeting;
-  fields[8] = "transport";
-  fields[9] = transport;
-  fields[10] = "duration_ns";
-  fields[11] = duration_text;
-  fields[12] = NULL;
-  holon_obs_log_named("greeting", HOLON_LEVEL_INFO, message, fields);
+  fields[0] = holons_field_string("lang_code", lang_code);
+  fields[1] = holons_field_string("language", language);
+  fields[2] = holons_field_string("name", name);
+  fields[3] = holons_field_string("greeting", greeting);
+  fields[4] = holons_field_string("transport", transport);
+  fields[5] = holons_field_int("duration_ns", duration_ns);
+  holon_obs_log_named_fields("greeting", HOLON_LEVEL_INFO, message, fields, 6);
 
   labels[0] = "lang_code";
   labels[1] = lang_code;
@@ -147,6 +139,8 @@ static greeting_v1_SayHelloResponse *gabriel_greeting_c_handle_say_hello(
 int gabriel_greeting_c_serve(const char *listen_uri, FILE *stderr_stream) {
   gabriel_greeting_c_handlers_t handlers;
   holons_grpc_serve_options_t options;
+  holons_grpc_observability_options_t obs_options;
+  holon_obs_config_t obs_config;
   char err[256];
   int rc;
 
@@ -160,8 +154,25 @@ int gabriel_greeting_c_serve(const char *listen_uri, FILE *stderr_stream) {
   options.enable_reflection = 0;
   options.graceful_shutdown_timeout_ms = 10000;
 
+  memset(&obs_config, 0, sizeof(obs_config));
+  obs_config.slug = "gabriel-greeting-c";
+  obs_config.default_log_level = HOLON_LEVEL_INFO;
+  (void)holon_obs_configure(&obs_config);
+
+  obs_options.slug = "gabriel-greeting-c";
+  obs_options.member_endpoints = NULL;
+  obs_options.member_endpoint_count = 0;
+  (void)holons_grpc_set_observability_options(&obs_options);
+  if (holons_set_current_transport_from_uri(listen_uri, err, sizeof(err)) != 0) {
+    fprintf(stderr_stream, "serve: %s\n", err);
+    holons_grpc_clear_observability_options();
+    return 1;
+  }
+
   rc = gabriel_greeting_c_generated_serve(listen_uri, &handlers, &options, err,
                                           sizeof(err));
+  holons_clear_current_transport();
+  holons_grpc_clear_observability_options();
 
   if (rc != 0) {
     fprintf(stderr_stream, "serve: %s\n", err);
