@@ -12,23 +12,9 @@ on:
         description: bouquet name under ader/bouquets/
         required: false
         default: local-dev
-      release_version:
-        description: seed_release version to publish from this dispatched run
-        required: false
-        default: ''
-      publish_set_json:
-        description: JSON SDK list for release-intent.json, for example ["c","cpp"]
-        required: false
-        default: ''
-      source_run_id:
-        description: pipeline run ID that requested this release build
-        required: false
-        default: ''
-      source_commit:
-        description: commit SHA that requested this release build
-        required: false
-        default: ''
 
+# cancel-in-progress prevents wasting runner time on superseded master runs.
+# publish-sdk-releases still enforces freshness before bumping or publishing.
 concurrency:
   group: pipeline-${{ github.ref }}
   cancel-in-progress: true
@@ -611,45 +597,51 @@ jobs:
           echo "sdks=${sdks}" >>"$GITHUB_OUTPUT"
           echo "SDK publish set: ${sdks}"
 
-  release-intent:
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.release_version != ''
+  compute-target-version:
     runs-on: ubuntu-latest
     needs: gate-7-classify-changes
+    outputs:
+      version: ${{ steps.compute.outputs.version }}
     steps:
-      - name: Write release-intent.json
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute target SDK version
+        id: compute
         shell: bash
         run: |
           set -euo pipefail
-          publish_set='${{ github.event.inputs.publish_set_json }}'
-          if [[ -z "$publish_set" ]]; then
-            publish_set='["c","cpp","csharp","dart","go","java","js","js-web","kotlin","python","ruby","rust","swift","zig"]'
-          fi
-          jq -e . <<<"$publish_set" >/dev/null
-          # Schema consumed by sdk-prebuilts.yml workflow_run promotion:
-          # { version, publish_set, source_run_id, source_commit }
-          jq -n \
-            --arg version "${{ github.event.inputs.release_version }}" \
-            --arg source_run_id "${{ github.event.inputs.source_run_id }}" \
-            --arg source_commit "${{ github.event.inputs.source_commit }}" \
-            --argjson publish_set "$publish_set" \
-            '{
-              version: $version,
-              publish_set: $publish_set,
-              source_run_id: $source_run_id,
-              source_commit: $source_commit
-            }' > release-intent.json
-          cat release-intent.json
+          current="$(go run .github/scripts/seed_release_bump.go read seed-toolchain.yaml)"
 
-      - name: Upload release intent
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-intent
-          path: release-intent.json
-          if-no-files-found: error
-          retention-days: 7
+          # PR, workflow_dispatch, or non-publishing push: build at current version.
+          if [[ "${{ github.event_name }}" != "push" || "${{ github.ref }}" != "refs/heads/master" || "${{ needs.gate-7-classify-changes.outputs.sdk_source }}" != "true" ]]; then
+            echo "Non-publishing event; target_version=$current"
+            echo "version=$current" >>"$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Manual seed_release bump landed in this push: build at the explicit version.
+          previous=""
+          previous_yaml="$RUNNER_TEMP/previous-seed-toolchain.yaml"
+          if git show "${{ github.event.before }}:seed-toolchain.yaml" >"$previous_yaml" 2>/dev/null; then
+            previous="$(go run .github/scripts/seed_release_bump.go read "$previous_yaml" 2>/dev/null || true)"
+          fi
+          if [[ -n "$previous" && "$current" != "$previous" ]]; then
+            echo "Manual seed_release bump detected ($previous -> $current); target_version=$current"
+            echo "version=$current" >>"$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Auto-bump master: compute next patch; publish-sdk-releases will write it to seed-toolchain.yaml.
+          next="$(go run .github/scripts/seed_release_bump.go next-patch "$current")"
+          echo "Auto-bump target: $current -> $next"
+          echo "version=$next" >>"$GITHUB_OUTPUT"
 
   sdk-build-zig:
-    needs: gate-7-classify-changes
+    needs:
+      - gate-7-classify-changes
+      - compute-target-version
     if: needs.gate-7-classify-changes.outputs.sdk_source == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     strategy:
       fail-fast: false
@@ -675,12 +667,15 @@ jobs:
     uses: ./.github/workflows/_sdk-prebuilt-target.yml
     with:
       sdk: zig
+      sdk-version: ${{ needs.compute-target-version.outputs.version }}
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
       continue-on-error: ${{ matrix.continue_on_error || false }}
 
   sdk-build-cpp:
-    needs: gate-7-classify-changes
+    needs:
+      - gate-7-classify-changes
+      - compute-target-version
     if: needs.gate-7-classify-changes.outputs.sdk_source == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     strategy:
       fail-fast: false
@@ -706,12 +701,15 @@ jobs:
     uses: ./.github/workflows/_sdk-prebuilt-target.yml
     with:
       sdk: cpp
+      sdk-version: ${{ needs.compute-target-version.outputs.version }}
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
       continue-on-error: ${{ matrix.continue_on_error || false }}
 
   sdk-build-c:
-    needs: sdk-build-cpp
+    needs:
+      - compute-target-version
+      - sdk-build-cpp
     strategy:
       fail-fast: false
       matrix:
@@ -736,13 +734,16 @@ jobs:
     uses: ./.github/workflows/_sdk-prebuilt-target.yml
     with:
       sdk: c
+      sdk-version: ${{ needs.compute-target-version.outputs.version }}
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
       continue-on-error: ${{ matrix.continue_on_error || false }}
       needs-cpp-prefix: true
 
   sdk-build-ruby:
-    needs: sdk-build-cpp
+    needs:
+      - compute-target-version
+      - sdk-build-cpp
     strategy:
       fail-fast: false
       matrix:
@@ -767,13 +768,16 @@ jobs:
     uses: ./.github/workflows/_sdk-prebuilt-target.yml
     with:
       sdk: ruby
+      sdk-version: ${{ needs.compute-target-version.outputs.version }}
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
       continue-on-error: ${{ matrix.continue_on_error || false }}
       needs-cpp-prefix: true
 
   sdk-build-go:
-    needs: gate-7-classify-changes
+    needs:
+      - gate-7-classify-changes
+      - compute-target-version
     if: needs.gate-7-classify-changes.outputs.sdk_source == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     strategy:
       fail-fast: false
@@ -784,11 +788,14 @@ jobs:
     uses: ./.github/workflows/_sdk-prebuilt-target.yml
     with:
       sdk: go
+      sdk-version: ${{ needs.compute-target-version.outputs.version }}
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
 
   sdk-build-rust:
-    needs: gate-7-classify-changes
+    needs:
+      - gate-7-classify-changes
+      - compute-target-version
     if: needs.gate-7-classify-changes.outputs.sdk_source == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     strategy:
       fail-fast: false
@@ -799,11 +806,14 @@ jobs:
     uses: ./.github/workflows/_sdk-prebuilt-target.yml
     with:
       sdk: rust
+      sdk-version: ${{ needs.compute-target-version.outputs.version }}
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
 
   sdk-build-python:
-    needs: sdk-build-cpp
+    needs:
+      - compute-target-version
+      - sdk-build-cpp
     strategy:
       fail-fast: false
       matrix:
@@ -813,12 +823,15 @@ jobs:
     uses: ./.github/workflows/_sdk-prebuilt-target.yml
     with:
       sdk: python
+      sdk-version: ${{ needs.compute-target-version.outputs.version }}
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
       needs-cpp-prefix: true
 
   sdk-build-csharp:
-    needs: sdk-build-cpp
+    needs:
+      - compute-target-version
+      - sdk-build-cpp
     strategy:
       fail-fast: false
       matrix:
@@ -828,12 +841,15 @@ jobs:
     uses: ./.github/workflows/_sdk-prebuilt-target.yml
     with:
       sdk: csharp
+      sdk-version: ${{ needs.compute-target-version.outputs.version }}
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
       needs-cpp-prefix: true
 
   sdk-build-java:
-    needs: gate-7-classify-changes
+    needs:
+      - gate-7-classify-changes
+      - compute-target-version
     if: needs.gate-7-classify-changes.outputs.sdk_source == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     strategy:
       fail-fast: false
@@ -844,11 +860,14 @@ jobs:
     uses: ./.github/workflows/_sdk-prebuilt-target.yml
     with:
       sdk: java
+      sdk-version: ${{ needs.compute-target-version.outputs.version }}
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
 
   sdk-build-kotlin:
-    needs: gate-7-classify-changes
+    needs:
+      - gate-7-classify-changes
+      - compute-target-version
     if: needs.gate-7-classify-changes.outputs.sdk_source == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     strategy:
       fail-fast: false
@@ -859,11 +878,14 @@ jobs:
     uses: ./.github/workflows/_sdk-prebuilt-target.yml
     with:
       sdk: kotlin
+      sdk-version: ${{ needs.compute-target-version.outputs.version }}
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
 
   sdk-build-dart:
-    needs: gate-7-classify-changes
+    needs:
+      - gate-7-classify-changes
+      - compute-target-version
     if: needs.gate-7-classify-changes.outputs.sdk_source == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     strategy:
       fail-fast: false
@@ -874,11 +896,14 @@ jobs:
     uses: ./.github/workflows/_sdk-prebuilt-target.yml
     with:
       sdk: dart
+      sdk-version: ${{ needs.compute-target-version.outputs.version }}
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
 
   sdk-build-swift:
-    needs: gate-7-classify-changes
+    needs:
+      - gate-7-classify-changes
+      - compute-target-version
     if: needs.gate-7-classify-changes.outputs.sdk_source == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     strategy:
       fail-fast: false
@@ -889,11 +914,14 @@ jobs:
     uses: ./.github/workflows/_sdk-prebuilt-target.yml
     with:
       sdk: swift
+      sdk-version: ${{ needs.compute-target-version.outputs.version }}
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
 
   sdk-build-js-web:
-    needs: gate-7-classify-changes
+    needs:
+      - gate-7-classify-changes
+      - compute-target-version
     if: needs.gate-7-classify-changes.outputs.sdk_source == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     strategy:
       fail-fast: false
@@ -904,11 +932,14 @@ jobs:
     uses: ./.github/workflows/_sdk-prebuilt-target.yml
     with:
       sdk: js-web
+      sdk-version: ${{ needs.compute-target-version.outputs.version }}
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
 
   sdk-build-js:
-    needs: sdk-build-cpp
+    needs:
+      - compute-target-version
+      - sdk-build-cpp
     strategy:
       fail-fast: false
       matrix:
@@ -918,6 +949,7 @@ jobs:
     uses: ./.github/workflows/_sdk-prebuilt-target.yml
     with:
       sdk: js
+      sdk-version: ${{ needs.compute-target-version.outputs.version }}
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
       needs-cpp-prefix: true
@@ -1851,11 +1883,12 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
 
-  auto-bump-seed-release:
-    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.gate-7-classify-changes.outputs.sdk_source == 'true' && needs.fresh-sdk-delivery.result == 'success' && needs.composite-swiftui-full.result == 'success' && needs.composite-flutter-full.result == 'success' && needs.observability-cascade-ader-suite.result == 'success' && needs.ader-bouquet-full.result == 'success' && needs.sdk-deep-tests.result == 'success'
+  publish-sdk-releases:
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.gate-7-classify-changes.outputs.sdk_source == 'true' && needs.compute-target-version.result == 'success' && needs.fresh-sdk-delivery.result == 'success' && needs.composite-swiftui-full.result == 'success' && needs.composite-flutter-full.result == 'success' && needs.observability-cascade-ader-suite.result == 'success' && needs.ader-bouquet-full.result == 'success' && needs.sdk-deep-tests.result == 'success'
     runs-on: ubuntu-latest
     needs:
       - gate-7-classify-changes
+      - compute-target-version
       - fresh-sdk-delivery
       - composite-swiftui-full
       - composite-flutter-full
@@ -1863,10 +1896,10 @@ jobs:
       - ader-bouquet-full
       - sdk-deep-tests
     permissions:
-      actions: write
+      actions: read
       contents: write
     concurrency:
-      group: auto-bump-seed-release
+      group: publish-sdk-releases
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
@@ -1874,67 +1907,84 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.SEED_AUTOBUMP_TOKEN }}
 
-      - name: Bump seed_release patch on master
+      - name: Write target seed_release to master
         id: bump
         shell: bash
         run: |
           set -euo pipefail
+          target_version="${{ needs.compute-target-version.outputs.version }}"
+          if [[ -z "$target_version" ]]; then
+            echo "::error::compute-target-version produced an empty version" >&2
+            exit 1
+          fi
           git config user.name "seed-auto-bump"
           git config user.email "seed-auto-bump@users.noreply.github.com"
 
-          manual_bump=false
-          next=""
-          commit_sha=""
-          for attempt in 1 2 3 4 5; do
-            git fetch origin master
-            git checkout master
-            git reset --hard origin/master
+          git fetch origin master
+          master_tip="$(git rev-parse origin/master)"
+          master_yaml="$RUNNER_TEMP/origin-master-seed-toolchain.yaml"
+          git show "origin/master:seed-toolchain.yaml" >"$master_yaml"
+          master_seed_release="$(go run .github/scripts/seed_release_bump.go read "$master_yaml")"
 
-            current="$(go run .github/scripts/seed_release_bump.go read seed-toolchain.yaml)"
-            if [[ "$attempt" == "1" ]]; then
-              previous="$(git show "${{ github.event.before }}:seed-toolchain.yaml" 2>/dev/null | grep -E '^seed_release:' | sed -E 's/^seed_release:[[:space:]]*"?([^"#[:space:]]+)"?.*/\1/' || true)"
-              if [[ -n "$previous" && "$current" != "$previous" ]]; then
-                manual_bump=true
-                next="$current"
-                commit_sha="$(git rev-parse HEAD)"
-                echo "Manual seed_release bump detected (${previous} -> ${current}); skipping auto-bump."
-                break
+          if [[ "$master_seed_release" == "$target_version" ]]; then
+            # Master may already be at the target because this run was triggered by a
+            # manual bump, or because a previous attempt pushed the exact bump commit.
+            # Anything else means the artifacts were built from a commit that no longer
+            # matches the release target.
+            if [[ "$master_tip" != "${{ github.sha }}" ]]; then
+              master_parent_count="$(git rev-list --parents -n 1 "$master_tip" | awk '{print NF - 1}')"
+              master_parent="$(git rev-parse "${master_tip}^" 2>/dev/null || true)"
+              master_subject="$(git log -1 --format=%s "$master_tip")"
+              master_changed_files="$(git diff-tree --no-commit-id --name-only -r "$master_tip")"
+              expected_subject="ci: bump seed_release to ${target_version} [skip ci]"
+              if [[ "$master_parent_count" != "1" || "$master_parent" != "${{ github.sha }}" || "$master_subject" != "$expected_subject" || "$master_changed_files" != "seed-toolchain.yaml" ]]; then
+                echo "::error::origin/master is already at seed_release=${target_version}, but tip ${master_tip} is not this run's commit or its seed_release bump." >&2
+                echo "::error::SDK artifacts were built against ${{ github.sha }}; refusing to publish against an unrelated master tip." >&2
+                exit 1
               fi
             fi
-
-            bump_output="$(go run .github/scripts/seed_release_bump.go bump-file seed-toolchain.yaml)"
-            next="$(sed -n 's/^next=//p' <<<"$bump_output")"
-            git add seed-toolchain.yaml
-            git commit -m "ci: bump seed_release to ${next} [skip ci]"
-
-            if git push origin HEAD:master; then
-              commit_sha="$(git rev-parse HEAD)"
-              echo "Pushed seed_release ${current} -> ${next} on attempt ${attempt}."
-              break
-            fi
-
-            if [[ "$attempt" == "5" ]]; then
-              echo "::error::Failed to push seed_release bump after 5 attempts." >&2
+            release_sha="$master_tip"
+            echo "origin/master already at seed_release=${target_version}; no commit needed."
+          else
+            # We need to push a bump. Freshness guard: origin/master must still be at
+            # the commit that triggered this run, otherwise the SDK artifacts were built
+            # against a stale master and we refuse to bump.
+            if [[ "$master_tip" != "${{ github.sha }}" ]]; then
+              echo "::error::origin/master tip is ${master_tip} but this run was triggered by ${{ github.sha }}." >&2
+              echo "::error::SDK artifacts were built against ${{ github.sha }}; refusing to bump a master that has moved on." >&2
               exit 1
             fi
-            echo "Push rejected on attempt ${attempt}; retrying after re-sync."
-          done
 
-          echo "manual_bump=${manual_bump}" >>"$GITHUB_OUTPUT"
-          echo "version=${next}" >>"$GITHUB_OUTPUT"
-          echo "commit=${commit_sha}" >>"$GITHUB_OUTPUT"
+            git checkout master 2>/dev/null || git checkout -B master origin/master
+            git reset --hard origin/master
+            go run .github/scripts/seed_release_bump.go set-file seed-toolchain.yaml "$target_version"
+            git add seed-toolchain.yaml
+            git commit -m "ci: bump seed_release to ${target_version} [skip ci]"
 
-      - name: Dispatch release build for bumped seed_release
-        if: steps.bump.outputs.manual_bump != 'true'
+            if ! git push origin HEAD:master; then
+              echo "::error::Failed to push seed_release bump; another run likely raced us." >&2
+              exit 1
+            fi
+            release_sha="$(git rev-parse HEAD)"
+            echo "Pushed seed_release ${master_seed_release} -> ${target_version}."
+          fi
+
+          echo "release_sha=${release_sha}" >>"$GITHUB_OUTPUT"
+          echo "Release target commit: ${release_sha}"
+
+      - name: Download SDK artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: sdk-*
+          path: ${{ runner.temp }}/sdk-prebuilt-artifacts
+
+      - name: Publish SDK releases
         env:
           GH_TOKEN: ${{ secrets.SEED_AUTOBUMP_TOKEN }}
+          GITHUB_SHA: ${{ steps.bump.outputs.release_sha }}
+          SDK_PREBUILTS_PROMOTE_SDKS_JSON: ${{ needs.gate-7-classify-changes.outputs.publish_set }}
+          SDK_PREBUILTS_EXPECT_VERSION: ${{ needs.compute-target-version.outputs.version }}
         shell: bash
         run: |
           set -euo pipefail
-          publish_set='["c","cpp","csharp","dart","go","java","js","js-web","kotlin","python","ruby","rust","swift","zig"]'
-          gh workflow run pipeline.yml \
-            --ref master \
-            -f release_version="${{ steps.bump.outputs.version }}" \
-            -f publish_set_json="$publish_set" \
-            -f source_run_id="${{ github.run_id }}" \
-            -f source_commit="${{ steps.bump.outputs.commit }}"
+          .github/scripts/promote-sdk-prebuilts.sh "$RUNNER_TEMP/sdk-prebuilt-artifacts"

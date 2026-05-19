@@ -100,6 +100,14 @@ jobs:
           go-version: '1.26.1'
           cache: false
 
+      - name: Patch local seed-toolchain.yaml with target SDK version
+        if: inputs.sdk-version != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          go run .github/scripts/seed_release_bump.go set-file seed-toolchain.yaml "${{ inputs.sdk-version }}"
+          echo "Patched seed-toolchain.yaml seed_release to ${{ inputs.sdk-version }} for build."
+
       - name: Resolve Go cache paths
         id: go-cache-paths
         shell: bash
@@ -215,9 +223,9 @@ jobs:
             sdk/ruby-holons/.ruby-prebuilt/${{ inputs.sdk-target }}
             sdk/${{ inputs.sdk }}-holons/.codegen-prebuilt/${{ inputs.sdk-target }}
             dist/sdk-prebuilts/${{ inputs.sdk }}/${{ inputs.sdk-target }}
-          key: sdk-prebuilt-${{ inputs.sdk }}-${{ inputs.sdk-target }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('seed-toolchain.yaml', '.github/scripts/build-prebuilt-*.sh', '.github/scripts/lib-codegen-prebuilt.sh', '.github/scripts/go.mod', '.github/scripts/go.sum', '.github/scripts/seed_toolchain.go', '.github/scripts/seed_toolchain/**', 'holons/grace-op/cmd/protoc-gen-op-adapter/**', 'holons/grace-op/cmd/protoc-gen-op-noop/**', 'sdk/zig-holons/build.zig', 'sdk/zig-holons/tools/cross_smoke.sh', 'sdk/cpp-holons/CMakeLists.txt', 'sdk/c-holons/Makefile', 'sdk/ruby-holons/Gemfile', 'sdk/ruby-holons/Gemfile.lock', '.gitmodules') }}
+          key: sdk-prebuilt-${{ inputs.sdk }}-${{ inputs.sdk-target }}-v${{ inputs.sdk-version || 'default' }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('seed-toolchain.yaml', '.github/scripts/build-prebuilt-*.sh', '.github/scripts/lib-codegen-prebuilt.sh', '.github/scripts/go.mod', '.github/scripts/go.sum', '.github/scripts/seed_toolchain.go', '.github/scripts/seed_toolchain/**', 'holons/grace-op/cmd/protoc-gen-op-adapter/**', 'holons/grace-op/cmd/protoc-gen-op-noop/**', 'sdk/zig-holons/build.zig', 'sdk/zig-holons/tools/cross_smoke.sh', 'sdk/cpp-holons/CMakeLists.txt', 'sdk/c-holons/Makefile', 'sdk/ruby-holons/Gemfile', 'sdk/ruby-holons/Gemfile.lock', '.gitmodules') }}
           restore-keys: |
-            sdk-prebuilt-${{ inputs.sdk }}-${{ inputs.sdk-target }}-${{ runner.os }}-${{ runner.arch }}-
+            sdk-prebuilt-${{ inputs.sdk }}-${{ inputs.sdk-target }}-v${{ inputs.sdk-version || 'default' }}-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Download cpp prefix artifact
         if: inputs.needs-cpp-prefix
@@ -285,4 +293,4 @@ jobs:
             sdk/ruby-holons/.ruby-prebuilt/${{ inputs.sdk-target }}
             sdk/${{ inputs.sdk }}-holons/.codegen-prebuilt/${{ inputs.sdk-target }}
             dist/sdk-prebuilts/${{ inputs.sdk }}/${{ inputs.sdk-target }}
-          key: sdk-prebuilt-${{ inputs.sdk }}-${{ inputs.sdk-target }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('seed-toolchain.yaml', '.github/scripts/build-prebuilt-*.sh', '.github/scripts/lib-codegen-prebuilt.sh', '.github/scripts/go.mod', '.github/scripts/go.sum', '.github/scripts/seed_toolchain.go', '.github/scripts/seed_toolchain/**', 'holons/grace-op/cmd/protoc-gen-op-adapter/**', 'holons/grace-op/cmd/protoc-gen-op-noop/**', 'sdk/zig-holons/build.zig', 'sdk/zig-holons/tools/cross_smoke.sh', 'sdk/cpp-holons/CMakeLists.txt', 'sdk/c-holons/Makefile', 'sdk/ruby-holons/Gemfile', 'sdk/ruby-holons/Gemfile.lock', '.gitmodules') }}
+          key: sdk-prebuilt-${{ inputs.sdk }}-${{ inputs.sdk-target }}-v${{ inputs.sdk-version || 'default' }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('seed-toolchain.yaml', '.github/scripts/build-prebuilt-*.sh', '.github/scripts/lib-codegen-prebuilt.sh', '.github/scripts/go.mod', '.github/scripts/go.sum', '.github/scripts/seed_toolchain.go', '.github/scripts/seed_toolchain/**', 'holons/grace-op/cmd/protoc-gen-op-adapter/**', 'holons/grace-op/cmd/protoc-gen-op-noop/**', 'sdk/zig-holons/build.zig', 'sdk/zig-holons/tools/cross_smoke.sh', 'sdk/cpp-holons/CMakeLists.txt', 'sdk/c-holons/Makefile', 'sdk/ruby-holons/Gemfile', 'sdk/ruby-holons/Gemfile.lock', '.gitmodules') }}
