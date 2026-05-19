@@ -4,7 +4,7 @@ package ader.v1;
 
 import "holons/v1/manifest.proto";
 
-option go_package = "github.com/organic-programming/clem-ader/gen/go/v1;aderv1";
+option go_package = "github.com/organic-programming/clem-ader/gen/go/ader/v1;aderv1";
 
 option (holons.v1.manifest) = {
   identity: {

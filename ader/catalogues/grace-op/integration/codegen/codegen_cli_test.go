@@ -27,7 +27,7 @@ type codegenHolonCase struct {
 
 var codegenHolons = []codegenHolonCase{
 	{slug: "gabriel-greeting-go", genFile: "examples/hello-world/gabriel-greeting-go/gen/go/greeting/v1/greeting_grpc.pb.go", runtimeArg: "version"},
-	{slug: "clem-ader", genFile: "holons/clem-ader/gen/go/v1/holon_grpc.pb.go", runtimeArg: "version"},
+	{slug: "clem-ader", genFile: "holons/clem-ader/gen/go/ader/v1/ader_grpc.pb.go", runtimeArg: "version"},
 	{slug: "matt-calculator-go", genFile: "examples/calculator/matt-calculator-go/gen/go/calculator/v1/calculator_grpc.pb.go", runtimeArg: "version"},
 	{slug: "gabriel-greeting-cpp", genFile: "examples/hello-world/gabriel-greeting-cpp/gen/cpp/greeting/v1/greeting.grpc.pb.cc", runtimeArg: "version"},
 	{slug: "gabriel-greeting-c", genFile: "examples/hello-world/gabriel-greeting-c/gen/c/greeting/v1/greeting.upb.c", runtimeArg: "version"},

@@ -1,7 +1,7 @@
 package server
 
 import (
-	aderv1 "github.com/organic-programming/clem-ader/gen/go/v1"
+	aderv1 "github.com/organic-programming/clem-ader/gen/go/ader/v1"
 	holonserve "github.com/organic-programming/go-holons/pkg/serve"
 
 	"google.golang.org/grpc"

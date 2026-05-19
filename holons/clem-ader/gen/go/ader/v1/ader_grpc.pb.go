@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.1
 // - protoc             v7.34.0
-// source: v1/holon.proto
+// source: v1/ader.proto
 
 package aderv1
 
@@ -497,5 +497,5 @@ var AderService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "v1/holon.proto",
+	Metadata: "v1/ader.proto",
 }
