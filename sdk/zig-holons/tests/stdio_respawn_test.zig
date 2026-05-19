@@ -8,6 +8,54 @@ const c = @cImport({
 const zig_slug = "observability-cascade-zig-node";
 const go_slug = "observability-cascade-go-node";
 
+test "stdio event stream replays spawned go child ready" {
+    const allocator = std.heap.c_allocator;
+    const go_bin = try binaryPath(allocator, "ZIG_HOLONS_CASCADE_GO_NODE", go_slug);
+    defer allocator.free(go_bin);
+
+    const run_root = try std.fmt.allocPrint(allocator, "{s}/zig-holons-stdio-direct-{d}", .{ tmpDir(), nowNs() });
+    defer allocator.free(run_root);
+    setEnv("OP_OBS", "logs,events,metrics,prom") catch return error.SetEnvFailed;
+    setEnv("OP_RUN_DIR", run_root) catch return error.SetEnvFailed;
+    setEnv("OP_PROM_ADDR", "127.0.0.1:0") catch return error.SetEnvFailed;
+
+    const obs = try holons.observability.configure(allocator, .{
+        .slug = "zig-holons-stdio-direct-root",
+        .instance_uid = "zig-holons-stdio-direct-root",
+        .logs_ring_size = 8192,
+        .events_ring_size = 8192,
+        .run_dir = run_root,
+    });
+    _ = obs;
+    defer holons.observability.reset();
+
+    var child = try holons.composite.SpawnMember(allocator, .{
+        .slug = go_slug,
+        .binary_path = go_bin,
+        .transport_name = "stdio",
+        .extra_env = &.{
+            .{ .key = "OP_OBS", .value = "logs,events,metrics,prom" },
+            .{ .key = "OP_PROM_ADDR", .value = "127.0.0.1:0" },
+        },
+        .dial_options = holons.composite.WithTransitiveObservability(false),
+    });
+    defer child.Stop();
+
+    const request = try holons.protobuf.runtime.packEventsRequest(allocator, .{
+        .follow = true,
+    });
+    defer allocator.free(request);
+    var stream = try child.conn.serverStream(allocator, "/holons.v1.HolonObservability/Events", request, 5_000);
+    defer stream.deinit();
+    const bytes = (try stream.next(allocator)) orelse return error.ReadyEventMissing;
+    defer allocator.free(bytes);
+    var event = try holons.observability.eventFromBytes(allocator, bytes);
+    defer event.deinit(allocator);
+    try std.testing.expectEqual(holons.observability.EventType.instance_ready, event.event_type);
+    try std.testing.expectEqualStrings(go_slug, event.slug);
+    try std.testing.expectEqualStrings(child.uid, event.instance_uid);
+}
+
 test "stdio respawn relays replayed observability through zig zig go cascade" {
     const allocator = std.heap.c_allocator;
     const zig_bin = try binaryPath(allocator, "ZIG_HOLONS_CASCADE_ZIG_NODE", zig_slug);
@@ -123,11 +171,24 @@ fn binaryPath(allocator: std.mem.Allocator, env_name: [*:0]const u8, exe_name: [
         const path = std.mem.span(value);
         if (path.len != 0) return allocator.dupe(u8, path);
     }
-    const roots = [_][]const u8{
-        "../../.op/build",
-        "../../examples/observability-cascade",
-    };
-    for (roots) |root| {
+    var roots: [4][]const u8 = undefined;
+    var len: usize = 0;
+    if (std.mem.eql(u8, exe_name, zig_slug)) {
+        roots[len] = "../../examples/observability-cascade/observability-cascade-zig-node/zig-out/bin";
+        len += 1;
+        roots[len] = "../../examples/observability-cascade/observability-cascade-zig-node/.op/build";
+        len += 1;
+        roots[len] = "../../examples/observability-cascade/observability-cascade-zig/.op/build";
+        len += 1;
+    } else if (std.mem.eql(u8, exe_name, go_slug)) {
+        roots[len] = "../../examples/observability-cascade/observability-cascade-go-node/.op/build";
+        len += 1;
+        roots[len] = "../../examples/observability-cascade/observability-cascade-zig/.op/build";
+        len += 1;
+    }
+    roots[len] = "../../.op/build";
+    len += 1;
+    for (roots[0..len]) |root| {
         if (findBinary(allocator, root, exe_name) catch null) |found| return found;
     }
     return error.MissingCascadeBinary;
