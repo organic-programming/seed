@@ -250,7 +250,7 @@ sealed class CascadeApp
         });
         var ev = await Composite.CheckRelayedEventAsync(new EventCheckOptions
         {
-            EventType = EventType.InstanceReady,
+            EventName = EventNames.InstanceReady,
             LeafUid = leafUid,
             ExpectedChain = expected,
             Timeout = timeout,

@@ -197,7 +197,7 @@ async function runTick(client, sender, note, members, previous, timeoutMs, pollI
     pollIntervalMs,
   });
   const event = await composite.CheckRelayedEvent({
-    eventType: observability.EventType.INSTANCE_READY,
+    eventName: observability.EventName.INSTANCE_READY,
     leafUID,
     expectedChain,
     timeoutMs,

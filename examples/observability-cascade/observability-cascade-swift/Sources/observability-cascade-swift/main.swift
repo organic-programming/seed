@@ -250,7 +250,7 @@ private func runTick(
     }
     let expected = hopChain(response.hops)
     let log = checkRelayedLog(LogCheckOptions(sender: sender, leafUid: leaf.uid, expectedChain: expected, timeout: timeout, pollInterval: poll))
-    let event = checkRelayedEvent(EventCheckOptions(eventType: .instanceReady, leafUid: leaf.uid, expectedChain: expected, timeout: timeout, pollInterval: poll))
+    let event = checkRelayedEvent(EventCheckOptions(eventName: EventInstanceReady, leafUid: leaf.uid, expectedChain: expected, timeout: timeout, pollInterval: poll))
     return TickResult(pass: hops.pass && log.pass && event.pass, log: log, event: event, hops: hops)
 }
 
@@ -276,7 +276,7 @@ private func checkHops(_ hops: [Relay_V1_HopReceipt], members: [LanguageMember],
 }
 
 private func hopChain(_ hops: [Relay_V1_HopReceipt]) -> [ChainHop] {
-    hops.map { ChainHop(slug: $0.slug, instanceUid: $0.uid) }
+    hops.map { $0.slug }
 }
 
 private func ownLanguageMembers() -> [LanguageMember] {

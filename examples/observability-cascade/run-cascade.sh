@@ -3,7 +3,7 @@ set -u
 
 # Local regression gate for observability-cascade composites.
 # Env:
-#   CASCADE_LANGS        Space-separated languages. Default: "go dart rust".
+#   CASCADE_LANGS        Space-separated languages. Default: all migrated languages.
 #   KEEP_CASCADE_TMP=1  Keep JSON responses and command logs.
 # Exit codes:
 #   0 all requested languages passed; 1 one or more failed; 2 invalid input.
@@ -11,7 +11,7 @@ set -u
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "$repo_root" || exit 2
 
-langs_text="${CASCADE_LANGS:-go dart rust}"
+langs_text="${CASCADE_LANGS:-go dart python node ruby java kotlin csharp rust swift cpp c zig}"
 [ -n "$langs_text" ] || { echo "CASCADE_LANGS resolved empty" >&2; exit 2; }
 
 for cmd in op python3; do

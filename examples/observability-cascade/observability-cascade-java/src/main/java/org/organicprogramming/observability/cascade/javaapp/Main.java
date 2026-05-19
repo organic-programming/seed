@@ -246,7 +246,7 @@ public final class Main {
         Composite.CheckOutcome log = Composite.checkRelayedLog(logOptions);
 
         Composite.EventCheckOptions eventOptions = new Composite.EventCheckOptions();
-        eventOptions.eventType = Observability.EventType.INSTANCE_READY;
+        eventOptions.eventName = Observability.EVENT_INSTANCE_READY;
         eventOptions.leafUid = leafUid;
         eventOptions.expectedChain = expected;
         eventOptions.timeout = timeout;

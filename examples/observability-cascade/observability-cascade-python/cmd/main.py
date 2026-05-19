@@ -260,7 +260,7 @@ def run_tick(
         skipped = composite.CheckOutcome(evidence="skipped")
         return TickResult(pass_=False, log=skipped, event=skipped, hops=hops)
 
-    expected = tuple(composite.ChainHop(hop.slug, hop.uid) for hop in response.hops)
+    expected = tuple(hop.slug for hop in response.hops)
     leaf_uid = response.hops[0].uid
     log = composite.CheckRelayedLog(
         composite.LogCheckOptions(
@@ -274,7 +274,7 @@ def run_tick(
     )
     event = composite.CheckRelayedEvent(
         composite.EventCheckOptions(
-            event_type=observability.EventType.INSTANCE_READY,
+            event_name=observability.EVENT_INSTANCE_READY,
             leaf_uid=leaf_uid,
             expected_chain=expected,
             timeout=timeout,

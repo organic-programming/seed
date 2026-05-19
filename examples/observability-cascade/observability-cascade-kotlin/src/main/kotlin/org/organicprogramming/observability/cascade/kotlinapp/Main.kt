@@ -253,7 +253,7 @@ private fun runTick(
     )
     val event = Composite.checkRelayedEvent(
         Composite.EventCheckOptions().apply {
-            eventType = Observability.EventType.INSTANCE_READY
+            eventName = Observability.EventName.INSTANCE_READY
             this.leafUid = leafUid
             expectedChain = expected
             this.timeout = timeout

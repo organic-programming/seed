@@ -212,7 +212,7 @@ def run_tick(cascade, sender, note, members, previous, timeout, poll, live)
   )
   event = Holons::Composite.check_relayed_event(
     Holons::Composite::EventCheckOptions.new(
-      event_type: Holons::Observability::EVENT_TYPES[:instance_ready],
+      event_name: Holons::Observability::EVENT_INSTANCE_READY,
       leaf_uid: leaf_uid,
       expected_chain: expected_chain,
       timeout: timeout,
