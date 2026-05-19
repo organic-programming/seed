@@ -71,6 +71,13 @@ class BundledGreetingHolonConnectionFactory
   }) {
     return _channels.open(holon, transport: transport);
   }
+
+  Future<ClientChannel>? existingChannel(
+    GabrielHolonIdentity holon, {
+    required String transport,
+  }) {
+    return _channels.existing(holon, transport: transport);
+  }
 }
 
 @Deprecated('Use BundledGreetingHolonConnectionFactory')

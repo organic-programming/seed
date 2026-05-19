@@ -594,7 +594,6 @@ class RelayController extends ChangeNotifier {
   }) : _channelOpener = channelOpener,
        _memberRelayFactory = memberRelayFactory {
     gate.addListener(_sync);
-    unawaited(_sync());
   }
 
   final RuntimeGate gate;
@@ -603,6 +602,7 @@ class RelayController extends ChangeNotifier {
   final MemberRelayFactory _memberRelayFactory;
   final Map<String, RelaySession> _relays = {};
   final Set<String> _starting = {};
+  String _activeMemberUid = '';
   bool _disposed = false;
 
   List<ObservabilityMemberRef> get activeMembers => gate.members
@@ -610,6 +610,12 @@ class RelayController extends ChangeNotifier {
       .toList(growable: false);
 
   int get runningRelayCount => _relays.length;
+
+  Future<void> activateMember(String uid) async {
+    if (_disposed) return;
+    _activeMemberUid = uid.trim();
+    await _sync();
+  }
 
   Future<void> _sync() async {
     if (_disposed) return;
@@ -619,22 +625,19 @@ class RelayController extends ChangeNotifier {
       return;
     }
 
-    final enabled = {
-      for (final member in gate.members)
-        if (gate.memberEnabled(member.uid)) member.uid,
-    };
+    final activeUid = _activeMemberUid;
     final stopFutures = <Future<void>>[];
     for (final uid in List<String>.from(_relays.keys)) {
-      if (!enabled.contains(uid)) {
+      if (uid != activeUid || !gate.memberEnabled(uid)) {
         stopFutures.add(_stopRelay(uid));
       }
     }
 
-    for (final member in gate.members) {
-      if (!enabled.contains(member.uid)) continue;
-      if (_relays.containsKey(member.uid) || _starting.contains(member.uid)) {
-        continue;
-      }
+    final member = _memberByUid(activeUid);
+    if (member != null &&
+        _isRelayTarget(member) &&
+        !_relays.containsKey(member.uid) &&
+        !_starting.contains(member.uid)) {
       _starting.add(member.uid);
       unawaited(_startRelay(member));
     }
@@ -647,13 +650,13 @@ class RelayController extends ChangeNotifier {
 
   Future<void> _startRelay(ObservabilityMemberRef member) async {
     final opener = _channelOpener;
-    if (opener == null || _disposed) {
+    if (opener == null || !_isRelayTarget(member)) {
       _starting.remove(member.uid);
       return;
     }
     try {
       final channel = await opener(member);
-      if (_disposed || !gate.memberEnabled(member.uid)) return;
+      if (!_isRelayTarget(member)) return;
       final relay = _memberRelayFactory(
         childSlug: member.slug,
         childUid: member.uid,
@@ -661,7 +664,7 @@ class RelayController extends ChangeNotifier {
         observability: obs,
       );
       await relay.start();
-      if (_disposed || !gate.memberEnabled(member.uid)) {
+      if (!_isRelayTarget(member)) {
         await relay.stop();
         return;
       }
@@ -679,6 +682,22 @@ class RelayController extends ChangeNotifier {
     } finally {
       _starting.remove(member.uid);
     }
+  }
+
+  ObservabilityMemberRef? _memberByUid(String uid) {
+    if (uid.isEmpty) return null;
+    for (final member in gate.members) {
+      if (member.uid == uid) {
+        return member;
+      }
+    }
+    return null;
+  }
+
+  bool _isRelayTarget(ObservabilityMemberRef member) {
+    return !_disposed &&
+        _activeMemberUid == member.uid &&
+        gate.memberEnabled(member.uid);
   }
 
   Future<void> _stopRelay(String uid) async {

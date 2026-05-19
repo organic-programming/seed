@@ -64,6 +64,10 @@ class SharedHolonChannels<T> {
     });
   }
 
+  Future<ClientChannel>? existing(T holon, {required String transport}) {
+    return _channels[_cacheKey(holon, transport)];
+  }
+
   Future<void> close(T holon, {required String transport}) async {
     final future = _channels.remove(_cacheKey(holon, transport));
     if (future == null) return;

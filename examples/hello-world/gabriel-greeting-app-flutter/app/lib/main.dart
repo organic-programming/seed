@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/widgets.dart';
 import 'package:grpc/grpc.dart';
@@ -65,10 +66,16 @@ Future<void> main() async {
       if (holon == null) {
         throw StateError('Observability member ${member.slug} not found');
       }
-      return greetingConnector.openChannel(
+      final channel = greetingConnector.existingChannel(
         holon,
         transport: greetingController.transport,
       );
+      if (channel == null) {
+        throw StateError(
+          'Observability member ${member.slug} is not connected',
+        );
+      }
+      return channel;
     },
   );
   final observability = observabilityKit.obs;
@@ -100,8 +107,19 @@ Future<void> main() async {
       greetingController: greetingController,
       coaxManager: coaxManager,
       observabilityKit: observabilityKit,
+      deferInitialHolonStartup: _launchedWithCoaxServer(),
     ),
   );
+}
+
+bool _launchedWithCoaxServer() {
+  final env = Platform.environment;
+  final enabled = (env['OP_COAX_SERVER_ENABLED'] ?? '').trim().toLowerCase();
+  return enabled == '1' ||
+      enabled == 'true' ||
+      enabled == 'yes' ||
+      enabled == 'on' ||
+      (env['OP_COAX_SERVER_LISTEN_URI'] ?? '').trim().isNotEmpty;
 }
 
 Future<List<GabrielHolonIdentity>> _observabilityHolons(

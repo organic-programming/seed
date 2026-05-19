@@ -179,6 +179,9 @@ abstract class HolonOrchestratorController<T, C extends Object>
 
   @override
   Future<MemberInfo> connectMember(String slug, {String transport = ''}) async {
+    if (availableHolons.isEmpty) {
+      await refreshHolons();
+    }
     final identity = availableHolons.firstWhere(
       (item) => _slugOf(item) == slug,
       orElse: () => throw StateError("Member '$slug' not found"),

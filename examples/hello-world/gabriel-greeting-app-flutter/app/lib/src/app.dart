@@ -23,11 +23,13 @@ class GabrielGreetingApp extends StatelessWidget {
     required this.greetingController,
     required this.coaxManager,
     required this.observabilityKit,
+    required this.deferInitialHolonStartup,
   });
 
   final GreetingController greetingController;
   final CoaxManager coaxManager;
   final ObservabilityKit observabilityKit;
+  final bool deferInitialHolonStartup;
 
   @override
   Widget build(BuildContext context) {
@@ -49,6 +51,7 @@ class GabrielGreetingApp extends StatelessWidget {
         greetingController: greetingController,
         coaxManager: coaxManager,
         observabilityKit: observabilityKit,
+        deferInitialHolonStartup: deferInitialHolonStartup,
       ),
     );
   }
@@ -60,11 +63,13 @@ class GabrielGreetingHomePage extends StatefulWidget {
     required this.greetingController,
     required this.coaxManager,
     required this.observabilityKit,
+    required this.deferInitialHolonStartup,
   });
 
   final GreetingController greetingController;
   final CoaxManager coaxManager;
   final ObservabilityKit observabilityKit;
+  final bool deferInitialHolonStartup;
 
   @override
   State<GabrielGreetingHomePage> createState() =>
@@ -78,6 +83,7 @@ class _GabrielGreetingHomePageState extends State<GabrielGreetingHomePage> {
   Future<void>? _shutdownFuture;
   bool _syncListenerAttached = false;
   bool _isObservabilityOpen = false;
+  String _activeRelayMemberUid = '';
 
   @override
   void initState() {
@@ -92,17 +98,22 @@ class _GabrielGreetingHomePageState extends State<GabrielGreetingHomePage> {
       widget.greetingController,
       widget.coaxManager,
     ]);
-    widget.greetingController.addListener(_syncNameField);
+    widget.greetingController.addListener(_handleGreetingControllerChanged);
     _syncListenerAttached = true;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted || _shutdownFuture != null) {
         return;
       }
-      await widget.greetingController.initialize();
+      await widget.coaxManager.startIfEnabled();
       if (!mounted || _shutdownFuture != null) {
         return;
       }
-      await widget.coaxManager.startIfEnabled();
+      if (widget.deferInitialHolonStartup) {
+        await widget.greetingController.refreshHolons();
+        return;
+      }
+      await widget.greetingController.initialize();
+      _syncRelayMember();
     });
   }
 
@@ -127,6 +138,7 @@ class _GabrielGreetingHomePageState extends State<GabrielGreetingHomePage> {
     }
     final future = () async {
       _detachSyncListener();
+      await widget.observabilityKit.relay.activateMember('');
       await widget.coaxManager.shutdown();
       await widget.greetingController.shutdown();
       widget.observabilityKit.dispose();
@@ -139,8 +151,13 @@ class _GabrielGreetingHomePageState extends State<GabrielGreetingHomePage> {
     if (!_syncListenerAttached) {
       return;
     }
-    widget.greetingController.removeListener(_syncNameField);
+    widget.greetingController.removeListener(_handleGreetingControllerChanged);
     _syncListenerAttached = false;
+  }
+
+  void _handleGreetingControllerChanged() {
+    _syncNameField();
+    _syncRelayMember();
   }
 
   void _syncNameField() {
@@ -152,6 +169,17 @@ class _GabrielGreetingHomePageState extends State<GabrielGreetingHomePage> {
       text: nextText,
       selection: TextSelection.collapsed(offset: nextText.length),
     );
+  }
+
+  void _syncRelayMember() {
+    final controller = widget.greetingController;
+    final selected = controller.selectedHolon;
+    final uid = controller.isRunning && selected != null ? selected.slug : '';
+    if (_activeRelayMemberUid == uid) {
+      return;
+    }
+    _activeRelayMemberUid = uid;
+    unawaited(widget.observabilityKit.relay.activateMember(uid));
   }
 
   @override
