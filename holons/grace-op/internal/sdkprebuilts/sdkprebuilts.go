@@ -31,20 +31,20 @@ const (
 )
 
 var defaultVersions = map[string]string{
-	"c":      "1.80.0",
-	"cpp":    "1.80.0",
-	"csharp": "0.1.0",
-	"dart":   "0.1.0",
-	"go":     "0.1.0",
-	"java":   "0.1.0",
-	"js":     "0.1.0",
-	"js-web": "0.1.0",
-	"kotlin": "0.1.0",
-	"python": "0.1.0",
-	"ruby":   "1.58.3",
-	"rust":   "0.1.0",
-	"swift":  "0.1.0",
-	"zig":    "0.1.0",
+	"c":      "0.9.0",
+	"cpp":    "0.9.0",
+	"csharp": "0.9.0",
+	"dart":   "0.9.0",
+	"go":     "0.9.0",
+	"java":   "0.9.0",
+	"js":     "0.9.0",
+	"js-web": "0.9.0",
+	"kotlin": "0.9.0",
+	"python": "0.9.0",
+	"ruby":   "0.9.0",
+	"rust":   "0.9.0",
+	"swift":  "0.9.0",
+	"zig":    "0.9.0",
 }
 
 var allowedTargets = map[string]struct{}{
