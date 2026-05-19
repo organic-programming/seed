@@ -150,7 +150,7 @@ func NewSandbox(t *testing.T) *Sandbox {
 	opbin := filepath.Join(oppath, "bin")
 	cacheDir := filepath.Join(oppath, "cache")
 	runDir := filepath.Join(oppath, "run")
-	tmpDir := filepath.Join(root, "tmp")
+	tmpDir := sandboxTMPDir(rt, root)
 	for _, dir := range []string{oppath, opbin, cacheDir, runDir, tmpDir} {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatalf("mkdir %s: %v", dir, err)
@@ -165,6 +165,25 @@ func NewSandbox(t *testing.T) *Sandbox {
 		CacheDir: cacheDir,
 		TMPDIR:   tmpDir,
 	}
+}
+
+func sandboxTMPDir(rt *runtimeState, sandboxRoot string) string {
+	root := sandboxRoot
+	base := filepath.Clean(strings.TrimSpace(rt.tempBaseRoot))
+	alias := filepath.Clean(strings.TrimSpace(rt.tempAliasRoot))
+	if base != "." && alias != "." {
+		if rel, err := filepath.Rel(base, filepath.Clean(sandboxRoot)); err == nil && isLocalRelPath(rel) {
+			root = filepath.Join(alias, rel)
+		}
+	}
+	return filepath.Join(root, "tmp")
+}
+
+func isLocalRelPath(path string) bool {
+	if filepath.IsAbs(path) {
+		return false
+	}
+	return path == "." || (path != ".." && !strings.HasPrefix(path, ".."+string(os.PathSeparator)))
 }
 
 func (s *Sandbox) RunOP(t *testing.T, args ...string) CmdResult {
@@ -348,7 +367,7 @@ func (p *ProcessHandle) Signal(t *testing.T, sig os.Signal) {
 
 func (p *ProcessHandle) WaitForListenAddress(t *testing.T, timeout time.Duration) string {
 	t.Helper()
-	pattern := regexp.MustCompile(`gRPC (?:server|bridge) listening on ((?:tcp|unix)://\S+)`)
+	pattern := regexp.MustCompile(`(?m)(?:gRPC (?:server|bridge) listening on |^)((?:tcp|unix)://\S+)`)
 	return p.waitForPattern(t, pattern, timeout)
 }
 

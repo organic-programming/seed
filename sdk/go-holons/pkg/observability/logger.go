@@ -132,7 +132,9 @@ func (l *Logger) log(ctx context.Context, lvl Level, msg string, kv []any) {
 	if !l.Enabled(lvl) {
 		return
 	}
+	sessionID, rpcMethod := fromContext(ctx)
 	attrs := resourceAttributes(l.obs.cfg.Slug, l.obs.cfg.InstanceUID)
+	attrs = append(attrs, keyValue(AttrHolonsSessionID, sessionID))
 	if l.name != "" {
 		attrs = append(attrs, keyValue(AttrLoggerName, l.name))
 	}
@@ -164,10 +166,6 @@ func (l *Logger) log(ctx context.Context, lvl Level, msg string, kv []any) {
 	}
 
 	// SDK-managed well-known fields (spec §Well-known fields).
-	sessionID, rpcMethod := fromContext(ctx)
-	if sessionID != "" {
-		attrs = append(attrs, keyValue(AttrHolonsSessionID, sessionID))
-	}
 	if rpcMethod != "" {
 		attrs = append(attrs, keyValue(AttrRPCMethod, rpcMethod))
 	}

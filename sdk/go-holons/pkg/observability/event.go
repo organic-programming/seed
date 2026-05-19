@@ -209,9 +209,7 @@ func (o *Observability) Emit(ctx context.Context, eventName string, payload map[
 	}
 	sessionID, _ := fromContext(ctx)
 	attrs := resourceAttributes(o.cfg.Slug, o.cfg.InstanceUID)
-	if sessionID != "" {
-		attrs = append(attrs, keyValue(AttrHolonsSessionID, sessionID))
-	}
+	attrs = append(attrs, keyValue(AttrHolonsSessionID, sessionID))
 	if len(payload) > 0 {
 		pcopy := make(map[string]string, len(payload))
 		for k, v := range payload {

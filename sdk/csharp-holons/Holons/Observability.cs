@@ -604,6 +604,8 @@ public sealed class Observability
             {
                 TimeUnixNano = now,
                 ObservedTimeUnixNano = now,
+                SeverityNumber = global::Holons.V1.SeverityNumber.Info,
+                SeverityText = Level.Info.Name(),
                 EventName = eventName,
                 Body = Wire.ToAnyValue(eventName),
                 Attributes = { attrs },

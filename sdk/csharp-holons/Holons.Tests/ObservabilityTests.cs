@@ -123,7 +123,9 @@ public class ObservabilityTests
                 while (await call.ResponseStream.MoveNext(CancellationToken.None))
                     events.Add(call.ResponseStream.Current);
             }
-            Assert.Contains(events, ev => ev.EventName == EventNames.InstanceReady);
+            var readyEvent = Assert.Single(events, ev => ev.EventName == EventNames.InstanceReady);
+            Assert.Equal(SeverityNumber.Info, readyEvent.SeverityNumber);
+            Assert.Equal("INFO", readyEvent.SeverityText);
         }
         finally
         {

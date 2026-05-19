@@ -136,6 +136,9 @@ func TestConfigure_LogsFamily(t *testing.T) {
 		StringAttribute(entries[0].Record.GetAttributes(), AttrHolonsInstanceUID) != "uid" {
 		t.Errorf("well-known fields not injected: %+v", entries[0])
 	}
+	if !hasAttribute(entries[0].Record.GetAttributes(), AttrHolonsSessionID) {
+		t.Errorf("session attribute key missing: %+v", entries[0].Record.GetAttributes())
+	}
 	if StringAttribute(entries[0].Record.GetAttributes(), "name") != "greeter" {
 		t.Errorf("user field missing: %+v", entries[0].Record.GetAttributes())
 	}
@@ -370,6 +373,9 @@ func TestEventBus_FanOut(t *testing.T) {
 		if e.Record.GetEventName() != EventInstanceReady {
 			t.Errorf("ch1: unexpected event: %+v", e)
 		}
+		if !hasAttribute(e.Record.GetAttributes(), AttrHolonsSessionID) {
+			t.Errorf("ch1: session attribute key missing: %+v", e.Record.GetAttributes())
+		}
 	default:
 		t.Error("ch1 did not receive event")
 	}
@@ -482,6 +488,15 @@ func hasLabelKeys(labels map[string]string, keys ...string) bool {
 		}
 	}
 	return true
+}
+
+func hasAttribute(attrs []*v1.KeyValue, key string) bool {
+	for _, attr := range attrs {
+		if attr != nil && attr.Key == key {
+			return true
+		}
+	}
+	return false
 }
 
 var _ = time.Second

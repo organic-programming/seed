@@ -65,6 +65,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
 
     holons.describe.useStaticResponse(describe_generated.staticDescribeResponse());
     if (std.mem.eql(u8, mode, "serve")) {
+        try ensureCascadeObservability();
         var options = try holons.serve.parseOptions(args[1..]);
         options.methods = rpc_methods[0..];
         try holons.serve.runSingle(options);
