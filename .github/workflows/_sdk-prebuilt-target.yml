@@ -135,26 +135,51 @@ jobs:
           restore-keys: |
             go-${{ runner.os }}-${{ runner.arch }}-
 
+      # Both zig and cpp/c SDKs build the same grpc + protobuf-c vendored
+      # native deps. We deliberately AVOID `--recursive` on the outer init
+      # because grpc's .gitmodules pulls heavy transitive deps we do not
+      # use (opentelemetry-cpp, bloaty, envoy-api, googleapis, …).
+      # Instead, init grpc/protobuf-c non-recursively, then explicitly
+      # enumerate the grpc submodules needed to build the C++ stack:
+      # abseil-cpp, boringssl-with-bazel, cares, protobuf, re2, zlib.
+      # On popok, `.git/modules/…/index.lock` can survive a previous
+      # failed run (workspace is reused between runs), so wipe that too.
       - name: Checkout Zig vendored submodules
         if: inputs.sdk == 'zig'
         run: |
           set -euo pipefail
           rm -rf sdk/zig-holons/third_party/grpc sdk/zig-holons/third_party/protobuf-c
-          git submodule sync --recursive sdk/zig-holons/third_party/grpc sdk/zig-holons/third_party/protobuf-c
-          git submodule update --init --force --recursive --depth 1 --jobs 8 \
+          rm -rf .git/modules/sdk/zig-holons/third_party/grpc .git/modules/sdk/zig-holons/third_party/protobuf-c
+          git submodule sync sdk/zig-holons/third_party/grpc sdk/zig-holons/third_party/protobuf-c
+          git submodule update --init --force --depth 1 --jobs 8 \
             sdk/zig-holons/third_party/grpc \
             sdk/zig-holons/third_party/protobuf-c
+          git -C sdk/zig-holons/third_party/grpc submodule sync \
+            third_party/abseil-cpp \
+            third_party/boringssl-with-bazel \
+            third_party/cares/cares \
+            third_party/protobuf \
+            third_party/re2 \
+            third_party/zlib
+          git -C sdk/zig-holons/third_party/grpc submodule update --init --force --depth 1 --jobs 8 \
+            third_party/abseil-cpp \
+            third_party/boringssl-with-bazel \
+            third_party/cares/cares \
+            third_party/protobuf \
+            third_party/re2 \
+            third_party/zlib
 
       - name: Checkout C++ native dependency submodules
         if: inputs.sdk == 'cpp' || inputs.sdk == 'c'
         run: |
           set -euo pipefail
           rm -rf sdk/zig-holons/third_party/grpc sdk/zig-holons/third_party/protobuf-c
-          git submodule sync --recursive sdk/zig-holons/third_party/grpc sdk/zig-holons/third_party/protobuf-c
+          rm -rf .git/modules/sdk/zig-holons/third_party/grpc .git/modules/sdk/zig-holons/third_party/protobuf-c
+          git submodule sync sdk/zig-holons/third_party/grpc sdk/zig-holons/third_party/protobuf-c
           git submodule update --init --force --depth 1 --jobs 8 \
             sdk/zig-holons/third_party/grpc \
             sdk/zig-holons/third_party/protobuf-c
-          git -C sdk/zig-holons/third_party/grpc submodule sync --recursive \
+          git -C sdk/zig-holons/third_party/grpc submodule sync \
             third_party/abseil-cpp \
             third_party/boringssl-with-bazel \
             third_party/cares/cares \
