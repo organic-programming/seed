@@ -207,6 +207,15 @@ jobs:
             fi
           done
 
+      - name: Normalize protobuf submodule tags
+        shell: bash
+        run: |
+          set -euo pipefail
+          protobuf=sdk/zig-holons/third_party/grpc/third_party/protobuf
+          if [ -d "$protobuf/.git" ]; then
+            git -C "$protobuf" fetch --tags --quiet origin
+          fi
+
       - name: Go test op
         run: go test ./holons/grace-op/...
 
