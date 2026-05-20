@@ -288,8 +288,12 @@ abstract class HolonOrchestratorController<T, C extends Object>
     if (currentConnection == null) {
       return;
     }
+    await beforeDropConnection();
     await _connectionCloser(currentConnection);
   }
+
+  @protected
+  Future<void> beforeDropConnection() async {}
 
   Future<void> shutdown() async {
     _disposed = true;

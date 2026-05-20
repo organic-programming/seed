@@ -988,7 +988,6 @@ class MemberRelay {
     await _cancelSubscriptions();
     _isRunning = false;
     _starting = false;
-    _stopping = false;
   }
 
   void _relayLog(obs_pb.LogRecord proto) {

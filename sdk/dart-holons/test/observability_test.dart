@@ -400,6 +400,38 @@ void main() {
     expect(relay.isRunning, isFalse);
   });
 
+  test('MemberRelay stop suppresses intentional stream errors', () async {
+    final fake = await _startFakeObservabilityService();
+    addTearDown(fake.close);
+    final local = obs.configure(
+      const obs.Config(slug: 'parent', instanceUid: 'parent-uid'),
+      env: const {'OP_OBS': 'logs'},
+    );
+    final relay = obs.MemberRelay(
+      childSlug: 'child-x',
+      childUid: 'uid-123',
+      channel: fake.channel,
+      observability: local,
+    );
+
+    await relay.start();
+    await _waitFor(() => fake.service.logsOpened == 1);
+    final stopping = relay.stop();
+    fake.service.failLogs(GrpcError.unavailable('intentional close'));
+    await stopping;
+    await Future<void>.microtask(() {});
+    await Future<void>.microtask(() {});
+
+    final warnings = local.logRing!.drain().where(
+          (entry) =>
+              entry.level == obs.Level.warn &&
+              entry.loggerName == 'member-relay',
+        );
+    expect(warnings, isEmpty);
+    expect(fake.service.logsOpened, equals(1));
+    expect(relay.isRunning, isFalse);
+  });
+
   test('MemberRelay logs warning on stream error', () async {
     final fake = await _startFakeObservabilityService();
     addTearDown(fake.close);

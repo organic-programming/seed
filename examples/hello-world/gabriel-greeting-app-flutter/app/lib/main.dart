@@ -80,6 +80,8 @@ Future<void> main() async {
   );
   final observability = observabilityKit.obs;
   greetingController.attachObservability(observability);
+  greetingController.beforeConnectionClose = () =>
+      observabilityKit.relay.activateMember('');
   observability.emit(
     holons.eventInstanceSpawned,
     payload: const {'runtime': 'flutter'},

@@ -42,6 +42,7 @@ class GreetingController
   holons_obs.Logger? _responseLogger;
   holons_obs.Counter? _sayHelloTotal;
   holons_obs.Histogram? _sayHelloDuration;
+  Future<void> Function()? beforeConnectionClose;
 
   bool _initialized = false;
   int _loadGeneration = 0;
@@ -253,6 +254,11 @@ class GreetingController
         safeNotify();
       }
     }
+  }
+
+  @override
+  Future<void> beforeDropConnection() async {
+    await beforeConnectionClose?.call();
   }
 
   @override
