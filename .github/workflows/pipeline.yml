@@ -212,7 +212,7 @@ jobs:
         run: |
           set -euo pipefail
           protobuf=sdk/zig-holons/third_party/grpc/third_party/protobuf
-          if [ -d "$protobuf/.git" ]; then
+          if git -C "$protobuf" rev-parse --git-dir >/dev/null 2>&1; then
             git -C "$protobuf" fetch --tags --quiet origin
           fi
 
