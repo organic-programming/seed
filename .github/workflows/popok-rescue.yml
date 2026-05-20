@@ -9,7 +9,6 @@ on:
 
 jobs:
   rescue:
-    if: github.actor == 'bpds'
     runs-on: [self-hosted, macOS]
     timeout-minutes: 2
     steps:
