@@ -7,12 +7,16 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -61,13 +65,17 @@ func TestObservabilityCascade_RPCMatrix(t *testing.T) {
 	for _, lang := range selectedCascadeLanguages(t) {
 		lang := lang
 		t.Run(lang, func(t *testing.T) {
+			t.Cleanup(func() { cleanupResidualCascadeProcesses(t) })
 			slug := "observability-cascade-" + lang
 			build := sb.RunOPWithOptions(t, integration.RunOptions{Timeout: 30 * time.Minute}, "build", slug, "--install")
 			integration.RequireSuccess(t, build)
 
 			assertCascadeReport(t, sb, slug, "RunDefault", defaultCascadeTicks)
+			cleanupResidualCascadeProcesses(t)
 			assertCascadeReport(t, sb, slug, "RunLiveStream", defaultCascadeTicks)
+			cleanupResidualCascadeProcesses(t)
 			typedSamples[lang] = collectTypedCascadeSample(t, sb, slug)
+			cleanupResidualCascadeProcesses(t)
 		})
 	}
 	if t.Failed() {
@@ -138,7 +146,7 @@ func collectTypedCascadeSample(t *testing.T, sb *integration.Sandbox, slug strin
 	report, err := ocv1.NewObservabilityCascadeServiceClient(conn).RunDefault(runCtx, &ocv1.RunRequest{})
 	runCancel()
 	if err != nil {
-		t.Fatalf("%s RunDefault via typed client: %v", slug, err)
+		t.Fatalf("%s RunDefault via typed client: %v\nprocess output:\n%s", slug, err, process.Combined())
 	}
 	if report.GetPass() <= 0 || report.GetFail() != 0 || report.GetPass() != report.GetTicks() {
 		t.Fatalf("%s observed RunDefault = %+v, want all ticks passing", slug, report)
@@ -147,6 +155,90 @@ func collectTypedCascadeSample(t *testing.T, sb *integration.Sandbox, slug strin
 
 	return typedCascadeSample{
 		Event: summarizeRecord(t, slug, "event", findRelayedReadyEvent(t, slug, events.stop(t, "events"))),
+	}
+}
+
+func cleanupResidualCascadeProcesses(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS != "darwin" {
+		return
+	}
+	scope := integration.DefaultWorkspaceDir(t)
+	pids := residualCascadePIDs(t, scope)
+	if len(pids) == 0 {
+		return
+	}
+	signalProcesses(t, pids, syscall.SIGTERM)
+	time.Sleep(500 * time.Millisecond)
+	remaining := residualCascadePIDs(t, scope)
+	if len(remaining) > 0 {
+		signalProcesses(t, remaining, syscall.SIGKILL)
+	}
+	t.Logf("cleaned %d residual observability-cascade process(es)", len(pids))
+}
+
+func residualCascadePIDs(t *testing.T, scope string) []int {
+	t.Helper()
+	out, err := exec.Command("ps", "-axo", "pid=,command=").Output()
+	if err != nil {
+		t.Fatalf("list processes for residual cascade cleanup: %v", err)
+	}
+	var pids []int
+	self := os.Getpid()
+	scopes := processScopeAliases(scope)
+	for _, line := range strings.Split(string(out), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || !containsAny(line, scopes) || !strings.Contains(line, "observability-cascade-") {
+			continue
+		}
+		pidField, _, ok := strings.Cut(line, " ")
+		if !ok {
+			continue
+		}
+		pid, err := strconv.Atoi(strings.TrimSpace(pidField))
+		if err != nil || pid == self {
+			continue
+		}
+		pids = append(pids, pid)
+	}
+	return pids
+}
+
+func processScopeAliases(scope string) []string {
+	scope = filepath.Clean(strings.TrimSpace(scope))
+	if scope == "." || scope == "" {
+		return nil
+	}
+	aliases := []string{scope}
+	if resolved, err := filepath.EvalSymlinks(scope); err == nil && resolved != scope {
+		aliases = append(aliases, resolved)
+	}
+	if strings.HasPrefix(scope, "/var/") {
+		aliases = append(aliases, "/private"+scope)
+	}
+	if strings.HasPrefix(scope, "/private/var/") {
+		aliases = append(aliases, strings.TrimPrefix(scope, "/private"))
+	}
+	return slices.Compact(aliases)
+}
+
+func containsAny(value string, needles []string) bool {
+	for _, needle := range needles {
+		if strings.Contains(value, needle) {
+			return true
+		}
+	}
+	return false
+}
+
+func signalProcesses(t *testing.T, pids []int, signal syscall.Signal) {
+	t.Helper()
+	for _, pid := range pids {
+		process, err := os.FindProcess(pid)
+		if err != nil {
+			continue
+		}
+		_ = process.Signal(signal)
 	}
 }
 
