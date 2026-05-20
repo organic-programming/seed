@@ -117,7 +117,15 @@ jobs:
             echo "gobuild=$(go env GOCACHE)"
           } >> "$GITHUB_OUTPUT"
 
+      # On self-hosted, load-mac-runner-env points GOMODCACHE/GOCACHE at the
+      # runner-managed persistent cache (e.g. /Users/popok/.ader-ci-cache/...).
+      # That directory survives between runs and Go marks module sources
+      # read-only by design, so actions/cache restore (which uses `tar -xf`)
+      # fails with "Can't unlink already-existing object: Permission denied".
+      # The runner-managed cache already provides persistence — we only need
+      # actions/cache on cloud runners, where the workspace is ephemeral.
       - name: Cache Go modules and build cache
+        if: runner.environment != 'self-hosted'
         uses: actions/cache@v4
         with:
           path: |
