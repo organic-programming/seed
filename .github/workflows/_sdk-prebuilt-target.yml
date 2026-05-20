@@ -213,7 +213,7 @@ jobs:
           "$zig_dir/zig" version
 
       - name: Setup Ruby
-        if: inputs.sdk == 'ruby'
+        if: inputs.sdk == 'ruby' && runner.environment != 'self-hosted'
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.1'
