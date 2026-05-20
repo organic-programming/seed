@@ -11,6 +11,36 @@ set -u
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "$repo_root" || exit 2
 
+# Diagnostic block — log the env that may affect cascade timing. Helps
+# compare local vs popok runs when we cannot reproduce a failure locally.
+{
+  echo "=== cascade env diagnostic ==="
+  echo "uname -a: $(uname -a)"
+  echo "sw_vers:"
+  sw_vers 2>/dev/null || true
+  echo "ulimit -a:"
+  ulimit -a 2>/dev/null || true
+  echo "sysctl process/file limits:"
+  sysctl kern.maxfiles kern.maxfilesperproc kern.maxproc kern.maxprocperuid 2>/dev/null || true
+  echo "sysctl ipc:"
+  sysctl kern.ipc.somaxconn kern.ipc.maxsockbuf 2>/dev/null || true
+  echo "SDK identity (zig):"
+  echo "  OP_SDK_ZIG_PATH=${OP_SDK_ZIG_PATH:-unset}"
+  if [ -d "${OP_SDK_ZIG_PATH:-/nonexistent}" ]; then
+    echo "  manifest:"
+    cat "$OP_SDK_ZIG_PATH/manifest.json" 2>/dev/null | sed 's/^/    /'
+    echo "  libs (.a/.dylib top entries):"
+    find "$OP_SDK_ZIG_PATH/lib" -maxdepth 2 \( -name '*.a' -o -name '*.dylib' \) 2>/dev/null | head -10 | sed 's/^/    /'
+  fi
+  echo "Source identity (zig SDK):"
+  echo "  git HEAD: $(git rev-parse --short HEAD 2>/dev/null || echo n/a)"
+  echo "  member_relay.zig sha:"
+  shasum -a 256 sdk/zig-holons/src/member_relay.zig 2>/dev/null | sed 's/^/    /'
+  echo "  composite.zig sha:"
+  shasum -a 256 sdk/zig-holons/src/composite.zig 2>/dev/null | sed 's/^/    /'
+  echo "==============================="
+} >&2
+
 langs_text="${CASCADE_LANGS:-go dart python node ruby java kotlin csharp rust swift cpp c zig}"
 [ -n "$langs_text" ] || { echo "CASCADE_LANGS resolved empty" >&2; exit 2; }
 

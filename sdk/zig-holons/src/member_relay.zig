@@ -85,7 +85,8 @@ pub const MemberRelay = struct {
     }
 
     fn waitReady(self: *MemberRelay, want_logs: bool, want_events: bool) !void {
-        const deadline_ns = nowNs() + (@as(i128, READY_WAIT_MS) * std.time.ns_per_ms);
+        const start_ns = nowNs();
+        const deadline_ns = start_ns + (@as(i128, READY_WAIT_MS) * std.time.ns_per_ms);
         while (nowNs() < deadline_ns) {
             const logs_ok = !want_logs or self.logs_ready.load(.acquire);
             const events_ok = !want_events or self.events_ready.load(.acquire);
@@ -94,6 +95,23 @@ pub const MemberRelay = struct {
             if (self.stopping()) return;
             sleepMillis(25);
         }
+        // Diagnostic log on timeout — print which sub-readiness was missing.
+        // Useful for popok-only failures we cannot reproduce locally.
+        const elapsed_ms = @as(i64, @intCast(@divTrunc(nowNs() - start_ns, std.time.ns_per_ms)));
+        std.debug.print(
+            "[member-relay] waitReady timeout slug={s} address={s} elapsed_ms={d} want_logs={} want_events={} require_first_replay={} logs_ready={} events_ready={} first_replay_ready={}\n",
+            .{
+                self.member.slug,
+                self.member.address,
+                elapsed_ms,
+                want_logs,
+                want_events,
+                self.require_first_replay,
+                self.logs_ready.load(.acquire),
+                self.events_ready.load(.acquire),
+                self.first_replay_ready.load(.acquire),
+            },
+        );
         if (self.require_first_replay and !self.first_replay_ready.load(.acquire)) return error.FirstReplayTimeout;
         return error.RelayReadyTimeout;
     }
