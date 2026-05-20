@@ -149,6 +149,19 @@ fn runReport(allocator: std.mem.Allocator, name: []const u8, members: []const La
         };
         if (emit) try print("Phase {}/{}: {s}\n", .{ phase_idx + 1, holons.composite.TransportCoverageSequence.len, phase.name });
 
+        // Phase 04 (tcp→unix) is temporarily suspended: it fails systematically
+        // with error.FirstReplayTimeout on the popok-noctambule CI runner
+        // (macOS 26 under load), while passing on developer machines (macOS 15)
+        // and on every other transport combination. Re-enable once the runner
+        // can be reached physically and the relay startup is instrumented.
+        if (phase_idx == 3) {
+            phase.elapsed_us = elapsedUs(phase_start);
+            try phase.failures.append(allocator, try allocator.dupe(u8, "suspended: tcp->unix transition flake on popok (macOS 26)"));
+            addPhase(&report, phase);
+            if (emit) try print("  SKIPPED (suspended)\n", .{});
+            continue;
+        }
+
         const specs = try childSpecs(allocator, members);
         var cascade = holons.composite.BuildCascade(allocator, .{
             .transport_name = transport_name,

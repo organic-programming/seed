@@ -23,13 +23,11 @@ class GabrielGreetingApp extends StatelessWidget {
     required this.greetingController,
     required this.coaxManager,
     required this.observabilityKit,
-    required this.deferInitialHolonStartup,
   });
 
   final GreetingController greetingController;
   final CoaxManager coaxManager;
   final ObservabilityKit observabilityKit;
-  final bool deferInitialHolonStartup;
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +49,6 @@ class GabrielGreetingApp extends StatelessWidget {
         greetingController: greetingController,
         coaxManager: coaxManager,
         observabilityKit: observabilityKit,
-        deferInitialHolonStartup: deferInitialHolonStartup,
       ),
     );
   }
@@ -63,13 +60,11 @@ class GabrielGreetingHomePage extends StatefulWidget {
     required this.greetingController,
     required this.coaxManager,
     required this.observabilityKit,
-    required this.deferInitialHolonStartup,
   });
 
   final GreetingController greetingController;
   final CoaxManager coaxManager;
   final ObservabilityKit observabilityKit;
-  final bool deferInitialHolonStartup;
 
   @override
   State<GabrielGreetingHomePage> createState() =>
@@ -106,10 +101,6 @@ class _GabrielGreetingHomePageState extends State<GabrielGreetingHomePage> {
       }
       await widget.coaxManager.startIfEnabled();
       if (!mounted || _shutdownFuture != null) {
-        return;
-      }
-      if (widget.deferInitialHolonStartup) {
-        await widget.greetingController.refreshHolons();
         return;
       }
       await widget.greetingController.initialize();
