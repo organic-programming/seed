@@ -1,0 +1,26 @@
+name: popok-rescue
+
+# Désactive la Gestion à distance (ARD) sur popok et réactive le Partage
+# d'écran classique. À déclencher manuellement quand l'accès interactif
+# a été perdu par bascule accidentelle dans System Settings.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  rescue:
+    if: github.actor == 'bpds'
+    runs-on: [self-hosted, macOS]
+    timeout-minutes: 2
+    steps:
+      - name: Disable Remote Management, restore Screen Sharing
+        run: |
+          set -u
+          KICKSTART=/System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart
+          echo "=== disable ARD ==="
+          sudo "$KICKSTART" -deactivate -configure -access -off 2>&1 || true
+          echo "=== enable Screen Sharing ==="
+          sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.screensharing.plist 2>&1 || true
+          echo "=== state ==="
+          launchctl list | grep -iE "screen|ARDAgent|RemoteManagement" || echo "(rien d'actif)"
+          lsof -nP -iTCP:5900 -sTCP:LISTEN 2>&1 | head -3 || true
