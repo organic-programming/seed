@@ -19,9 +19,11 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"google.golang.org/grpc"
@@ -105,11 +107,32 @@ func DialStdioCommand(ctx context.Context, cmd *exec.Cmd) (*grpc.ClientConn, *ex
 	}
 
 	// Single-connection dialer: the pipe can only be used once.
+	// DIAGNOSTIC: log dial attempts to stderr so we can correlate
+	// "stdio pipe already consumed" failures (run 26244397041 / zig)
+	// with the cause — either gRPC retrying after a transient handshake
+	// error or the child process dying mid-handshake. The label comes
+	// from cmd.Args[0] (typically the holon binary).
 	var dialOnce sync.Once
+	var dialCount int32
+	dialLabel := "<unknown>"
+	if cmd.Path != "" {
+		dialLabel = cmd.Path
+	} else if len(cmd.Args) > 0 {
+		dialLabel = cmd.Args[0]
+	}
+	dialPid := 0
+	if cmd.Process != nil {
+		dialPid = cmd.Process.Pid
+	}
 	dialer := func(ctx context.Context, _ string) (net.Conn, error) {
+		n := atomic.AddInt32(&dialCount, 1)
+		fmt.Fprintf(os.Stderr, "[stdio-dial-diag] attempt=%d label=%s pid=%d ctx_err=%v\n",
+			n, dialLabel, dialPid, ctx.Err())
 		var conn net.Conn
 		dialOnce.Do(func() { conn = pConn })
 		if conn == nil {
+			fmt.Fprintf(os.Stderr, "[stdio-dial-diag] pipe already consumed on attempt=%d label=%s pid=%d\n",
+				n, dialLabel, dialPid)
 			return nil, fmt.Errorf("stdio pipe already consumed")
 		}
 		return conn, nil

@@ -142,34 +142,12 @@ func collectTypedCascadeSample(t *testing.T, sb *integration.Sandbox, slug strin
 	}
 	defer conn.Close()
 
-	// DIAGNOSTIC: dedicated connection for RunDefault, separate from the
-	// connection that carries the concurrent server-streaming Events
-	// subscription opened just below. Run 26235114836 shows the csharp
-	// EOF fires at exactly 3.555s into RunReport, after 3 phases of the
-	// cascade complete successfully, while the inbound gRPC stream is
-	// alive and the server process is still running. The test currently
-	// multiplexes Events (server-streaming, Follow: true) and RunDefault
-	// (unary) over a single HTTP/2 connection. We isolate them here to
-	// rule the multiplexing in or out as the trigger. This is purely a
-	// test-side observation; the C# SDK and holon are NOT changed. If
-	// CI starts passing csharp after this isolation, the proper fix is
-	// in the C# server / grpc-dotnet so the SDK keeps supporting
-	// concurrent streams on one conn — we do NOT want to accept this
-	// split as a permanent workaround that silently caps the SDK.
-	runDialCtx, runDialCancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer runDialCancel()
-	runConn, err := grpcclient.Dial(runDialCtx, strings.TrimPrefix(address, "tcp://"))
-	if err != nil {
-		t.Fatalf("%s dial RunDefault conn: %v", slug, err)
-	}
-	defer runConn.Close()
-
 	obs := holonsv1.NewHolonObservabilityClient(conn)
 	events := startEventRecordCollector(t, obs)
 
 	runStart := time.Now()
 	runCtx, runCancel := context.WithTimeout(context.Background(), 15*time.Minute)
-	report, err := ocv1.NewObservabilityCascadeServiceClient(runConn).RunDefault(runCtx, &ocv1.RunRequest{})
+	report, err := ocv1.NewObservabilityCascadeServiceClient(conn).RunDefault(runCtx, &ocv1.RunRequest{})
 	runCancel()
 	runElapsed := time.Since(runStart)
 	if err != nil {

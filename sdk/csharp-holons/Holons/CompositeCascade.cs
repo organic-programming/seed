@@ -83,11 +83,21 @@ public sealed class SpawnedMember : IAsyncDisposable, IDisposable
 
         try
         {
-            _process.Kill(entireProcessTree: true);
+            // We deliberately avoid Process.Kill(entireProcessTree: true) here.
+            // On macOS inside the GitHub Actions Runner.Worker process group,
+            // tree-traversal kill has been observed to propagate SIGHUP back
+            // to the parent holon process, killing the cascade server itself
+            // mid-RunReport (CI run 26244397041, csharp phase 3 StopAsync).
+            // We SIGKILL only the direct child; each cascade member is
+            // responsible for cleaning up its own downstream children when
+            // its inbound gRPC channel closes, so transitive cleanup still
+            // happens — just from the inside out instead of via the parent
+            // walking the OS process tree.
+            _process.Kill();
             var wait = _process.WaitForExitAsync(cancellationToken);
             var completed = await Task.WhenAny(wait, Task.Delay(TimeSpan.FromSeconds(3), cancellationToken)).ConfigureAwait(false);
             if (completed != wait && !_process.HasExited)
-                _process.Kill(entireProcessTree: true);
+                _process.Kill();
         }
         catch
         {
