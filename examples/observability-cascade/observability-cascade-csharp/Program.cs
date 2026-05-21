@@ -58,7 +58,9 @@ sealed class CascadeApp
 
     public async Task<CascadeReport> RunReport(string name, IReadOnlyList<LanguageMember> members, bool live, bool emit)
     {
+        DiagLogReport($"RunReport entered name={name} live={live} members={members.Count}");
         EnsureCascadeObservability();
+        DiagLogReport("EnsureCascadeObservability ok");
         var reportStart = DateTime.UtcNow;
         var report = new CascadeReport { Name = name };
         var timeout = live ? TimeSpan.FromSeconds(1) : TimeSpan.FromSeconds(3);
@@ -76,12 +78,14 @@ sealed class CascadeApp
             var transport = Composite.TransportCoverageSequence[phaseIndex];
             var from = phaseIndex == 0 ? transport : Composite.TransportCoverageSequence[phaseIndex - 1];
             var phase = new PhaseResult { Name = $"{phaseIndex + 1:00}-{from}\u2192{transport}" };
+            DiagLogReport($"phase {phaseIndex + 1}/{Composite.TransportCoverageSequence.Length} start transport={transport}");
             if (emit)
                 Console.WriteLine($"Phase {phaseIndex + 1}/{Composite.TransportCoverageSequence.Length}: {phase.Name}");
 
             Cascade? cascade = null;
             try
             {
+                DiagLogReport($"phase {phaseIndex + 1} BuildCascade start");
                 cascade = await Composite.BuildCascade(
                     new CascadeOptions
                     {
@@ -93,12 +97,15 @@ sealed class CascadeApp
                             ["OP_PROM_ADDR"] = "127.0.0.1:0",
                         },
                     });
+                DiagLogReport($"phase {phaseIndex + 1} BuildCascade ok");
 
                 var previous = new Dictionary<string, long>();
                 for (var tick = 1; tick <= RunTicks; tick++)
                 {
                     var sender = $"{name}-phase-{phaseIndex + 1:00}-tick-{tick}";
+                    DiagLogReport($"phase {phaseIndex + 1} tick {tick} start sender={sender}");
                     var result = await RunTick(cascade, sender, transport, members, previous, timeout, poll, live);
+                    DiagLogReport($"phase {phaseIndex + 1} tick {tick} {(result.Pass ? "PASS" : "FAIL")}");
                     if (result.Pass)
                     {
                         phase.Pass++;
@@ -118,6 +125,7 @@ sealed class CascadeApp
             }
             catch (Exception error)
             {
+                DiagLogReport($"phase {phaseIndex + 1} CATCH {error.GetType().FullName}: {error.Message}");
                 phase.Fail += RunTicks;
                 for (var tick = 1; tick <= RunTicks; tick++)
                     phase.Failures.Add($"tick={tick} log=spawn event=spawn hops={CompactEvidence(error.Message)}");
@@ -125,7 +133,11 @@ sealed class CascadeApp
             finally
             {
                 if (cascade is not null)
+                {
+                    DiagLogReport($"phase {phaseIndex + 1} StopAsync start");
                     await cascade.StopAsync();
+                    DiagLogReport($"phase {phaseIndex + 1} StopAsync ok");
+                }
             }
 
             phase.ElapsedUs = ElapsedUs(phaseStart);
@@ -135,9 +147,19 @@ sealed class CascadeApp
         }
 
         report.ElapsedUs = ElapsedUs(reportStart);
+        DiagLogReport($"RunReport returning ticks={report.Ticks} pass={report.Pass} fail={report.Fail}");
         if (emit)
             Console.WriteLine($"\nSummary: {report.Ticks} ticks, {report.Pass} PASS, {report.Fail} FAIL (total elapsed={ElapsedText(report.ElapsedUs)})");
         return report;
+    }
+
+    // Mirror of CascadeService.DiagLog, accessible from instance methods.
+    // Forced flush so the line reaches the test harness's Combined() buffer
+    // even if Kestrel tears down the response stream right after.
+    private static void DiagLogReport(string message)
+    {
+        Console.Error.WriteLine($"[csharp-diag] {DateTime.UtcNow:HH:mm:ss.fff} {message}");
+        Console.Error.Flush();
     }
 
     public async Task<MultiPatternReport> RunMultiPattern(bool emit)
