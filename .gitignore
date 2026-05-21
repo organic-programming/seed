@@ -14,7 +14,7 @@
 # Tool state
 .op/
 .codex/
-.claude/settings.local.json
+.claude/settings.*
 .gemini/.env
 .runtime/
 .build/
