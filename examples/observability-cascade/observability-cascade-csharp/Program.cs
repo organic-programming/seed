@@ -330,14 +330,90 @@ sealed class CascadeApp
 
     private sealed class CascadeService(CascadeApp app) : ObservabilityCascadeService.ObservabilityCascadeServiceBase
     {
-        public override async Task<CascadeReport> RunDefault(RunRequest request, ServerCallContext context) =>
-            await app.RunReport("default", await app.OwnLanguageMembers(), live: false, emit: false);
+        // The popok-noctambule CI runner observes a reproducible C# typed
+        // RunDefault failure with rpc error "code = Unavailable desc =
+        // error reading from server: EOF", while the same matrix passes
+        // locally and via the ader test wrapper. The server process is
+        // confirmed alive at the time of EOF, and the captured stderr
+        // contains nothing past the initial "gRPC server listening" line.
+        // The diagnostic markers below (a) force a stderr flush at each
+        // step so output reaches the test harness even if Kestrel closes
+        // the response stream early, and (b) wrap each handler in a
+        // top-level try/catch so any otherwise-swallowed exception is at
+        // least visible in the captured server output before it bubbles
+        // up to the gRPC layer. Remove once the root cause is found.
+        public override async Task<CascadeReport> RunDefault(RunRequest request, ServerCallContext context)
+        {
+            return await InvokeWithDiag(
+                "RunDefault",
+                async () =>
+                {
+                    DiagLog("members fetching");
+                    var members = await app.OwnLanguageMembers();
+                    DiagLog($"members count={members.Count}");
+                    var report = await app.RunReport("default", members, live: false, emit: false);
+                    DiagLog($"report pass={report.Pass} fail={report.Fail} ticks={report.Ticks}");
+                    return report;
+                },
+                context);
+        }
 
-        public override async Task<CascadeReport> RunLiveStream(RunRequest request, ServerCallContext context) =>
-            await app.RunReport("live-stream", await app.OwnLanguageMembers(), live: true, emit: false);
+        public override async Task<CascadeReport> RunLiveStream(RunRequest request, ServerCallContext context)
+        {
+            return await InvokeWithDiag(
+                "RunLiveStream",
+                async () =>
+                {
+                    DiagLog("members fetching");
+                    var members = await app.OwnLanguageMembers();
+                    DiagLog($"members count={members.Count}");
+                    var report = await app.RunReport("live-stream", members, live: true, emit: false);
+                    DiagLog($"report pass={report.Pass} fail={report.Fail} ticks={report.Ticks}");
+                    return report;
+                },
+                context);
+        }
 
-        public override async Task<MultiPatternReport> RunMultiPattern(RunRequest request, ServerCallContext context) =>
-            await app.RunMultiPattern(emit: false);
+        public override async Task<MultiPatternReport> RunMultiPattern(RunRequest request, ServerCallContext context)
+        {
+            return await InvokeWithDiag(
+                "RunMultiPattern",
+                async () =>
+                {
+                    var report = await app.RunMultiPattern(emit: false);
+                    DiagLog($"multi-pattern patterns={report.Patterns.Count}");
+                    return report;
+                },
+                context);
+        }
+
+        private static void DiagLog(string message)
+        {
+            // Use stderr with explicit flush so the test harness's
+            // Combined() buffer sees the line even if the server closes
+            // its gRPC response stream right after this point. AppendLine
+            // would buffer.
+            Console.Error.WriteLine($"[csharp-diag] {DateTime.UtcNow:HH:mm:ss.fff} {message}");
+            Console.Error.Flush();
+        }
+
+        private static async Task<T> InvokeWithDiag<T>(string method, Func<Task<T>> body, ServerCallContext context)
+        {
+            DiagLog($"{method} entered peer={context.Peer} deadline={context.Deadline:O}");
+            try
+            {
+                var result = await body();
+                DiagLog($"{method} returning ok");
+                return result;
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"{method} EXCEPTION {ex.GetType().FullName}: {ex.Message}");
+                Console.Error.WriteLine(ex.StackTrace);
+                Console.Error.Flush();
+                throw;
+            }
+        }
     }
 
     public sealed record LanguageMember(string Lang, string Slug, string Binary);
