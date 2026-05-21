@@ -1727,6 +1727,13 @@ jobs:
             -not -path '*/.zig-cache/*' \
             -not -path '*/zig-out/*' \
             -print0 | xargs -0 zig fmt --check
+          # stdio_respawn_test.zig (commit 23a514b9) resolves cascade node
+          # binaries from observability-cascade-{zig,go}-node/.op/build before
+          # falling back to the shared workspace root. Build those holons up
+          # front so `zig build test` finds them via the fallback path
+          # (env vars ZIG_HOLONS_CASCADE_{GO,ZIG}_NODE are unset in CI).
+          op build observability-cascade-zig-node
+          op build observability-cascade-go-node
           cd sdk/zig-holons
           zig build vendor
           zig build test
