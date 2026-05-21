@@ -196,55 +196,6 @@ func (Status) EnumDescriptor() ([]byte, []int) {
 	return file_api_v1_holon_proto_rawDescGZIP(), []int{2}
 }
 
-type WorktreeMode int32
-
-const (
-	WorktreeMode_WORKTREE_MODE_UNSPECIFIED WorktreeMode = 0
-	WorktreeMode_WORKTREE_MODE_ISOLATED    WorktreeMode = 1
-	WorktreeMode_WORKTREE_MODE_PLAIN       WorktreeMode = 2
-)
-
-// Enum value maps for WorktreeMode.
-var (
-	WorktreeMode_name = map[int32]string{
-		0: "WORKTREE_MODE_UNSPECIFIED",
-		1: "WORKTREE_MODE_ISOLATED",
-		2: "WORKTREE_MODE_PLAIN",
-	}
-	WorktreeMode_value = map[string]int32{
-		"WORKTREE_MODE_UNSPECIFIED": 0,
-		"WORKTREE_MODE_ISOLATED":    1,
-		"WORKTREE_MODE_PLAIN":       2,
-	}
-)
-
-func (x WorktreeMode) Enum() *WorktreeMode {
-	p := new(WorktreeMode)
-	*p = x
-	return p
-}
-
-func (x WorktreeMode) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (WorktreeMode) Descriptor() protoreflect.EnumDescriptor {
-	return file_api_v1_holon_proto_enumTypes[3].Descriptor()
-}
-
-func (WorktreeMode) Type() protoreflect.EnumType {
-	return &file_api_v1_holon_proto_enumTypes[3]
-}
-
-func (x WorktreeMode) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use WorktreeMode.Descriptor instead.
-func (WorktreeMode) EnumDescriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{3}
-}
-
 type HolonIdentity struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Uuid          string                 `protobuf:"bytes,1,opt,name=uuid,proto3" json:"uuid,omitempty"`
@@ -4408,495 +4359,6 @@ func (x *EnvResponse) GetCacheDir() string {
 	return ""
 }
 
-type WorktreeRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// command is one of: create, bootstrap, doctor.
-	Command       string       `protobuf:"bytes,1,opt,name=command,proto3" json:"command,omitempty"`
-	Branch        string       `protobuf:"bytes,2,opt,name=branch,proto3" json:"branch,omitempty"`
-	Mode          WorktreeMode `protobuf:"varint,3,opt,name=mode,proto3,enum=op.v1.WorktreeMode" json:"mode,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *WorktreeRequest) Reset() {
-	*x = WorktreeRequest{}
-	mi := &file_api_v1_holon_proto_msgTypes[67]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *WorktreeRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*WorktreeRequest) ProtoMessage() {}
-
-func (x *WorktreeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[67]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use WorktreeRequest.ProtoReflect.Descriptor instead.
-func (*WorktreeRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{67}
-}
-
-func (x *WorktreeRequest) GetCommand() string {
-	if x != nil {
-		return x.Command
-	}
-	return ""
-}
-
-func (x *WorktreeRequest) GetBranch() string {
-	if x != nil {
-		return x.Branch
-	}
-	return ""
-}
-
-func (x *WorktreeRequest) GetMode() WorktreeMode {
-	if x != nil {
-		return x.Mode
-	}
-	return WorktreeMode_WORKTREE_MODE_UNSPECIFIED
-}
-
-type WorktreeActivation struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Cwd           string                 `protobuf:"bytes,1,opt,name=cwd,proto3" json:"cwd,omitempty"`
-	Env           map[string]string      `protobuf:"bytes,2,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	PathPrepend   string                 `protobuf:"bytes,3,opt,name=path_prepend,json=pathPrepend,proto3" json:"path_prepend,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *WorktreeActivation) Reset() {
-	*x = WorktreeActivation{}
-	mi := &file_api_v1_holon_proto_msgTypes[68]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *WorktreeActivation) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*WorktreeActivation) ProtoMessage() {}
-
-func (x *WorktreeActivation) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[68]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use WorktreeActivation.ProtoReflect.Descriptor instead.
-func (*WorktreeActivation) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{68}
-}
-
-func (x *WorktreeActivation) GetCwd() string {
-	if x != nil {
-		return x.Cwd
-	}
-	return ""
-}
-
-func (x *WorktreeActivation) GetEnv() map[string]string {
-	if x != nil {
-		return x.Env
-	}
-	return nil
-}
-
-func (x *WorktreeActivation) GetPathPrepend() string {
-	if x != nil {
-		return x.PathPrepend
-	}
-	return ""
-}
-
-type WorktreeDoctor struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Ok              bool                   `protobuf:"varint,1,opt,name=ok,proto3" json:"ok,omitempty"`
-	Cwd             string                 `protobuf:"bytes,2,opt,name=cwd,proto3" json:"cwd,omitempty"`
-	RepoRoot        string                 `protobuf:"bytes,3,opt,name=repo_root,json=repoRoot,proto3" json:"repo_root,omitempty"`
-	ExpectedOppath  string                 `protobuf:"bytes,4,opt,name=expected_oppath,json=expectedOppath,proto3" json:"expected_oppath,omitempty"`
-	ExpectedOpbin   string                 `protobuf:"bytes,5,opt,name=expected_opbin,json=expectedOpbin,proto3" json:"expected_opbin,omitempty"`
-	Oppath          string                 `protobuf:"bytes,6,opt,name=oppath,proto3" json:"oppath,omitempty"`
-	Opbin           string                 `protobuf:"bytes,7,opt,name=opbin,proto3" json:"opbin,omitempty"`
-	OpPath          string                 `protobuf:"bytes,8,opt,name=op_path,json=opPath,proto3" json:"op_path,omitempty"`
-	AderPath        string                 `protobuf:"bytes,9,opt,name=ader_path,json=aderPath,proto3" json:"ader_path,omitempty"`
-	Checks          map[string]bool        `protobuf:"bytes,10,rep,name=checks,proto3" json:"checks,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
-	Error           string                 `protobuf:"bytes,11,opt,name=error,proto3" json:"error,omitempty"`
-	RecommendedCode int32                  `protobuf:"varint,12,opt,name=recommended_code,json=recommendedCode,proto3" json:"recommended_code,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
-}
-
-func (x *WorktreeDoctor) Reset() {
-	*x = WorktreeDoctor{}
-	mi := &file_api_v1_holon_proto_msgTypes[69]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *WorktreeDoctor) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*WorktreeDoctor) ProtoMessage() {}
-
-func (x *WorktreeDoctor) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[69]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use WorktreeDoctor.ProtoReflect.Descriptor instead.
-func (*WorktreeDoctor) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{69}
-}
-
-func (x *WorktreeDoctor) GetOk() bool {
-	if x != nil {
-		return x.Ok
-	}
-	return false
-}
-
-func (x *WorktreeDoctor) GetCwd() string {
-	if x != nil {
-		return x.Cwd
-	}
-	return ""
-}
-
-func (x *WorktreeDoctor) GetRepoRoot() string {
-	if x != nil {
-		return x.RepoRoot
-	}
-	return ""
-}
-
-func (x *WorktreeDoctor) GetExpectedOppath() string {
-	if x != nil {
-		return x.ExpectedOppath
-	}
-	return ""
-}
-
-func (x *WorktreeDoctor) GetExpectedOpbin() string {
-	if x != nil {
-		return x.ExpectedOpbin
-	}
-	return ""
-}
-
-func (x *WorktreeDoctor) GetOppath() string {
-	if x != nil {
-		return x.Oppath
-	}
-	return ""
-}
-
-func (x *WorktreeDoctor) GetOpbin() string {
-	if x != nil {
-		return x.Opbin
-	}
-	return ""
-}
-
-func (x *WorktreeDoctor) GetOpPath() string {
-	if x != nil {
-		return x.OpPath
-	}
-	return ""
-}
-
-func (x *WorktreeDoctor) GetAderPath() string {
-	if x != nil {
-		return x.AderPath
-	}
-	return ""
-}
-
-func (x *WorktreeDoctor) GetChecks() map[string]bool {
-	if x != nil {
-		return x.Checks
-	}
-	return nil
-}
-
-func (x *WorktreeDoctor) GetError() string {
-	if x != nil {
-		return x.Error
-	}
-	return ""
-}
-
-func (x *WorktreeDoctor) GetRecommendedCode() int32 {
-	if x != nil {
-		return x.RecommendedCode
-	}
-	return 0
-}
-
-type WorktreeResponse struct {
-	state                   protoimpl.MessageState `protogen:"open.v1"`
-	SchemaVersion           int32                  `protobuf:"varint,1,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
-	Command                 string                 `protobuf:"bytes,2,opt,name=command,proto3" json:"command,omitempty"`
-	Mode                    string                 `protobuf:"bytes,3,opt,name=mode,proto3" json:"mode,omitempty"`
-	Status                  string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
-	WorktreeStatus          string                 `protobuf:"bytes,5,opt,name=worktree_status,json=worktreeStatus,proto3" json:"worktree_status,omitempty"`
-	Branch                  string                 `protobuf:"bytes,6,opt,name=branch,proto3" json:"branch,omitempty"`
-	Head                    string                 `protobuf:"bytes,7,opt,name=head,proto3" json:"head,omitempty"`
-	Worktree                string                 `protobuf:"bytes,8,opt,name=worktree,proto3" json:"worktree,omitempty"`
-	Oppath                  string                 `protobuf:"bytes,9,opt,name=oppath,proto3" json:"oppath,omitempty"`
-	Opbin                   string                 `protobuf:"bytes,10,opt,name=opbin,proto3" json:"opbin,omitempty"`
-	Activation              *WorktreeActivation    `protobuf:"bytes,11,opt,name=activation,proto3" json:"activation,omitempty"`
-	OpSha256                string                 `protobuf:"bytes,12,opt,name=op_sha256,json=opSha256,proto3" json:"op_sha256,omitempty"`
-	AderSha256              string                 `protobuf:"bytes,13,opt,name=ader_sha256,json=aderSha256,proto3" json:"ader_sha256,omitempty"`
-	OpPath                  string                 `protobuf:"bytes,14,opt,name=op_path,json=opPath,proto3" json:"op_path,omitempty"`
-	AderPath                string                 `protobuf:"bytes,15,opt,name=ader_path,json=aderPath,proto3" json:"ader_path,omitempty"`
-	ConfigChanges           []string               `protobuf:"bytes,16,rep,name=config_changes,json=configChanges,proto3" json:"config_changes,omitempty"`
-	ConfigPaths             map[string]string      `protobuf:"bytes,17,rep,name=config_paths,json=configPaths,proto3" json:"config_paths,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	BootstrapJson           string                 `protobuf:"bytes,18,opt,name=bootstrap_json,json=bootstrapJson,proto3" json:"bootstrap_json,omitempty"`
-	CodexConfigToml         string                 `protobuf:"bytes,19,opt,name=codex_config_toml,json=codexConfigToml,proto3" json:"codex_config_toml,omitempty"`
-	ClaudeSettingsLocalJson string                 `protobuf:"bytes,20,opt,name=claude_settings_local_json,json=claudeSettingsLocalJson,proto3" json:"claude_settings_local_json,omitempty"`
-	GeminiEnv               string                 `protobuf:"bytes,21,opt,name=gemini_env,json=geminiEnv,proto3" json:"gemini_env,omitempty"`
-	VscodeSettingsJson      string                 `protobuf:"bytes,22,opt,name=vscode_settings_json,json=vscodeSettingsJson,proto3" json:"vscode_settings_json,omitempty"`
-	Isolated                bool                   `protobuf:"varint,23,opt,name=isolated,proto3" json:"isolated,omitempty"`
-	BuiltAt                 string                 `protobuf:"bytes,24,opt,name=built_at,json=builtAt,proto3" json:"built_at,omitempty"`
-	Doctor                  *WorktreeDoctor        `protobuf:"bytes,25,opt,name=doctor,proto3" json:"doctor,omitempty"`
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
-}
-
-func (x *WorktreeResponse) Reset() {
-	*x = WorktreeResponse{}
-	mi := &file_api_v1_holon_proto_msgTypes[70]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *WorktreeResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*WorktreeResponse) ProtoMessage() {}
-
-func (x *WorktreeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[70]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use WorktreeResponse.ProtoReflect.Descriptor instead.
-func (*WorktreeResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{70}
-}
-
-func (x *WorktreeResponse) GetSchemaVersion() int32 {
-	if x != nil {
-		return x.SchemaVersion
-	}
-	return 0
-}
-
-func (x *WorktreeResponse) GetCommand() string {
-	if x != nil {
-		return x.Command
-	}
-	return ""
-}
-
-func (x *WorktreeResponse) GetMode() string {
-	if x != nil {
-		return x.Mode
-	}
-	return ""
-}
-
-func (x *WorktreeResponse) GetStatus() string {
-	if x != nil {
-		return x.Status
-	}
-	return ""
-}
-
-func (x *WorktreeResponse) GetWorktreeStatus() string {
-	if x != nil {
-		return x.WorktreeStatus
-	}
-	return ""
-}
-
-func (x *WorktreeResponse) GetBranch() string {
-	if x != nil {
-		return x.Branch
-	}
-	return ""
-}
-
-func (x *WorktreeResponse) GetHead() string {
-	if x != nil {
-		return x.Head
-	}
-	return ""
-}
-
-func (x *WorktreeResponse) GetWorktree() string {
-	if x != nil {
-		return x.Worktree
-	}
-	return ""
-}
-
-func (x *WorktreeResponse) GetOppath() string {
-	if x != nil {
-		return x.Oppath
-	}
-	return ""
-}
-
-func (x *WorktreeResponse) GetOpbin() string {
-	if x != nil {
-		return x.Opbin
-	}
-	return ""
-}
-
-func (x *WorktreeResponse) GetActivation() *WorktreeActivation {
-	if x != nil {
-		return x.Activation
-	}
-	return nil
-}
-
-func (x *WorktreeResponse) GetOpSha256() string {
-	if x != nil {
-		return x.OpSha256
-	}
-	return ""
-}
-
-func (x *WorktreeResponse) GetAderSha256() string {
-	if x != nil {
-		return x.AderSha256
-	}
-	return ""
-}
-
-func (x *WorktreeResponse) GetOpPath() string {
-	if x != nil {
-		return x.OpPath
-	}
-	return ""
-}
-
-func (x *WorktreeResponse) GetAderPath() string {
-	if x != nil {
-		return x.AderPath
-	}
-	return ""
-}
-
-func (x *WorktreeResponse) GetConfigChanges() []string {
-	if x != nil {
-		return x.ConfigChanges
-	}
-	return nil
-}
-
-func (x *WorktreeResponse) GetConfigPaths() map[string]string {
-	if x != nil {
-		return x.ConfigPaths
-	}
-	return nil
-}
-
-func (x *WorktreeResponse) GetBootstrapJson() string {
-	if x != nil {
-		return x.BootstrapJson
-	}
-	return ""
-}
-
-func (x *WorktreeResponse) GetCodexConfigToml() string {
-	if x != nil {
-		return x.CodexConfigToml
-	}
-	return ""
-}
-
-func (x *WorktreeResponse) GetClaudeSettingsLocalJson() string {
-	if x != nil {
-		return x.ClaudeSettingsLocalJson
-	}
-	return ""
-}
-
-func (x *WorktreeResponse) GetGeminiEnv() string {
-	if x != nil {
-		return x.GeminiEnv
-	}
-	return ""
-}
-
-func (x *WorktreeResponse) GetVscodeSettingsJson() string {
-	if x != nil {
-		return x.VscodeSettingsJson
-	}
-	return ""
-}
-
-func (x *WorktreeResponse) GetIsolated() bool {
-	if x != nil {
-		return x.Isolated
-	}
-	return false
-}
-
-func (x *WorktreeResponse) GetBuiltAt() string {
-	if x != nil {
-		return x.BuiltAt
-	}
-	return ""
-}
-
-func (x *WorktreeResponse) GetDoctor() *WorktreeDoctor {
-	if x != nil {
-		return x.Doctor
-	}
-	return nil
-}
-
 type SdkPrebuilt struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Lang          string                 `protobuf:"bytes,1,opt,name=lang,proto3" json:"lang,omitempty"`
@@ -4916,7 +4378,7 @@ type SdkPrebuilt struct {
 
 func (x *SdkPrebuilt) Reset() {
 	*x = SdkPrebuilt{}
-	mi := &file_api_v1_holon_proto_msgTypes[71]
+	mi := &file_api_v1_holon_proto_msgTypes[67]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4928,7 +4390,7 @@ func (x *SdkPrebuilt) String() string {
 func (*SdkPrebuilt) ProtoMessage() {}
 
 func (x *SdkPrebuilt) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[71]
+	mi := &file_api_v1_holon_proto_msgTypes[67]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4941,7 +4403,7 @@ func (x *SdkPrebuilt) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SdkPrebuilt.ProtoReflect.Descriptor instead.
 func (*SdkPrebuilt) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{71}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{67}
 }
 
 func (x *SdkPrebuilt) GetLang() string {
@@ -5019,7 +4481,7 @@ type InstallSdkPrebuiltRequest struct {
 
 func (x *InstallSdkPrebuiltRequest) Reset() {
 	*x = InstallSdkPrebuiltRequest{}
-	mi := &file_api_v1_holon_proto_msgTypes[72]
+	mi := &file_api_v1_holon_proto_msgTypes[68]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5031,7 +4493,7 @@ func (x *InstallSdkPrebuiltRequest) String() string {
 func (*InstallSdkPrebuiltRequest) ProtoMessage() {}
 
 func (x *InstallSdkPrebuiltRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[72]
+	mi := &file_api_v1_holon_proto_msgTypes[68]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5044,7 +4506,7 @@ func (x *InstallSdkPrebuiltRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InstallSdkPrebuiltRequest.ProtoReflect.Descriptor instead.
 func (*InstallSdkPrebuiltRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{72}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{68}
 }
 
 func (x *InstallSdkPrebuiltRequest) GetLang() string {
@@ -5089,7 +4551,7 @@ type ListSdkPrebuiltsRequest struct {
 
 func (x *ListSdkPrebuiltsRequest) Reset() {
 	*x = ListSdkPrebuiltsRequest{}
-	mi := &file_api_v1_holon_proto_msgTypes[73]
+	mi := &file_api_v1_holon_proto_msgTypes[69]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5101,7 +4563,7 @@ func (x *ListSdkPrebuiltsRequest) String() string {
 func (*ListSdkPrebuiltsRequest) ProtoMessage() {}
 
 func (x *ListSdkPrebuiltsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[73]
+	mi := &file_api_v1_holon_proto_msgTypes[69]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5114,7 +4576,7 @@ func (x *ListSdkPrebuiltsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSdkPrebuiltsRequest.ProtoReflect.Descriptor instead.
 func (*ListSdkPrebuiltsRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{73}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{69}
 }
 
 func (x *ListSdkPrebuiltsRequest) GetInstalled() bool {
@@ -5155,7 +4617,7 @@ type ListSdkPrebuiltsResponse struct {
 
 func (x *ListSdkPrebuiltsResponse) Reset() {
 	*x = ListSdkPrebuiltsResponse{}
-	mi := &file_api_v1_holon_proto_msgTypes[74]
+	mi := &file_api_v1_holon_proto_msgTypes[70]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5167,7 +4629,7 @@ func (x *ListSdkPrebuiltsResponse) String() string {
 func (*ListSdkPrebuiltsResponse) ProtoMessage() {}
 
 func (x *ListSdkPrebuiltsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[74]
+	mi := &file_api_v1_holon_proto_msgTypes[70]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5180,7 +4642,7 @@ func (x *ListSdkPrebuiltsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSdkPrebuiltsResponse.ProtoReflect.Descriptor instead.
 func (*ListSdkPrebuiltsResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{74}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{70}
 }
 
 func (x *ListSdkPrebuiltsResponse) GetEntries() []*SdkPrebuilt {
@@ -5208,7 +4670,7 @@ type UninstallSdkPrebuiltRequest struct {
 
 func (x *UninstallSdkPrebuiltRequest) Reset() {
 	*x = UninstallSdkPrebuiltRequest{}
-	mi := &file_api_v1_holon_proto_msgTypes[75]
+	mi := &file_api_v1_holon_proto_msgTypes[71]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5220,7 +4682,7 @@ func (x *UninstallSdkPrebuiltRequest) String() string {
 func (*UninstallSdkPrebuiltRequest) ProtoMessage() {}
 
 func (x *UninstallSdkPrebuiltRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[75]
+	mi := &file_api_v1_holon_proto_msgTypes[71]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5233,7 +4695,7 @@ func (x *UninstallSdkPrebuiltRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UninstallSdkPrebuiltRequest.ProtoReflect.Descriptor instead.
 func (*UninstallSdkPrebuiltRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{75}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{71}
 }
 
 func (x *UninstallSdkPrebuiltRequest) GetLang() string {
@@ -5268,7 +4730,7 @@ type VerifySdkPrebuiltRequest struct {
 
 func (x *VerifySdkPrebuiltRequest) Reset() {
 	*x = VerifySdkPrebuiltRequest{}
-	mi := &file_api_v1_holon_proto_msgTypes[76]
+	mi := &file_api_v1_holon_proto_msgTypes[72]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5280,7 +4742,7 @@ func (x *VerifySdkPrebuiltRequest) String() string {
 func (*VerifySdkPrebuiltRequest) ProtoMessage() {}
 
 func (x *VerifySdkPrebuiltRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[76]
+	mi := &file_api_v1_holon_proto_msgTypes[72]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5293,7 +4755,7 @@ func (x *VerifySdkPrebuiltRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VerifySdkPrebuiltRequest.ProtoReflect.Descriptor instead.
 func (*VerifySdkPrebuiltRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{76}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{72}
 }
 
 func (x *VerifySdkPrebuiltRequest) GetLang() string {
@@ -5328,7 +4790,7 @@ type LocateSdkPrebuiltRequest struct {
 
 func (x *LocateSdkPrebuiltRequest) Reset() {
 	*x = LocateSdkPrebuiltRequest{}
-	mi := &file_api_v1_holon_proto_msgTypes[77]
+	mi := &file_api_v1_holon_proto_msgTypes[73]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5340,7 +4802,7 @@ func (x *LocateSdkPrebuiltRequest) String() string {
 func (*LocateSdkPrebuiltRequest) ProtoMessage() {}
 
 func (x *LocateSdkPrebuiltRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[77]
+	mi := &file_api_v1_holon_proto_msgTypes[73]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5353,7 +4815,7 @@ func (x *LocateSdkPrebuiltRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LocateSdkPrebuiltRequest.ProtoReflect.Descriptor instead.
 func (*LocateSdkPrebuiltRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{77}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{73}
 }
 
 func (x *LocateSdkPrebuiltRequest) GetLang() string {
@@ -5388,7 +4850,7 @@ type SdkPrebuiltResponse struct {
 
 func (x *SdkPrebuiltResponse) Reset() {
 	*x = SdkPrebuiltResponse{}
-	mi := &file_api_v1_holon_proto_msgTypes[78]
+	mi := &file_api_v1_holon_proto_msgTypes[74]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5400,7 +4862,7 @@ func (x *SdkPrebuiltResponse) String() string {
 func (*SdkPrebuiltResponse) ProtoMessage() {}
 
 func (x *SdkPrebuiltResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[78]
+	mi := &file_api_v1_holon_proto_msgTypes[74]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5413,7 +4875,7 @@ func (x *SdkPrebuiltResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SdkPrebuiltResponse.ProtoReflect.Descriptor instead.
 func (*SdkPrebuiltResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{78}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{74}
 }
 
 func (x *SdkPrebuiltResponse) GetPrebuilt() *SdkPrebuilt {
@@ -5458,7 +4920,7 @@ type BuildSdkPrebuiltRequest struct {
 
 func (x *BuildSdkPrebuiltRequest) Reset() {
 	*x = BuildSdkPrebuiltRequest{}
-	mi := &file_api_v1_holon_proto_msgTypes[79]
+	mi := &file_api_v1_holon_proto_msgTypes[75]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5470,7 +4932,7 @@ func (x *BuildSdkPrebuiltRequest) String() string {
 func (*BuildSdkPrebuiltRequest) ProtoMessage() {}
 
 func (x *BuildSdkPrebuiltRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[79]
+	mi := &file_api_v1_holon_proto_msgTypes[75]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5483,7 +4945,7 @@ func (x *BuildSdkPrebuiltRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BuildSdkPrebuiltRequest.ProtoReflect.Descriptor instead.
 func (*BuildSdkPrebuiltRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{79}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{75}
 }
 
 func (x *BuildSdkPrebuiltRequest) GetLang() string {
@@ -5857,69 +5319,7 @@ const file_api_v1_holon_proto_rawDesc = "" +
 	"\x04root\x18\x03 \x01(\tR\x04root\x12 \n" +
 	"\vinitialized\x18\x04 \x01(\bR\vinitialized\x12\x14\n" +
 	"\x05shell\x18\x05 \x01(\tR\x05shell\x12\x1b\n" +
-	"\tcache_dir\x18\x06 \x01(\tR\bcacheDir\"l\n" +
-	"\x0fWorktreeRequest\x12\x18\n" +
-	"\acommand\x18\x01 \x01(\tR\acommand\x12\x16\n" +
-	"\x06branch\x18\x02 \x01(\tR\x06branch\x12'\n" +
-	"\x04mode\x18\x03 \x01(\x0e2\x13.op.v1.WorktreeModeR\x04mode\"\xb7\x01\n" +
-	"\x12WorktreeActivation\x12\x10\n" +
-	"\x03cwd\x18\x01 \x01(\tR\x03cwd\x124\n" +
-	"\x03env\x18\x02 \x03(\v2\".op.v1.WorktreeActivation.EnvEntryR\x03env\x12!\n" +
-	"\fpath_prepend\x18\x03 \x01(\tR\vpathPrepend\x1a6\n" +
-	"\bEnvEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xba\x03\n" +
-	"\x0eWorktreeDoctor\x12\x0e\n" +
-	"\x02ok\x18\x01 \x01(\bR\x02ok\x12\x10\n" +
-	"\x03cwd\x18\x02 \x01(\tR\x03cwd\x12\x1b\n" +
-	"\trepo_root\x18\x03 \x01(\tR\brepoRoot\x12'\n" +
-	"\x0fexpected_oppath\x18\x04 \x01(\tR\x0eexpectedOppath\x12%\n" +
-	"\x0eexpected_opbin\x18\x05 \x01(\tR\rexpectedOpbin\x12\x16\n" +
-	"\x06oppath\x18\x06 \x01(\tR\x06oppath\x12\x14\n" +
-	"\x05opbin\x18\a \x01(\tR\x05opbin\x12\x17\n" +
-	"\aop_path\x18\b \x01(\tR\x06opPath\x12\x1b\n" +
-	"\tader_path\x18\t \x01(\tR\baderPath\x129\n" +
-	"\x06checks\x18\n" +
-	" \x03(\v2!.op.v1.WorktreeDoctor.ChecksEntryR\x06checks\x12\x14\n" +
-	"\x05error\x18\v \x01(\tR\x05error\x12)\n" +
-	"\x10recommended_code\x18\f \x01(\x05R\x0frecommendedCode\x1a9\n" +
-	"\vChecksEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\bR\x05value:\x028\x01\"\xc8\a\n" +
-	"\x10WorktreeResponse\x12%\n" +
-	"\x0eschema_version\x18\x01 \x01(\x05R\rschemaVersion\x12\x18\n" +
-	"\acommand\x18\x02 \x01(\tR\acommand\x12\x12\n" +
-	"\x04mode\x18\x03 \x01(\tR\x04mode\x12\x16\n" +
-	"\x06status\x18\x04 \x01(\tR\x06status\x12'\n" +
-	"\x0fworktree_status\x18\x05 \x01(\tR\x0eworktreeStatus\x12\x16\n" +
-	"\x06branch\x18\x06 \x01(\tR\x06branch\x12\x12\n" +
-	"\x04head\x18\a \x01(\tR\x04head\x12\x1a\n" +
-	"\bworktree\x18\b \x01(\tR\bworktree\x12\x16\n" +
-	"\x06oppath\x18\t \x01(\tR\x06oppath\x12\x14\n" +
-	"\x05opbin\x18\n" +
-	" \x01(\tR\x05opbin\x129\n" +
-	"\n" +
-	"activation\x18\v \x01(\v2\x19.op.v1.WorktreeActivationR\n" +
-	"activation\x12\x1b\n" +
-	"\top_sha256\x18\f \x01(\tR\bopSha256\x12\x1f\n" +
-	"\vader_sha256\x18\r \x01(\tR\n" +
-	"aderSha256\x12\x17\n" +
-	"\aop_path\x18\x0e \x01(\tR\x06opPath\x12\x1b\n" +
-	"\tader_path\x18\x0f \x01(\tR\baderPath\x12%\n" +
-	"\x0econfig_changes\x18\x10 \x03(\tR\rconfigChanges\x12K\n" +
-	"\fconfig_paths\x18\x11 \x03(\v2(.op.v1.WorktreeResponse.ConfigPathsEntryR\vconfigPaths\x12%\n" +
-	"\x0ebootstrap_json\x18\x12 \x01(\tR\rbootstrapJson\x12*\n" +
-	"\x11codex_config_toml\x18\x13 \x01(\tR\x0fcodexConfigToml\x12;\n" +
-	"\x1aclaude_settings_local_json\x18\x14 \x01(\tR\x17claudeSettingsLocalJson\x12\x1d\n" +
-	"\n" +
-	"gemini_env\x18\x15 \x01(\tR\tgeminiEnv\x120\n" +
-	"\x14vscode_settings_json\x18\x16 \x01(\tR\x12vscodeSettingsJson\x12\x1a\n" +
-	"\bisolated\x18\x17 \x01(\bR\bisolated\x12\x19\n" +
-	"\bbuilt_at\x18\x18 \x01(\tR\abuiltAt\x12-\n" +
-	"\x06doctor\x18\x19 \x01(\v2\x15.op.v1.WorktreeDoctorR\x06doctor\x1a>\n" +
-	"\x10ConfigPathsEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x81\x02\n" +
+	"\tcache_dir\x18\x06 \x01(\tR\bcacheDir\"\x81\x02\n" +
 	"\vSdkPrebuilt\x12\x12\n" +
 	"\x04lang\x18\x01 \x01(\tR\x04lang\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\x12\x16\n" +
@@ -5992,11 +5392,7 @@ const file_api_v1_holon_proto_rawDesc = "" +
 	"\x06STABLE\x10\x02\x12\x0e\n" +
 	"\n" +
 	"DEPRECATED\x10\x03\x12\b\n" +
-	"\x04DEAD\x10\x04*b\n" +
-	"\fWorktreeMode\x12\x1d\n" +
-	"\x19WORKTREE_MODE_UNSPECIFIED\x10\x00\x12\x1a\n" +
-	"\x16WORKTREE_MODE_ISOLATED\x10\x01\x12\x17\n" +
-	"\x13WORKTREE_MODE_PLAIN\x10\x022\xc6\x11\n" +
+	"\x04DEAD\x10\x042\x89\x11\n" +
 	"\tOPService\x12;\n" +
 	"\bDiscover\x12\x16.op.v1.DiscoverRequest\x1a\x17.op.v1.DiscoverResponse\x125\n" +
 	"\x06Invoke\x12\x14.op.v1.InvokeRequest\x1a\x15.op.v1.InvokeResponse\x12M\n" +
@@ -6024,23 +5420,22 @@ const file_api_v1_holon_proto_rawDesc = "" +
 	"\aModList\x12\x15.op.v1.ModListRequest\x1a\x16.op.v1.ModListResponse\x12;\n" +
 	"\bModGraph\x12\x16.op.v1.ModGraphRequest\x1a\x17.op.v1.ModGraphResponse\x122\n" +
 	"\x05Tools\x12\x13.op.v1.ToolsRequest\x1a\x14.op.v1.ToolsResponse\x12,\n" +
-	"\x03Env\x12\x11.op.v1.EnvRequest\x1a\x12.op.v1.EnvResponse\x12;\n" +
-	"\bWorktree\x12\x16.op.v1.WorktreeRequest\x1a\x17.op.v1.WorktreeResponse\x12R\n" +
+	"\x03Env\x12\x11.op.v1.EnvRequest\x1a\x12.op.v1.EnvResponse\x12R\n" +
 	"\x12InstallSdkPrebuilt\x12 .op.v1.InstallSdkPrebuiltRequest\x1a\x1a.op.v1.SdkPrebuiltResponse\x12S\n" +
 	"\x10ListSdkPrebuilts\x12\x1e.op.v1.ListSdkPrebuiltsRequest\x1a\x1f.op.v1.ListSdkPrebuiltsResponse\x12V\n" +
 	"\x14UninstallSdkPrebuilt\x12\".op.v1.UninstallSdkPrebuiltRequest\x1a\x1a.op.v1.SdkPrebuiltResponse\x12P\n" +
 	"\x11VerifySdkPrebuilt\x12\x1f.op.v1.VerifySdkPrebuiltRequest\x1a\x1a.op.v1.SdkPrebuiltResponse\x12P\n" +
 	"\x11LocateSdkPrebuilt\x12\x1f.op.v1.LocateSdkPrebuiltRequest\x1a\x1a.op.v1.SdkPrebuiltResponse\x12N\n" +
-	"\x10BuildSdkPrebuilt\x12\x1e.op.v1.BuildSdkPrebuiltRequest\x1a\x1a.op.v1.SdkPrebuiltResponseB\xc6\x15\x82\xb5\x18\x86\x15\n" +
-	"\x80\x01\n" +
+	"\x10BuildSdkPrebuilt\x12\x1e.op.v1.BuildSdkPrebuiltRequest\x1a\x1a.op.v1.SdkPrebuiltResponseB\xb9\x15\x82\xb5\x18\xf9\x14\n" +
+	"~\n" +
 	"\bholon/v1\x12$28f22ab5-c62d-41f8-9ada-e34333060ff9\x1a\x05Grace\"\x02OP*\x19One command, every holon.2\bB. ALTERB\x05draftJ\n" +
-	"2026-02-12R\a0.5.717Z\x02op\x1a\xa5\x02OP is the unified entry point to the Organic Programming ecosystem. It discovers holons — locally or over the network — and dispatches commands to them through a single interface. The actant installs one binary and gets access to every holon. OP does not implement domain logic. It routes.\"\x02go*\x84\x03\n" +
+	"2026-02-12R\x050.9.0Z\x02op\x1a\xa5\x02OP is the unified entry point to the Organic Programming ecosystem. It discovers holons — locally or over the network — and dispatches commands to them through a single interface. The actant installs one binary and gets access to every holon. OP does not implement domain logic. It routes.\"\x02go*\x84\x03\n" +
 	"\x12discover-and-build\x12=Discover a holon, inspect its contract, and build it locally.\x1aQUser wants to find a holon in the workspace and turn it into a runnable artifact.\"7Discover local holons with `op list .` or `op discover`\".Inspect the contract with `op inspect <holon>`\".Validate prerequisites with `op check <holon>`\"CBuild and install with `op build <holon>` then `op install <holon>`*\xc0\x03\n" +
 	"\x0efull-lifecycle\x12@Drive a holon through validation, build, test, run, and cleanup.\x1aLUser wants the complete Organic Programming lifecycle for a holon or recipe.\"9Validate manifest and environment with `op check <holon>`\"IBuild and test the artifact with `op build <holon>` and `op test <holon>`\"BLaunch or dispatch with `op run <holon>` or `op <holon> <command>`\"TClean and uninstall when finished with `op clean <holon>` and `op uninstall <holon>`*\xcb\x02\n" +
 	"\x10introspect-holon\x12;Inspect a holon's RPC contract, fields, and skills offline.\x1a:User wants to understand a holon's API without running it.\"6Run `op inspect <holon>` for human-readable proto docs\";Use `op inspect <holon> --json` for machine-readable output\"IFallback to `op inspect <host:port>` for a running holon via Describe RPC*\xa4\x02\n" +
 	"\rexpose-to-llm\x122Expose any holon as MCP tools for LLM integration.\x1a*User wants an AI agent to call holon RPCs.\"*Start the MCP bridge with `op mcp <holon>`\"BOr export tool definitions with `op tools <holon> --format openai`\"CSkills from the manifest are exposed as MCP prompts alongside tools*\xa0\x02\n" +
-	"\x13manage-dependencies\x12*Manage holon dependencies like Go modules.\x1a/User needs to add, update, or audit holon deps.\"*Initialize with `op mod init <holon-path>`\"5Add dependencies with `op mod add <module> [version]`\"\"Tidy and verify with `op mod tidy`\"%Inspect the graph with `op mod graph`2\xaf\x03\n" +
-	"\x12api/v1/holon.proto\x12\x0fop.v1.OPService\x1a\bDiscover\x1a\x06Invoke\x1a\x0eCreateIdentity\x1a\x0eListIdentities\x1a\fShowIdentity\x1a\rListTemplates\x1a\x10GenerateTemplate\x1a\aVersion\x1a\x05Check\x1a\x05Build\x1a\x04Test\x1a\x05Clean\x1a\aInstall\x1a\tUninstall\x1a\x03Run\x1a\aInspect\x1a\vRunSequence\x1a\aModInit\x1a\x06ModAdd\x1a\tModRemove\x1a\aModTidy\x1a\aModPull\x1a\tModUpdate\x1a\aModList\x1a\bModGraph\x1a\x05Tools\x1a\x03Env\x1a\bWorktree\x1a\x12InstallSdkPrebuilt\x1a\x10ListSdkPrebuilts\x1a\x14UninstallSdkPrebuilt\x1a\x11VerifySdkPrebuilt\x1a\x11LocateSdkPrebuilt\x1a\x10BuildSdkPrebuilt:\x06nativeR%\n" +
+	"\x13manage-dependencies\x12*Manage holon dependencies like Go modules.\x1a/User needs to add, update, or audit holon deps.\"*Initialize with `op mod init <holon-path>`\"5Add dependencies with `op mod add <module> [version]`\"\"Tidy and verify with `op mod tidy`\"%Inspect the graph with `op mod graph`2\xa5\x03\n" +
+	"\x12api/v1/holon.proto\x12\x0fop.v1.OPService\x1a\bDiscover\x1a\x06Invoke\x1a\x0eCreateIdentity\x1a\x0eListIdentities\x1a\fShowIdentity\x1a\rListTemplates\x1a\x10GenerateTemplate\x1a\aVersion\x1a\x05Check\x1a\x05Build\x1a\x04Test\x1a\x05Clean\x1a\aInstall\x1a\tUninstall\x1a\x03Run\x1a\aInspect\x1a\vRunSequence\x1a\aModInit\x1a\x06ModAdd\x1a\tModRemove\x1a\aModTidy\x1a\aModPull\x1a\tModUpdate\x1a\aModList\x1a\bModGraph\x1a\x05Tools\x1a\x03Env\x1a\x12InstallSdkPrebuilt\x1a\x10ListSdkPrebuilts\x1a\x14UninstallSdkPrebuilt\x1a\x11VerifySdkPrebuilt\x1a\x11LocateSdkPrebuilt\x1a\x10BuildSdkPrebuilt:\x06nativeR%\n" +
 	"\tgo-module\x12\b./cmd/op2\x0eapi/version.goZ\f\n" +
 	"\x02go\x12\x06go.modj\x04\n" +
 	"\x02opZ9github.com/organic-programming/grace-op/gen/go/op/v1;opv1b\x06proto3"
@@ -6057,220 +5452,204 @@ func file_api_v1_holon_proto_rawDescGZIP() []byte {
 	return file_api_v1_holon_proto_rawDescData
 }
 
-var file_api_v1_holon_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_api_v1_holon_proto_msgTypes = make([]protoimpl.MessageInfo, 86)
+var file_api_v1_holon_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_api_v1_holon_proto_msgTypes = make([]protoimpl.MessageInfo, 79)
 var file_api_v1_holon_proto_goTypes = []any{
 	(Clade)(0),                          // 0: op.v1.Clade
 	(ReproductionMode)(0),               // 1: op.v1.ReproductionMode
 	(Status)(0),                         // 2: op.v1.Status
-	(WorktreeMode)(0),                   // 3: op.v1.WorktreeMode
-	(*HolonIdentity)(nil),               // 4: op.v1.HolonIdentity
-	(*DiscoverRequest)(nil),             // 5: op.v1.DiscoverRequest
-	(*DiscoverResponse)(nil),            // 6: op.v1.DiscoverResponse
-	(*HolonEntry)(nil),                  // 7: op.v1.HolonEntry
-	(*InvokeRequest)(nil),               // 8: op.v1.InvokeRequest
-	(*InvokeResponse)(nil),              // 9: op.v1.InvokeResponse
-	(*CreateIdentityRequest)(nil),       // 10: op.v1.CreateIdentityRequest
-	(*CreateIdentityResponse)(nil),      // 11: op.v1.CreateIdentityResponse
-	(*ShowIdentityRequest)(nil),         // 12: op.v1.ShowIdentityRequest
-	(*ShowIdentityResponse)(nil),        // 13: op.v1.ShowIdentityResponse
-	(*ListIdentitiesRequest)(nil),       // 14: op.v1.ListIdentitiesRequest
-	(*ListIdentitiesResponse)(nil),      // 15: op.v1.ListIdentitiesResponse
-	(*ListTemplatesRequest)(nil),        // 16: op.v1.ListTemplatesRequest
-	(*TemplateParam)(nil),               // 17: op.v1.TemplateParam
-	(*TemplateEntry)(nil),               // 18: op.v1.TemplateEntry
-	(*ListTemplatesResponse)(nil),       // 19: op.v1.ListTemplatesResponse
-	(*GenerateTemplateRequest)(nil),     // 20: op.v1.GenerateTemplateRequest
-	(*GenerateTemplateResponse)(nil),    // 21: op.v1.GenerateTemplateResponse
-	(*VersionRequest)(nil),              // 22: op.v1.VersionRequest
-	(*VersionResponse)(nil),             // 23: op.v1.VersionResponse
-	(*BuildOptions)(nil),                // 24: op.v1.BuildOptions
-	(*LifecycleRequest)(nil),            // 25: op.v1.LifecycleRequest
-	(*LifecycleReport)(nil),             // 26: op.v1.LifecycleReport
-	(*LifecycleResponse)(nil),           // 27: op.v1.LifecycleResponse
-	(*InstallRequest)(nil),              // 28: op.v1.InstallRequest
-	(*UninstallRequest)(nil),            // 29: op.v1.UninstallRequest
-	(*InstallReport)(nil),               // 30: op.v1.InstallReport
-	(*InstallResponse)(nil),             // 31: op.v1.InstallResponse
-	(*RunRequest)(nil),                  // 32: op.v1.RunRequest
-	(*RunResponse)(nil),                 // 33: op.v1.RunResponse
-	(*InspectRequest)(nil),              // 34: op.v1.InspectRequest
-	(*InspectEnumValue)(nil),            // 35: op.v1.InspectEnumValue
-	(*InspectField)(nil),                // 36: op.v1.InspectField
-	(*InspectMethod)(nil),               // 37: op.v1.InspectMethod
-	(*InspectService)(nil),              // 38: op.v1.InspectService
-	(*InspectSkill)(nil),                // 39: op.v1.InspectSkill
-	(*InspectSequenceParam)(nil),        // 40: op.v1.InspectSequenceParam
-	(*InspectSequence)(nil),             // 41: op.v1.InspectSequence
-	(*InspectDocument)(nil),             // 42: op.v1.InspectDocument
-	(*InspectResponse)(nil),             // 43: op.v1.InspectResponse
-	(*RunSequenceRequest)(nil),          // 44: op.v1.RunSequenceRequest
-	(*SequenceStepResult)(nil),          // 45: op.v1.SequenceStepResult
-	(*SequenceResult)(nil),              // 46: op.v1.SequenceResult
-	(*RunSequenceResponse)(nil),         // 47: op.v1.RunSequenceResponse
-	(*Dependency)(nil),                  // 48: op.v1.Dependency
-	(*UpdatedDependency)(nil),           // 49: op.v1.UpdatedDependency
-	(*DependencyEdge)(nil),              // 50: op.v1.DependencyEdge
-	(*ModInitRequest)(nil),              // 51: op.v1.ModInitRequest
-	(*ModInitResponse)(nil),             // 52: op.v1.ModInitResponse
-	(*ModAddRequest)(nil),               // 53: op.v1.ModAddRequest
-	(*ModAddResponse)(nil),              // 54: op.v1.ModAddResponse
-	(*ModRemoveRequest)(nil),            // 55: op.v1.ModRemoveRequest
-	(*ModRemoveResponse)(nil),           // 56: op.v1.ModRemoveResponse
-	(*ModTidyRequest)(nil),              // 57: op.v1.ModTidyRequest
-	(*ModTidyResponse)(nil),             // 58: op.v1.ModTidyResponse
-	(*ModPullRequest)(nil),              // 59: op.v1.ModPullRequest
-	(*ModPullResponse)(nil),             // 60: op.v1.ModPullResponse
-	(*ModUpdateRequest)(nil),            // 61: op.v1.ModUpdateRequest
-	(*ModUpdateResponse)(nil),           // 62: op.v1.ModUpdateResponse
-	(*ModListRequest)(nil),              // 63: op.v1.ModListRequest
-	(*ModListResponse)(nil),             // 64: op.v1.ModListResponse
-	(*ModGraphRequest)(nil),             // 65: op.v1.ModGraphRequest
-	(*ModGraphResponse)(nil),            // 66: op.v1.ModGraphResponse
-	(*ToolsRequest)(nil),                // 67: op.v1.ToolsRequest
-	(*ToolsResponse)(nil),               // 68: op.v1.ToolsResponse
-	(*EnvRequest)(nil),                  // 69: op.v1.EnvRequest
-	(*EnvResponse)(nil),                 // 70: op.v1.EnvResponse
-	(*WorktreeRequest)(nil),             // 71: op.v1.WorktreeRequest
-	(*WorktreeActivation)(nil),          // 72: op.v1.WorktreeActivation
-	(*WorktreeDoctor)(nil),              // 73: op.v1.WorktreeDoctor
-	(*WorktreeResponse)(nil),            // 74: op.v1.WorktreeResponse
-	(*SdkPrebuilt)(nil),                 // 75: op.v1.SdkPrebuilt
-	(*InstallSdkPrebuiltRequest)(nil),   // 76: op.v1.InstallSdkPrebuiltRequest
-	(*ListSdkPrebuiltsRequest)(nil),     // 77: op.v1.ListSdkPrebuiltsRequest
-	(*ListSdkPrebuiltsResponse)(nil),    // 78: op.v1.ListSdkPrebuiltsResponse
-	(*UninstallSdkPrebuiltRequest)(nil), // 79: op.v1.UninstallSdkPrebuiltRequest
-	(*VerifySdkPrebuiltRequest)(nil),    // 80: op.v1.VerifySdkPrebuiltRequest
-	(*LocateSdkPrebuiltRequest)(nil),    // 81: op.v1.LocateSdkPrebuiltRequest
-	(*SdkPrebuiltResponse)(nil),         // 82: op.v1.SdkPrebuiltResponse
-	(*BuildSdkPrebuiltRequest)(nil),     // 83: op.v1.BuildSdkPrebuiltRequest
-	nil,                                 // 84: op.v1.GenerateTemplateRequest.OverridesEntry
-	nil,                                 // 85: op.v1.RunSequenceRequest.ParamsEntry
-	nil,                                 // 86: op.v1.SequenceResult.ParamsEntry
-	nil,                                 // 87: op.v1.WorktreeActivation.EnvEntry
-	nil,                                 // 88: op.v1.WorktreeDoctor.ChecksEntry
-	nil,                                 // 89: op.v1.WorktreeResponse.ConfigPathsEntry
+	(*HolonIdentity)(nil),               // 3: op.v1.HolonIdentity
+	(*DiscoverRequest)(nil),             // 4: op.v1.DiscoverRequest
+	(*DiscoverResponse)(nil),            // 5: op.v1.DiscoverResponse
+	(*HolonEntry)(nil),                  // 6: op.v1.HolonEntry
+	(*InvokeRequest)(nil),               // 7: op.v1.InvokeRequest
+	(*InvokeResponse)(nil),              // 8: op.v1.InvokeResponse
+	(*CreateIdentityRequest)(nil),       // 9: op.v1.CreateIdentityRequest
+	(*CreateIdentityResponse)(nil),      // 10: op.v1.CreateIdentityResponse
+	(*ShowIdentityRequest)(nil),         // 11: op.v1.ShowIdentityRequest
+	(*ShowIdentityResponse)(nil),        // 12: op.v1.ShowIdentityResponse
+	(*ListIdentitiesRequest)(nil),       // 13: op.v1.ListIdentitiesRequest
+	(*ListIdentitiesResponse)(nil),      // 14: op.v1.ListIdentitiesResponse
+	(*ListTemplatesRequest)(nil),        // 15: op.v1.ListTemplatesRequest
+	(*TemplateParam)(nil),               // 16: op.v1.TemplateParam
+	(*TemplateEntry)(nil),               // 17: op.v1.TemplateEntry
+	(*ListTemplatesResponse)(nil),       // 18: op.v1.ListTemplatesResponse
+	(*GenerateTemplateRequest)(nil),     // 19: op.v1.GenerateTemplateRequest
+	(*GenerateTemplateResponse)(nil),    // 20: op.v1.GenerateTemplateResponse
+	(*VersionRequest)(nil),              // 21: op.v1.VersionRequest
+	(*VersionResponse)(nil),             // 22: op.v1.VersionResponse
+	(*BuildOptions)(nil),                // 23: op.v1.BuildOptions
+	(*LifecycleRequest)(nil),            // 24: op.v1.LifecycleRequest
+	(*LifecycleReport)(nil),             // 25: op.v1.LifecycleReport
+	(*LifecycleResponse)(nil),           // 26: op.v1.LifecycleResponse
+	(*InstallRequest)(nil),              // 27: op.v1.InstallRequest
+	(*UninstallRequest)(nil),            // 28: op.v1.UninstallRequest
+	(*InstallReport)(nil),               // 29: op.v1.InstallReport
+	(*InstallResponse)(nil),             // 30: op.v1.InstallResponse
+	(*RunRequest)(nil),                  // 31: op.v1.RunRequest
+	(*RunResponse)(nil),                 // 32: op.v1.RunResponse
+	(*InspectRequest)(nil),              // 33: op.v1.InspectRequest
+	(*InspectEnumValue)(nil),            // 34: op.v1.InspectEnumValue
+	(*InspectField)(nil),                // 35: op.v1.InspectField
+	(*InspectMethod)(nil),               // 36: op.v1.InspectMethod
+	(*InspectService)(nil),              // 37: op.v1.InspectService
+	(*InspectSkill)(nil),                // 38: op.v1.InspectSkill
+	(*InspectSequenceParam)(nil),        // 39: op.v1.InspectSequenceParam
+	(*InspectSequence)(nil),             // 40: op.v1.InspectSequence
+	(*InspectDocument)(nil),             // 41: op.v1.InspectDocument
+	(*InspectResponse)(nil),             // 42: op.v1.InspectResponse
+	(*RunSequenceRequest)(nil),          // 43: op.v1.RunSequenceRequest
+	(*SequenceStepResult)(nil),          // 44: op.v1.SequenceStepResult
+	(*SequenceResult)(nil),              // 45: op.v1.SequenceResult
+	(*RunSequenceResponse)(nil),         // 46: op.v1.RunSequenceResponse
+	(*Dependency)(nil),                  // 47: op.v1.Dependency
+	(*UpdatedDependency)(nil),           // 48: op.v1.UpdatedDependency
+	(*DependencyEdge)(nil),              // 49: op.v1.DependencyEdge
+	(*ModInitRequest)(nil),              // 50: op.v1.ModInitRequest
+	(*ModInitResponse)(nil),             // 51: op.v1.ModInitResponse
+	(*ModAddRequest)(nil),               // 52: op.v1.ModAddRequest
+	(*ModAddResponse)(nil),              // 53: op.v1.ModAddResponse
+	(*ModRemoveRequest)(nil),            // 54: op.v1.ModRemoveRequest
+	(*ModRemoveResponse)(nil),           // 55: op.v1.ModRemoveResponse
+	(*ModTidyRequest)(nil),              // 56: op.v1.ModTidyRequest
+	(*ModTidyResponse)(nil),             // 57: op.v1.ModTidyResponse
+	(*ModPullRequest)(nil),              // 58: op.v1.ModPullRequest
+	(*ModPullResponse)(nil),             // 59: op.v1.ModPullResponse
+	(*ModUpdateRequest)(nil),            // 60: op.v1.ModUpdateRequest
+	(*ModUpdateResponse)(nil),           // 61: op.v1.ModUpdateResponse
+	(*ModListRequest)(nil),              // 62: op.v1.ModListRequest
+	(*ModListResponse)(nil),             // 63: op.v1.ModListResponse
+	(*ModGraphRequest)(nil),             // 64: op.v1.ModGraphRequest
+	(*ModGraphResponse)(nil),            // 65: op.v1.ModGraphResponse
+	(*ToolsRequest)(nil),                // 66: op.v1.ToolsRequest
+	(*ToolsResponse)(nil),               // 67: op.v1.ToolsResponse
+	(*EnvRequest)(nil),                  // 68: op.v1.EnvRequest
+	(*EnvResponse)(nil),                 // 69: op.v1.EnvResponse
+	(*SdkPrebuilt)(nil),                 // 70: op.v1.SdkPrebuilt
+	(*InstallSdkPrebuiltRequest)(nil),   // 71: op.v1.InstallSdkPrebuiltRequest
+	(*ListSdkPrebuiltsRequest)(nil),     // 72: op.v1.ListSdkPrebuiltsRequest
+	(*ListSdkPrebuiltsResponse)(nil),    // 73: op.v1.ListSdkPrebuiltsResponse
+	(*UninstallSdkPrebuiltRequest)(nil), // 74: op.v1.UninstallSdkPrebuiltRequest
+	(*VerifySdkPrebuiltRequest)(nil),    // 75: op.v1.VerifySdkPrebuiltRequest
+	(*LocateSdkPrebuiltRequest)(nil),    // 76: op.v1.LocateSdkPrebuiltRequest
+	(*SdkPrebuiltResponse)(nil),         // 77: op.v1.SdkPrebuiltResponse
+	(*BuildSdkPrebuiltRequest)(nil),     // 78: op.v1.BuildSdkPrebuiltRequest
+	nil,                                 // 79: op.v1.GenerateTemplateRequest.OverridesEntry
+	nil,                                 // 80: op.v1.RunSequenceRequest.ParamsEntry
+	nil,                                 // 81: op.v1.SequenceResult.ParamsEntry
 }
 var file_api_v1_holon_proto_depIdxs = []int32{
 	0,  // 0: op.v1.HolonIdentity.clade:type_name -> op.v1.Clade
 	2,  // 1: op.v1.HolonIdentity.status:type_name -> op.v1.Status
 	1,  // 2: op.v1.HolonIdentity.reproduction:type_name -> op.v1.ReproductionMode
 	2,  // 3: op.v1.HolonIdentity.proto_status:type_name -> op.v1.Status
-	7,  // 4: op.v1.DiscoverResponse.entries:type_name -> op.v1.HolonEntry
-	4,  // 5: op.v1.HolonEntry.identity:type_name -> op.v1.HolonIdentity
+	6,  // 4: op.v1.DiscoverResponse.entries:type_name -> op.v1.HolonEntry
+	3,  // 5: op.v1.HolonEntry.identity:type_name -> op.v1.HolonIdentity
 	0,  // 6: op.v1.CreateIdentityRequest.clade:type_name -> op.v1.Clade
 	1,  // 7: op.v1.CreateIdentityRequest.reproduction:type_name -> op.v1.ReproductionMode
-	4,  // 8: op.v1.CreateIdentityResponse.identity:type_name -> op.v1.HolonIdentity
-	4,  // 9: op.v1.ShowIdentityResponse.identity:type_name -> op.v1.HolonIdentity
-	7,  // 10: op.v1.ListIdentitiesResponse.entries:type_name -> op.v1.HolonEntry
-	17, // 11: op.v1.TemplateEntry.params:type_name -> op.v1.TemplateParam
-	18, // 12: op.v1.ListTemplatesResponse.entries:type_name -> op.v1.TemplateEntry
-	84, // 13: op.v1.GenerateTemplateRequest.overrides:type_name -> op.v1.GenerateTemplateRequest.OverridesEntry
-	24, // 14: op.v1.LifecycleRequest.build:type_name -> op.v1.BuildOptions
-	26, // 15: op.v1.LifecycleReport.children:type_name -> op.v1.LifecycleReport
-	26, // 16: op.v1.LifecycleResponse.report:type_name -> op.v1.LifecycleReport
-	30, // 17: op.v1.InstallResponse.report:type_name -> op.v1.InstallReport
-	36, // 18: op.v1.InspectField.nested_fields:type_name -> op.v1.InspectField
-	35, // 19: op.v1.InspectField.enum_values:type_name -> op.v1.InspectEnumValue
-	36, // 20: op.v1.InspectMethod.input_fields:type_name -> op.v1.InspectField
-	36, // 21: op.v1.InspectMethod.output_fields:type_name -> op.v1.InspectField
-	37, // 22: op.v1.InspectService.methods:type_name -> op.v1.InspectMethod
-	40, // 23: op.v1.InspectSequence.params:type_name -> op.v1.InspectSequenceParam
-	38, // 24: op.v1.InspectDocument.services:type_name -> op.v1.InspectService
-	39, // 25: op.v1.InspectDocument.skills:type_name -> op.v1.InspectSkill
-	41, // 26: op.v1.InspectDocument.sequences:type_name -> op.v1.InspectSequence
-	42, // 27: op.v1.InspectResponse.document:type_name -> op.v1.InspectDocument
-	85, // 28: op.v1.RunSequenceRequest.params:type_name -> op.v1.RunSequenceRequest.ParamsEntry
-	86, // 29: op.v1.SequenceResult.params:type_name -> op.v1.SequenceResult.ParamsEntry
-	45, // 30: op.v1.SequenceResult.steps:type_name -> op.v1.SequenceStepResult
-	46, // 31: op.v1.RunSequenceResponse.result:type_name -> op.v1.SequenceResult
-	48, // 32: op.v1.ModAddResponse.dependency:type_name -> op.v1.Dependency
-	48, // 33: op.v1.ModTidyResponse.current:type_name -> op.v1.Dependency
-	48, // 34: op.v1.ModPullResponse.fetched:type_name -> op.v1.Dependency
-	49, // 35: op.v1.ModUpdateResponse.updated:type_name -> op.v1.UpdatedDependency
-	48, // 36: op.v1.ModListResponse.dependencies:type_name -> op.v1.Dependency
-	50, // 37: op.v1.ModGraphResponse.edges:type_name -> op.v1.DependencyEdge
-	3,  // 38: op.v1.WorktreeRequest.mode:type_name -> op.v1.WorktreeMode
-	87, // 39: op.v1.WorktreeActivation.env:type_name -> op.v1.WorktreeActivation.EnvEntry
-	88, // 40: op.v1.WorktreeDoctor.checks:type_name -> op.v1.WorktreeDoctor.ChecksEntry
-	72, // 41: op.v1.WorktreeResponse.activation:type_name -> op.v1.WorktreeActivation
-	89, // 42: op.v1.WorktreeResponse.config_paths:type_name -> op.v1.WorktreeResponse.ConfigPathsEntry
-	73, // 43: op.v1.WorktreeResponse.doctor:type_name -> op.v1.WorktreeDoctor
-	75, // 44: op.v1.ListSdkPrebuiltsResponse.entries:type_name -> op.v1.SdkPrebuilt
-	75, // 45: op.v1.SdkPrebuiltResponse.prebuilt:type_name -> op.v1.SdkPrebuilt
-	5,  // 46: op.v1.OPService.Discover:input_type -> op.v1.DiscoverRequest
-	8,  // 47: op.v1.OPService.Invoke:input_type -> op.v1.InvokeRequest
-	10, // 48: op.v1.OPService.CreateIdentity:input_type -> op.v1.CreateIdentityRequest
-	14, // 49: op.v1.OPService.ListIdentities:input_type -> op.v1.ListIdentitiesRequest
-	12, // 50: op.v1.OPService.ShowIdentity:input_type -> op.v1.ShowIdentityRequest
-	16, // 51: op.v1.OPService.ListTemplates:input_type -> op.v1.ListTemplatesRequest
-	20, // 52: op.v1.OPService.GenerateTemplate:input_type -> op.v1.GenerateTemplateRequest
-	22, // 53: op.v1.OPService.Version:input_type -> op.v1.VersionRequest
-	25, // 54: op.v1.OPService.Check:input_type -> op.v1.LifecycleRequest
-	25, // 55: op.v1.OPService.Build:input_type -> op.v1.LifecycleRequest
-	25, // 56: op.v1.OPService.Test:input_type -> op.v1.LifecycleRequest
-	25, // 57: op.v1.OPService.Clean:input_type -> op.v1.LifecycleRequest
-	28, // 58: op.v1.OPService.Install:input_type -> op.v1.InstallRequest
-	29, // 59: op.v1.OPService.Uninstall:input_type -> op.v1.UninstallRequest
-	32, // 60: op.v1.OPService.Run:input_type -> op.v1.RunRequest
-	34, // 61: op.v1.OPService.Inspect:input_type -> op.v1.InspectRequest
-	44, // 62: op.v1.OPService.RunSequence:input_type -> op.v1.RunSequenceRequest
-	51, // 63: op.v1.OPService.ModInit:input_type -> op.v1.ModInitRequest
-	53, // 64: op.v1.OPService.ModAdd:input_type -> op.v1.ModAddRequest
-	55, // 65: op.v1.OPService.ModRemove:input_type -> op.v1.ModRemoveRequest
-	57, // 66: op.v1.OPService.ModTidy:input_type -> op.v1.ModTidyRequest
-	59, // 67: op.v1.OPService.ModPull:input_type -> op.v1.ModPullRequest
-	61, // 68: op.v1.OPService.ModUpdate:input_type -> op.v1.ModUpdateRequest
-	63, // 69: op.v1.OPService.ModList:input_type -> op.v1.ModListRequest
-	65, // 70: op.v1.OPService.ModGraph:input_type -> op.v1.ModGraphRequest
-	67, // 71: op.v1.OPService.Tools:input_type -> op.v1.ToolsRequest
-	69, // 72: op.v1.OPService.Env:input_type -> op.v1.EnvRequest
-	71, // 73: op.v1.OPService.Worktree:input_type -> op.v1.WorktreeRequest
-	76, // 74: op.v1.OPService.InstallSdkPrebuilt:input_type -> op.v1.InstallSdkPrebuiltRequest
-	77, // 75: op.v1.OPService.ListSdkPrebuilts:input_type -> op.v1.ListSdkPrebuiltsRequest
-	79, // 76: op.v1.OPService.UninstallSdkPrebuilt:input_type -> op.v1.UninstallSdkPrebuiltRequest
-	80, // 77: op.v1.OPService.VerifySdkPrebuilt:input_type -> op.v1.VerifySdkPrebuiltRequest
-	81, // 78: op.v1.OPService.LocateSdkPrebuilt:input_type -> op.v1.LocateSdkPrebuiltRequest
-	83, // 79: op.v1.OPService.BuildSdkPrebuilt:input_type -> op.v1.BuildSdkPrebuiltRequest
-	6,  // 80: op.v1.OPService.Discover:output_type -> op.v1.DiscoverResponse
-	9,  // 81: op.v1.OPService.Invoke:output_type -> op.v1.InvokeResponse
-	11, // 82: op.v1.OPService.CreateIdentity:output_type -> op.v1.CreateIdentityResponse
-	15, // 83: op.v1.OPService.ListIdentities:output_type -> op.v1.ListIdentitiesResponse
-	13, // 84: op.v1.OPService.ShowIdentity:output_type -> op.v1.ShowIdentityResponse
-	19, // 85: op.v1.OPService.ListTemplates:output_type -> op.v1.ListTemplatesResponse
-	21, // 86: op.v1.OPService.GenerateTemplate:output_type -> op.v1.GenerateTemplateResponse
-	23, // 87: op.v1.OPService.Version:output_type -> op.v1.VersionResponse
-	27, // 88: op.v1.OPService.Check:output_type -> op.v1.LifecycleResponse
-	27, // 89: op.v1.OPService.Build:output_type -> op.v1.LifecycleResponse
-	27, // 90: op.v1.OPService.Test:output_type -> op.v1.LifecycleResponse
-	27, // 91: op.v1.OPService.Clean:output_type -> op.v1.LifecycleResponse
-	31, // 92: op.v1.OPService.Install:output_type -> op.v1.InstallResponse
-	31, // 93: op.v1.OPService.Uninstall:output_type -> op.v1.InstallResponse
-	33, // 94: op.v1.OPService.Run:output_type -> op.v1.RunResponse
-	43, // 95: op.v1.OPService.Inspect:output_type -> op.v1.InspectResponse
-	47, // 96: op.v1.OPService.RunSequence:output_type -> op.v1.RunSequenceResponse
-	52, // 97: op.v1.OPService.ModInit:output_type -> op.v1.ModInitResponse
-	54, // 98: op.v1.OPService.ModAdd:output_type -> op.v1.ModAddResponse
-	56, // 99: op.v1.OPService.ModRemove:output_type -> op.v1.ModRemoveResponse
-	58, // 100: op.v1.OPService.ModTidy:output_type -> op.v1.ModTidyResponse
-	60, // 101: op.v1.OPService.ModPull:output_type -> op.v1.ModPullResponse
-	62, // 102: op.v1.OPService.ModUpdate:output_type -> op.v1.ModUpdateResponse
-	64, // 103: op.v1.OPService.ModList:output_type -> op.v1.ModListResponse
-	66, // 104: op.v1.OPService.ModGraph:output_type -> op.v1.ModGraphResponse
-	68, // 105: op.v1.OPService.Tools:output_type -> op.v1.ToolsResponse
-	70, // 106: op.v1.OPService.Env:output_type -> op.v1.EnvResponse
-	74, // 107: op.v1.OPService.Worktree:output_type -> op.v1.WorktreeResponse
-	82, // 108: op.v1.OPService.InstallSdkPrebuilt:output_type -> op.v1.SdkPrebuiltResponse
-	78, // 109: op.v1.OPService.ListSdkPrebuilts:output_type -> op.v1.ListSdkPrebuiltsResponse
-	82, // 110: op.v1.OPService.UninstallSdkPrebuilt:output_type -> op.v1.SdkPrebuiltResponse
-	82, // 111: op.v1.OPService.VerifySdkPrebuilt:output_type -> op.v1.SdkPrebuiltResponse
-	82, // 112: op.v1.OPService.LocateSdkPrebuilt:output_type -> op.v1.SdkPrebuiltResponse
-	82, // 113: op.v1.OPService.BuildSdkPrebuilt:output_type -> op.v1.SdkPrebuiltResponse
-	80, // [80:114] is the sub-list for method output_type
-	46, // [46:80] is the sub-list for method input_type
-	46, // [46:46] is the sub-list for extension type_name
-	46, // [46:46] is the sub-list for extension extendee
-	0,  // [0:46] is the sub-list for field type_name
+	3,  // 8: op.v1.CreateIdentityResponse.identity:type_name -> op.v1.HolonIdentity
+	3,  // 9: op.v1.ShowIdentityResponse.identity:type_name -> op.v1.HolonIdentity
+	6,  // 10: op.v1.ListIdentitiesResponse.entries:type_name -> op.v1.HolonEntry
+	16, // 11: op.v1.TemplateEntry.params:type_name -> op.v1.TemplateParam
+	17, // 12: op.v1.ListTemplatesResponse.entries:type_name -> op.v1.TemplateEntry
+	79, // 13: op.v1.GenerateTemplateRequest.overrides:type_name -> op.v1.GenerateTemplateRequest.OverridesEntry
+	23, // 14: op.v1.LifecycleRequest.build:type_name -> op.v1.BuildOptions
+	25, // 15: op.v1.LifecycleReport.children:type_name -> op.v1.LifecycleReport
+	25, // 16: op.v1.LifecycleResponse.report:type_name -> op.v1.LifecycleReport
+	29, // 17: op.v1.InstallResponse.report:type_name -> op.v1.InstallReport
+	35, // 18: op.v1.InspectField.nested_fields:type_name -> op.v1.InspectField
+	34, // 19: op.v1.InspectField.enum_values:type_name -> op.v1.InspectEnumValue
+	35, // 20: op.v1.InspectMethod.input_fields:type_name -> op.v1.InspectField
+	35, // 21: op.v1.InspectMethod.output_fields:type_name -> op.v1.InspectField
+	36, // 22: op.v1.InspectService.methods:type_name -> op.v1.InspectMethod
+	39, // 23: op.v1.InspectSequence.params:type_name -> op.v1.InspectSequenceParam
+	37, // 24: op.v1.InspectDocument.services:type_name -> op.v1.InspectService
+	38, // 25: op.v1.InspectDocument.skills:type_name -> op.v1.InspectSkill
+	40, // 26: op.v1.InspectDocument.sequences:type_name -> op.v1.InspectSequence
+	41, // 27: op.v1.InspectResponse.document:type_name -> op.v1.InspectDocument
+	80, // 28: op.v1.RunSequenceRequest.params:type_name -> op.v1.RunSequenceRequest.ParamsEntry
+	81, // 29: op.v1.SequenceResult.params:type_name -> op.v1.SequenceResult.ParamsEntry
+	44, // 30: op.v1.SequenceResult.steps:type_name -> op.v1.SequenceStepResult
+	45, // 31: op.v1.RunSequenceResponse.result:type_name -> op.v1.SequenceResult
+	47, // 32: op.v1.ModAddResponse.dependency:type_name -> op.v1.Dependency
+	47, // 33: op.v1.ModTidyResponse.current:type_name -> op.v1.Dependency
+	47, // 34: op.v1.ModPullResponse.fetched:type_name -> op.v1.Dependency
+	48, // 35: op.v1.ModUpdateResponse.updated:type_name -> op.v1.UpdatedDependency
+	47, // 36: op.v1.ModListResponse.dependencies:type_name -> op.v1.Dependency
+	49, // 37: op.v1.ModGraphResponse.edges:type_name -> op.v1.DependencyEdge
+	70, // 38: op.v1.ListSdkPrebuiltsResponse.entries:type_name -> op.v1.SdkPrebuilt
+	70, // 39: op.v1.SdkPrebuiltResponse.prebuilt:type_name -> op.v1.SdkPrebuilt
+	4,  // 40: op.v1.OPService.Discover:input_type -> op.v1.DiscoverRequest
+	7,  // 41: op.v1.OPService.Invoke:input_type -> op.v1.InvokeRequest
+	9,  // 42: op.v1.OPService.CreateIdentity:input_type -> op.v1.CreateIdentityRequest
+	13, // 43: op.v1.OPService.ListIdentities:input_type -> op.v1.ListIdentitiesRequest
+	11, // 44: op.v1.OPService.ShowIdentity:input_type -> op.v1.ShowIdentityRequest
+	15, // 45: op.v1.OPService.ListTemplates:input_type -> op.v1.ListTemplatesRequest
+	19, // 46: op.v1.OPService.GenerateTemplate:input_type -> op.v1.GenerateTemplateRequest
+	21, // 47: op.v1.OPService.Version:input_type -> op.v1.VersionRequest
+	24, // 48: op.v1.OPService.Check:input_type -> op.v1.LifecycleRequest
+	24, // 49: op.v1.OPService.Build:input_type -> op.v1.LifecycleRequest
+	24, // 50: op.v1.OPService.Test:input_type -> op.v1.LifecycleRequest
+	24, // 51: op.v1.OPService.Clean:input_type -> op.v1.LifecycleRequest
+	27, // 52: op.v1.OPService.Install:input_type -> op.v1.InstallRequest
+	28, // 53: op.v1.OPService.Uninstall:input_type -> op.v1.UninstallRequest
+	31, // 54: op.v1.OPService.Run:input_type -> op.v1.RunRequest
+	33, // 55: op.v1.OPService.Inspect:input_type -> op.v1.InspectRequest
+	43, // 56: op.v1.OPService.RunSequence:input_type -> op.v1.RunSequenceRequest
+	50, // 57: op.v1.OPService.ModInit:input_type -> op.v1.ModInitRequest
+	52, // 58: op.v1.OPService.ModAdd:input_type -> op.v1.ModAddRequest
+	54, // 59: op.v1.OPService.ModRemove:input_type -> op.v1.ModRemoveRequest
+	56, // 60: op.v1.OPService.ModTidy:input_type -> op.v1.ModTidyRequest
+	58, // 61: op.v1.OPService.ModPull:input_type -> op.v1.ModPullRequest
+	60, // 62: op.v1.OPService.ModUpdate:input_type -> op.v1.ModUpdateRequest
+	62, // 63: op.v1.OPService.ModList:input_type -> op.v1.ModListRequest
+	64, // 64: op.v1.OPService.ModGraph:input_type -> op.v1.ModGraphRequest
+	66, // 65: op.v1.OPService.Tools:input_type -> op.v1.ToolsRequest
+	68, // 66: op.v1.OPService.Env:input_type -> op.v1.EnvRequest
+	71, // 67: op.v1.OPService.InstallSdkPrebuilt:input_type -> op.v1.InstallSdkPrebuiltRequest
+	72, // 68: op.v1.OPService.ListSdkPrebuilts:input_type -> op.v1.ListSdkPrebuiltsRequest
+	74, // 69: op.v1.OPService.UninstallSdkPrebuilt:input_type -> op.v1.UninstallSdkPrebuiltRequest
+	75, // 70: op.v1.OPService.VerifySdkPrebuilt:input_type -> op.v1.VerifySdkPrebuiltRequest
+	76, // 71: op.v1.OPService.LocateSdkPrebuilt:input_type -> op.v1.LocateSdkPrebuiltRequest
+	78, // 72: op.v1.OPService.BuildSdkPrebuilt:input_type -> op.v1.BuildSdkPrebuiltRequest
+	5,  // 73: op.v1.OPService.Discover:output_type -> op.v1.DiscoverResponse
+	8,  // 74: op.v1.OPService.Invoke:output_type -> op.v1.InvokeResponse
+	10, // 75: op.v1.OPService.CreateIdentity:output_type -> op.v1.CreateIdentityResponse
+	14, // 76: op.v1.OPService.ListIdentities:output_type -> op.v1.ListIdentitiesResponse
+	12, // 77: op.v1.OPService.ShowIdentity:output_type -> op.v1.ShowIdentityResponse
+	18, // 78: op.v1.OPService.ListTemplates:output_type -> op.v1.ListTemplatesResponse
+	20, // 79: op.v1.OPService.GenerateTemplate:output_type -> op.v1.GenerateTemplateResponse
+	22, // 80: op.v1.OPService.Version:output_type -> op.v1.VersionResponse
+	26, // 81: op.v1.OPService.Check:output_type -> op.v1.LifecycleResponse
+	26, // 82: op.v1.OPService.Build:output_type -> op.v1.LifecycleResponse
+	26, // 83: op.v1.OPService.Test:output_type -> op.v1.LifecycleResponse
+	26, // 84: op.v1.OPService.Clean:output_type -> op.v1.LifecycleResponse
+	30, // 85: op.v1.OPService.Install:output_type -> op.v1.InstallResponse
+	30, // 86: op.v1.OPService.Uninstall:output_type -> op.v1.InstallResponse
+	32, // 87: op.v1.OPService.Run:output_type -> op.v1.RunResponse
+	42, // 88: op.v1.OPService.Inspect:output_type -> op.v1.InspectResponse
+	46, // 89: op.v1.OPService.RunSequence:output_type -> op.v1.RunSequenceResponse
+	51, // 90: op.v1.OPService.ModInit:output_type -> op.v1.ModInitResponse
+	53, // 91: op.v1.OPService.ModAdd:output_type -> op.v1.ModAddResponse
+	55, // 92: op.v1.OPService.ModRemove:output_type -> op.v1.ModRemoveResponse
+	57, // 93: op.v1.OPService.ModTidy:output_type -> op.v1.ModTidyResponse
+	59, // 94: op.v1.OPService.ModPull:output_type -> op.v1.ModPullResponse
+	61, // 95: op.v1.OPService.ModUpdate:output_type -> op.v1.ModUpdateResponse
+	63, // 96: op.v1.OPService.ModList:output_type -> op.v1.ModListResponse
+	65, // 97: op.v1.OPService.ModGraph:output_type -> op.v1.ModGraphResponse
+	67, // 98: op.v1.OPService.Tools:output_type -> op.v1.ToolsResponse
+	69, // 99: op.v1.OPService.Env:output_type -> op.v1.EnvResponse
+	77, // 100: op.v1.OPService.InstallSdkPrebuilt:output_type -> op.v1.SdkPrebuiltResponse
+	73, // 101: op.v1.OPService.ListSdkPrebuilts:output_type -> op.v1.ListSdkPrebuiltsResponse
+	77, // 102: op.v1.OPService.UninstallSdkPrebuilt:output_type -> op.v1.SdkPrebuiltResponse
+	77, // 103: op.v1.OPService.VerifySdkPrebuilt:output_type -> op.v1.SdkPrebuiltResponse
+	77, // 104: op.v1.OPService.LocateSdkPrebuilt:output_type -> op.v1.SdkPrebuiltResponse
+	77, // 105: op.v1.OPService.BuildSdkPrebuilt:output_type -> op.v1.SdkPrebuiltResponse
+	73, // [73:106] is the sub-list for method output_type
+	40, // [40:73] is the sub-list for method input_type
+	40, // [40:40] is the sub-list for extension type_name
+	40, // [40:40] is the sub-list for extension extendee
+	0,  // [0:40] is the sub-list for field type_name
 }
 
 func init() { file_api_v1_holon_proto_init() }
@@ -6283,8 +5662,8 @@ func file_api_v1_holon_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_v1_holon_proto_rawDesc), len(file_api_v1_holon_proto_rawDesc)),
-			NumEnums:      4,
-			NumMessages:   86,
+			NumEnums:      3,
+			NumMessages:   79,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

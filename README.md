@@ -132,7 +132,6 @@ which the ecosystem grows.
 | [OP](./holons/grace-op/README.md) |  Op is the CLI tool. |
 | [Ader](./ader/README.md) | How the seed defines `ader` catalogues, suites, bouquets, reports, and archives. |
 | [Protocol](./COMMUNICATION.md) | How do holons communicate? |
-| [OP worktrees](./holons/grace-op/OP_WORKTREE.md) | How core devs isolate `op`, `ader`, and SDK rebuilds across parallel worktrees. |
 
 
 © 2026 Benoit Pereira da Silva. All rights reserved.

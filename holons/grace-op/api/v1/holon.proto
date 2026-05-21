@@ -65,7 +65,6 @@ option (holons.v1.manifest) = {
       "ModGraph",
       "Tools",
       "Env",
-      "Worktree",
       "InstallSdkPrebuilt",
       "ListSdkPrebuilts",
       "UninstallSdkPrebuilt",
@@ -212,9 +211,6 @@ service OPService {
 
   // Env resolves OP environment paths and shell setup.
   rpc Env (EnvRequest) returns (EnvResponse);
-
-  // Worktree creates, bootstraps, or diagnoses OP worktree isolation.
-  rpc Worktree (WorktreeRequest) returns (WorktreeResponse);
 
   // InstallSdkPrebuilt installs a native SDK prebuilt into $OPPATH/sdk.
   rpc InstallSdkPrebuilt (InstallSdkPrebuiltRequest) returns (SdkPrebuiltResponse);
@@ -684,68 +680,6 @@ message EnvResponse {
   bool initialized = 4;
   string shell = 5;
   string cache_dir = 6;
-}
-
-enum WorktreeMode {
-  WORKTREE_MODE_UNSPECIFIED = 0;
-  WORKTREE_MODE_ISOLATED = 1;
-  WORKTREE_MODE_PLAIN = 2;
-}
-
-message WorktreeRequest {
-  // command is one of: create, bootstrap, doctor.
-  string command = 1;
-  string branch = 2;
-  WorktreeMode mode = 3;
-}
-
-message WorktreeActivation {
-  string cwd = 1;
-  map<string, string> env = 2;
-  string path_prepend = 3;
-}
-
-message WorktreeDoctor {
-  bool ok = 1;
-  string cwd = 2;
-  string repo_root = 3;
-  string expected_oppath = 4;
-  string expected_opbin = 5;
-  string oppath = 6;
-  string opbin = 7;
-  string op_path = 8;
-  string ader_path = 9;
-  map<string, bool> checks = 10;
-  string error = 11;
-  int32 recommended_code = 12;
-}
-
-message WorktreeResponse {
-  int32 schema_version = 1;
-  string command = 2;
-  string mode = 3;
-  string status = 4;
-  string worktree_status = 5;
-  string branch = 6;
-  string head = 7;
-  string worktree = 8;
-  string oppath = 9;
-  string opbin = 10;
-  WorktreeActivation activation = 11;
-  string op_sha256 = 12;
-  string ader_sha256 = 13;
-  string op_path = 14;
-  string ader_path = 15;
-  repeated string config_changes = 16;
-  map<string, string> config_paths = 17;
-  string bootstrap_json = 18;
-  string codex_config_toml = 19;
-  string claude_settings_local_json = 20;
-  string gemini_env = 21;
-  string vscode_settings_json = 22;
-  bool isolated = 23;
-  string built_at = 24;
-  WorktreeDoctor doctor = 25;
 }
 
 message SdkPrebuilt {
