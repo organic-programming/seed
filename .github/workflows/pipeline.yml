@@ -1294,6 +1294,55 @@ jobs:
           echo "oppath=$op_root" >> "$GITHUB_OUTPUT"
           echo "opbin=$op_root/bin" >> "$GITHUB_OUTPUT"
 
+      # Pre-flight diagnostic — captures popok state at the moment the
+      # ader-suite job actually starts (i.e. after sdk-build-csharp has
+      # completed and possibly left state behind). The C# EOF in the
+      # typed cascade test does NOT reproduce locally with the same
+      # SDKs (codex 20260521T085736Z), so the trigger is suspected to
+      # be CI-job-sequencing state: leftover .NET/MSBuild/Roslyn
+      # daemons, stale tmp dirs, listening sockets, or orphan cascade
+      # processes from earlier jobs on the shared self-hosted runner.
+      - name: Pre-flight popok diagnostic
+        shell: bash
+        run: |
+          set +e
+          echo "=== uname / sw_vers ==="
+          uname -a
+          sw_vers 2>/dev/null
+          echo
+          echo "=== ulimit (interactive limits this shell inherited) ==="
+          ulimit -a
+          echo
+          echo "=== launchctl limit maxfiles ==="
+          launchctl limit maxfiles
+          echo
+          echo "=== dotnet / msbuild / roslyn / mono daemons (suspect carryover) ==="
+          ps -axo pid=,ppid=,etime=,command= \
+            | grep -iE "dotnet|msbuild|roslyn|mono|VBCSCompiler" \
+            | grep -v grep \
+            | head -50
+          echo
+          echo "=== observability-cascade orphan processes (any leftover servers) ==="
+          ps -axo pid=,ppid=,etime=,command= \
+            | grep -E "observability-cascade-" \
+            | grep -v grep \
+            | head -50
+          echo
+          echo "=== lsof for cascade-related listeners on loopback ==="
+          lsof -nP -iTCP -sTCP:LISTEN 2>/dev/null \
+            | grep -E "127\.0\.0\.1|observability|csharp|dotnet" \
+            | head -30
+          echo
+          echo "=== old op-run-* tmp dirs (size and mtime) ==="
+          ls -lhdt /tmp/op-run-* 2>/dev/null | head -10
+          echo
+          echo "=== current job context ==="
+          echo "OPPATH=$OPPATH"
+          echo "OPBIN=$OPBIN"
+          echo "HOME=$HOME"
+          echo "PWD=$PWD"
+          echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
