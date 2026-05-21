@@ -407,6 +407,15 @@ func (p *ProcessHandle) Stderr() string { return p.stderr.String() }
 
 func (p *ProcessHandle) Combined() string { return p.combined.String() }
 
+// Pid returns the OS PID of the spawned process, or 0 if the process is
+// not (yet) running. Used by diagnostic instrumentation.
+func (p *ProcessHandle) Pid() int {
+	if p == nil || p.cmd == nil || p.cmd.Process == nil {
+		return 0
+	}
+	return p.cmd.Process.Pid
+}
+
 func (b *syncBuffer) Write(p []byte) (int, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()

@@ -128,8 +128,11 @@ func assertCascadeReport(t *testing.T, sb *integration.Sandbox, slug, method str
 func collectTypedCascadeSample(t *testing.T, sb *integration.Sandbox, slug string) typedCascadeSample {
 	t.Helper()
 
+	setupStart := time.Now()
 	process, address := startObservedCascadeServer(t, sb, slug)
 	defer process.Stop(t)
+	t.Logf("[diag] %s server started pid=%d address=%s setup=%s",
+		slug, process.Pid(), address, time.Since(setupStart))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -142,20 +145,60 @@ func collectTypedCascadeSample(t *testing.T, sb *integration.Sandbox, slug strin
 	obs := holonsv1.NewHolonObservabilityClient(conn)
 	events := startEventRecordCollector(t, obs)
 
+	runStart := time.Now()
 	runCtx, runCancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	report, err := ocv1.NewObservabilityCascadeServiceClient(conn).RunDefault(runCtx, &ocv1.RunRequest{})
 	runCancel()
+	runElapsed := time.Since(runStart)
 	if err != nil {
-		t.Fatalf("%s RunDefault via typed client: %v\nprocess output:\n%s", slug, err, process.Combined())
+		// Process lifecycle diagnostic: when RunDefault fails with EOF /
+		// Unavailable, the server may have died, may be hung, or may have
+		// reset the connection without exiting. Dump everything we can
+		// observe non-intrusively so the next CI failure ships actionable
+		// signal instead of just "EOF".
+		waitErr := process.Wait(0) // non-blocking probe of process.done
+		serverState := "exited"
+		waitErrStr := "nil"
+		if waitErr != nil {
+			waitErrStr = waitErr.Error()
+			if strings.Contains(waitErrStr, "timeout waiting for process") {
+				serverState = "still_running"
+			} else {
+				serverState = "exited_with_error"
+			}
+		}
+		t.Fatalf(
+			"%s RunDefault via typed client: %v\n"+
+				"[diag] pid=%d run_elapsed=%s server_state=%s wait_err=%s\n"+
+				"[diag] stderr (last 4k):\n%s\n"+
+				"[diag] combined (last 8k):\n%s",
+			slug, err,
+			process.Pid(), runElapsed, serverState, waitErrStr,
+			tailString(process.Stderr(), 4096),
+			tailString(process.Combined(), 8192),
+		)
 	}
 	if report.GetPass() <= 0 || report.GetFail() != 0 || report.GetPass() != report.GetTicks() {
 		t.Fatalf("%s observed RunDefault = %+v, want all ticks passing", slug, report)
 	}
+	t.Logf("[diag] %s RunDefault succeeded pid=%d run_elapsed=%s ticks=%d pass=%d",
+		slug, process.Pid(), runElapsed, report.GetTicks(), report.GetPass())
 	time.Sleep(500 * time.Millisecond)
 
 	return typedCascadeSample{
 		Event: summarizeRecord(t, slug, "event", findRelayedReadyEvent(t, slug, events.stop(t, "events"))),
 	}
+}
+
+// tailString returns the last n bytes of s, prefixed by a "(truncated …)"
+// note if the string was clipped. Keeps test failure messages bounded
+// while preserving the most recent (and usually most relevant) output
+// from the inferior process.
+func tailString(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return fmt.Sprintf("(truncated %d bytes)\n%s", len(s)-n, s[len(s)-n:])
 }
 
 func cleanupResidualCascadeProcesses(t *testing.T) {
