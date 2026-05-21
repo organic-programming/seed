@@ -126,8 +126,16 @@ func DialStdioCommand(ctx context.Context, cmd *exec.Cmd) (*grpc.ClientConn, *ex
 	}
 	dialer := func(ctx context.Context, _ string) (net.Conn, error) {
 		n := atomic.AddInt32(&dialCount, 1)
-		fmt.Fprintf(os.Stderr, "[stdio-dial-diag] attempt=%d label=%s pid=%d ctx_err=%v\n",
-			n, dialLabel, dialPid, ctx.Err())
+		// Only log SECOND and later dial attempts. The first attempt is
+		// the normal handshake and must stay silent on non-TTY success
+		// (gate-3 TestHolonSlugDispatchAutoBuildsCompiledSourceHolon
+		// asserts this). N>=2 means gRPC retried after a failure, which
+		// is precisely the "stdio pipe already consumed" path we want
+		// to trace (run 26244397041 / zig).
+		if n >= 2 {
+			fmt.Fprintf(os.Stderr, "[stdio-dial-diag] attempt=%d label=%s pid=%d ctx_err=%v\n",
+				n, dialLabel, dialPid, ctx.Err())
+		}
 		var conn net.Conn
 		dialOnce.Do(func() { conn = pConn })
 		if conn == nil {
