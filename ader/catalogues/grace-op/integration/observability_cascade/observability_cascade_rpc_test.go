@@ -128,11 +128,8 @@ func assertCascadeReport(t *testing.T, sb *integration.Sandbox, slug, method str
 func collectTypedCascadeSample(t *testing.T, sb *integration.Sandbox, slug string) typedCascadeSample {
 	t.Helper()
 
-	setupStart := time.Now()
 	process, address := startObservedCascadeServer(t, sb, slug)
 	defer process.Stop(t)
-	t.Logf("[diag] %s server started pid=%d address=%s setup=%s",
-		slug, process.Pid(), address, time.Since(setupStart))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -149,13 +146,11 @@ func collectTypedCascadeSample(t *testing.T, sb *integration.Sandbox, slug strin
 	runCtx, runCancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	report, err := ocv1.NewObservabilityCascadeServiceClient(conn).RunDefault(runCtx, &ocv1.RunRequest{})
 	runCancel()
-	runElapsed := time.Since(runStart)
 	if err != nil {
-		// Process lifecycle diagnostic: when RunDefault fails with EOF /
-		// Unavailable, the server may have died, may be hung, or may have
-		// reset the connection without exiting. Dump everything we can
-		// observe non-intrusively so the next CI failure ships actionable
-		// signal instead of just "EOF".
+		// On failure, classify the server process state (alive / exited /
+		// exited-with-error) and dump the tail of stderr+combined output
+		// so the next CI run ships actionable signal instead of "EOF".
+		// Only fires on the failure path; the happy path stays silent.
 		waitErr := process.Wait(0) // non-blocking probe of process.done
 		serverState := "exited"
 		waitErrStr := "nil"
@@ -173,7 +168,7 @@ func collectTypedCascadeSample(t *testing.T, sb *integration.Sandbox, slug strin
 				"[diag] stderr (last 4k):\n%s\n"+
 				"[diag] combined (last 8k):\n%s",
 			slug, err,
-			process.Pid(), runElapsed, serverState, waitErrStr,
+			process.Pid(), time.Since(runStart), serverState, waitErrStr,
 			tailString(process.Stderr(), 4096),
 			tailString(process.Combined(), 8192),
 		)
@@ -181,8 +176,6 @@ func collectTypedCascadeSample(t *testing.T, sb *integration.Sandbox, slug strin
 	if report.GetPass() <= 0 || report.GetFail() != 0 || report.GetPass() != report.GetTicks() {
 		t.Fatalf("%s observed RunDefault = %+v, want all ticks passing", slug, report)
 	}
-	t.Logf("[diag] %s RunDefault succeeded pid=%d run_elapsed=%s ticks=%d pass=%d",
-		slug, process.Pid(), runElapsed, report.GetTicks(), report.GetPass())
 	time.Sleep(500 * time.Millisecond)
 
 	return typedCascadeSample{
@@ -190,10 +183,10 @@ func collectTypedCascadeSample(t *testing.T, sb *integration.Sandbox, slug strin
 	}
 }
 
-// tailString returns the last n bytes of s, prefixed by a "(truncated …)"
-// note if the string was clipped. Keeps test failure messages bounded
-// while preserving the most recent (and usually most relevant) output
-// from the inferior process.
+// tailString returns the last n bytes of s, prefixed by a truncation
+// notice when clipped. Used by collectTypedCascadeSample's failure
+// dump to keep t.Fatalf messages bounded while preserving the most
+// recent (usually most relevant) output from the inferior process.
 func tailString(s string, n int) string {
 	if len(s) <= n {
 		return s

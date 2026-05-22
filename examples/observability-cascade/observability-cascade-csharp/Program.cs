@@ -58,9 +58,7 @@ sealed class CascadeApp
 
     public async Task<CascadeReport> RunReport(string name, IReadOnlyList<LanguageMember> members, bool live, bool emit)
     {
-        DiagLogReport($"RunReport entered name={name} live={live} members={members.Count}");
         EnsureCascadeObservability();
-        DiagLogReport("EnsureCascadeObservability ok");
         var reportStart = DateTime.UtcNow;
         var report = new CascadeReport { Name = name };
         var timeout = live ? TimeSpan.FromSeconds(1) : TimeSpan.FromSeconds(3);
@@ -78,14 +76,12 @@ sealed class CascadeApp
             var transport = Composite.TransportCoverageSequence[phaseIndex];
             var from = phaseIndex == 0 ? transport : Composite.TransportCoverageSequence[phaseIndex - 1];
             var phase = new PhaseResult { Name = $"{phaseIndex + 1:00}-{from}\u2192{transport}" };
-            DiagLogReport($"phase {phaseIndex + 1}/{Composite.TransportCoverageSequence.Length} start transport={transport}");
             if (emit)
                 Console.WriteLine($"Phase {phaseIndex + 1}/{Composite.TransportCoverageSequence.Length}: {phase.Name}");
 
             Cascade? cascade = null;
             try
             {
-                DiagLogReport($"phase {phaseIndex + 1} BuildCascade start");
                 cascade = await Composite.BuildCascade(
                     new CascadeOptions
                     {
@@ -97,15 +93,12 @@ sealed class CascadeApp
                             ["OP_PROM_ADDR"] = "127.0.0.1:0",
                         },
                     });
-                DiagLogReport($"phase {phaseIndex + 1} BuildCascade ok");
 
                 var previous = new Dictionary<string, long>();
                 for (var tick = 1; tick <= RunTicks; tick++)
                 {
                     var sender = $"{name}-phase-{phaseIndex + 1:00}-tick-{tick}";
-                    DiagLogReport($"phase {phaseIndex + 1} tick {tick} start sender={sender}");
                     var result = await RunTick(cascade, sender, transport, members, previous, timeout, poll, live);
-                    DiagLogReport($"phase {phaseIndex + 1} tick {tick} {(result.Pass ? "PASS" : "FAIL")}");
                     if (result.Pass)
                     {
                         phase.Pass++;
@@ -125,7 +118,6 @@ sealed class CascadeApp
             }
             catch (Exception error)
             {
-                DiagLogReport($"phase {phaseIndex + 1} CATCH {error.GetType().FullName}: {error.Message}");
                 phase.Fail += RunTicks;
                 for (var tick = 1; tick <= RunTicks; tick++)
                     phase.Failures.Add($"tick={tick} log=spawn event=spawn hops={CompactEvidence(error.Message)}");
@@ -133,11 +125,7 @@ sealed class CascadeApp
             finally
             {
                 if (cascade is not null)
-                {
-                    DiagLogReport($"phase {phaseIndex + 1} StopAsync start");
                     await cascade.StopAsync();
-                    DiagLogReport($"phase {phaseIndex + 1} StopAsync ok");
-                }
             }
 
             phase.ElapsedUs = ElapsedUs(phaseStart);
@@ -147,19 +135,9 @@ sealed class CascadeApp
         }
 
         report.ElapsedUs = ElapsedUs(reportStart);
-        DiagLogReport($"RunReport returning ticks={report.Ticks} pass={report.Pass} fail={report.Fail}");
         if (emit)
             Console.WriteLine($"\nSummary: {report.Ticks} ticks, {report.Pass} PASS, {report.Fail} FAIL (total elapsed={ElapsedText(report.ElapsedUs)})");
         return report;
-    }
-
-    // Mirror of CascadeService.DiagLog, accessible from instance methods.
-    // Forced flush so the line reaches the test harness's Combined() buffer
-    // even if Kestrel tears down the response stream right after.
-    private static void DiagLogReport(string message)
-    {
-        Console.Error.WriteLine($"[csharp-diag] {DateTime.UtcNow:HH:mm:ss.fff} {message}");
-        Console.Error.Flush();
     }
 
     public async Task<MultiPatternReport> RunMultiPattern(bool emit)
@@ -352,90 +330,14 @@ sealed class CascadeApp
 
     private sealed class CascadeService(CascadeApp app) : ObservabilityCascadeService.ObservabilityCascadeServiceBase
     {
-        // The popok-noctambule CI runner observes a reproducible C# typed
-        // RunDefault failure with rpc error "code = Unavailable desc =
-        // error reading from server: EOF", while the same matrix passes
-        // locally and via the ader test wrapper. The server process is
-        // confirmed alive at the time of EOF, and the captured stderr
-        // contains nothing past the initial "gRPC server listening" line.
-        // The diagnostic markers below (a) force a stderr flush at each
-        // step so output reaches the test harness even if Kestrel closes
-        // the response stream early, and (b) wrap each handler in a
-        // top-level try/catch so any otherwise-swallowed exception is at
-        // least visible in the captured server output before it bubbles
-        // up to the gRPC layer. Remove once the root cause is found.
-        public override async Task<CascadeReport> RunDefault(RunRequest request, ServerCallContext context)
-        {
-            return await InvokeWithDiag(
-                "RunDefault",
-                async () =>
-                {
-                    DiagLog("members fetching");
-                    var members = await app.OwnLanguageMembers();
-                    DiagLog($"members count={members.Count}");
-                    var report = await app.RunReport("default", members, live: false, emit: false);
-                    DiagLog($"report pass={report.Pass} fail={report.Fail} ticks={report.Ticks}");
-                    return report;
-                },
-                context);
-        }
+        public override async Task<CascadeReport> RunDefault(RunRequest request, ServerCallContext context) =>
+            await app.RunReport("default", await app.OwnLanguageMembers(), live: false, emit: false);
 
-        public override async Task<CascadeReport> RunLiveStream(RunRequest request, ServerCallContext context)
-        {
-            return await InvokeWithDiag(
-                "RunLiveStream",
-                async () =>
-                {
-                    DiagLog("members fetching");
-                    var members = await app.OwnLanguageMembers();
-                    DiagLog($"members count={members.Count}");
-                    var report = await app.RunReport("live-stream", members, live: true, emit: false);
-                    DiagLog($"report pass={report.Pass} fail={report.Fail} ticks={report.Ticks}");
-                    return report;
-                },
-                context);
-        }
+        public override async Task<CascadeReport> RunLiveStream(RunRequest request, ServerCallContext context) =>
+            await app.RunReport("live-stream", await app.OwnLanguageMembers(), live: true, emit: false);
 
-        public override async Task<MultiPatternReport> RunMultiPattern(RunRequest request, ServerCallContext context)
-        {
-            return await InvokeWithDiag(
-                "RunMultiPattern",
-                async () =>
-                {
-                    var report = await app.RunMultiPattern(emit: false);
-                    DiagLog($"multi-pattern patterns={report.Patterns.Count}");
-                    return report;
-                },
-                context);
-        }
-
-        private static void DiagLog(string message)
-        {
-            // Use stderr with explicit flush so the test harness's
-            // Combined() buffer sees the line even if the server closes
-            // its gRPC response stream right after this point. AppendLine
-            // would buffer.
-            Console.Error.WriteLine($"[csharp-diag] {DateTime.UtcNow:HH:mm:ss.fff} {message}");
-            Console.Error.Flush();
-        }
-
-        private static async Task<T> InvokeWithDiag<T>(string method, Func<Task<T>> body, ServerCallContext context)
-        {
-            DiagLog($"{method} entered peer={context.Peer} deadline={context.Deadline:O}");
-            try
-            {
-                var result = await body();
-                DiagLog($"{method} returning ok");
-                return result;
-            }
-            catch (Exception ex)
-            {
-                DiagLog($"{method} EXCEPTION {ex.GetType().FullName}: {ex.Message}");
-                Console.Error.WriteLine(ex.StackTrace);
-                Console.Error.Flush();
-                throw;
-            }
-        }
+        public override async Task<MultiPatternReport> RunMultiPattern(RunRequest request, ServerCallContext context) =>
+            await app.RunMultiPattern(emit: false);
     }
 
     public sealed record LanguageMember(string Lang, string Slug, string Binary);
