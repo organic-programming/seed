@@ -99,21 +99,17 @@ var nativeHolons = []HolonSpec{
 }
 
 var compositeHolons = []HolonSpec{
-	// gabriel-greeting-app-swiftui is suspended in CI (see commit
-	// "Temporarily suspend SwiftUI CI"). Re-add this entry when the SwiftUI
-	// composite is re-enabled in the workflow.
-	//
-	// {
-	// 	Slug:      "gabriel-greeting-app-swiftui",
-	// 	Runner:    "recipe",
-	// 	Platform:  "darwin",
-	// 	Composite: true,
-	// 	Requires: []string{
-	// 		"xcodebuild", "xcodegen", "go", "swift", "cargo", "zig", "python3",
-	// 		"cmake", "ninja", "dotnet", "dart", "java", "gradle", "node", "npm",
-	// 		"ruby", "bundle",
-	// 	},
-	// },
+	{
+		Slug:      "gabriel-greeting-app-swiftui",
+		Runner:    "recipe",
+		Platform:  "darwin",
+		Composite: true,
+		Requires: []string{
+			"xcodebuild", "xcodegen", "go", "swift", "cargo", "zig", "python3",
+			"cmake", "ninja", "dotnet", "dart", "java", "gradle", "node", "npm",
+			"ruby", "bundle",
+		},
+	},
 	{
 		Slug:      "gabriel-greeting-app-flutter",
 		Runner:    "recipe",

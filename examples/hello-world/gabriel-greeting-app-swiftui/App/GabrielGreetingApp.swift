@@ -38,7 +38,7 @@ struct GabrielGreetingApp: App {
       }
     )
     holonManager.attachObservability(observabilityKit.obs)
-    observabilityKit.obs.emit(.instanceSpawned, payload: ["runtime": "swiftui"])
+    observabilityKit.obs.emit(EventInstanceSpawned, payload: ["runtime": "swiftui"])
     observabilityKit.obs.logger("app").info("SwiftUI app starting")
 
     var turnOffCoax: (@MainActor @Sendable () -> Void)?

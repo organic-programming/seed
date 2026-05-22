@@ -180,8 +180,8 @@ open class HolonProcessManager<Holon: Identifiable & Hashable, Client: Sendable>
                 }
                 client = connectedClient
                 processLogger?.info("Holon connection ready", [
-                    "holon": slugOf(holon),
-                    "transport": connectionTarget(),
+                    "holon": .string(slugOf(holon)),
+                    "transport": .string(connectionTarget()),
                 ])
                 isRunning = true
             } catch {
@@ -190,9 +190,9 @@ open class HolonProcessManager<Holon: Identifiable & Hashable, Client: Sendable>
                 }
                 connectionError = failedToStartMessage(error)
                 processLogger?.error("Holon connection failed", [
-                    "holon": slugOf(holon),
-                    "transport": connectionTarget(),
-                    "error": String(describing: error),
+                    "holon": .string(slugOf(holon)),
+                    "transport": .string(connectionTarget()),
+                    "error": .string(String(describing: error)),
                 ])
                 isRunning = false
             }

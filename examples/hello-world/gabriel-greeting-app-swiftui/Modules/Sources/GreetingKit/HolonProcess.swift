@@ -181,18 +181,18 @@ import HolonsApp
         let elapsed = Date().timeIntervalSince(startedAt)
         sayHelloDuration?.observe(elapsed)
         processLogger?.info("Greeting request completed", [
-          "method": Self.sayHelloMethod,
-          "lang": selectedLanguageCode,
-          "holon": selectedHolon?.slug ?? "",
-          "elapsed_ms": String(format: "%.1f", elapsed * 1000),
+          "method": .string(Self.sayHelloMethod),
+          "lang": .string(selectedLanguageCode),
+          "holon": .string(selectedHolon?.slug ?? ""),
+          "elapsed_ms": .float64(elapsed * 1000),
         ])
         return response
       } catch {
         processLogger?.error("Greeting request failed", [
-          "method": Self.sayHelloMethod,
-          "lang": selectedLanguageCode,
-          "holon": selectedHolon?.slug ?? "",
-          "error": error.localizedDescription,
+          "method": .string(Self.sayHelloMethod),
+          "lang": .string(selectedLanguageCode),
+          "holon": .string(selectedHolon?.slug ?? ""),
+          "error": .string(error.localizedDescription),
         ])
         throw error
       }

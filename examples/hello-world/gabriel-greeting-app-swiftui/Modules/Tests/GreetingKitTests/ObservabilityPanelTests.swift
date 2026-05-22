@@ -18,13 +18,13 @@ final class ObservabilityPanelTests: XCTestCase {
         manager.attachObservability(kit.obs)
 
         kit.obs.logger("app").info("panel test log")
-        kit.obs.emit(.instanceReady, payload: ["runtime": "swiftui-test"])
+        kit.obs.emit(EventInstanceReady, payload: ["runtime": "swiftui-test"])
         kit.obs.counter("panel_test_total")?.inc()
         kit.metrics.refresh()
         drainMainQueue()
 
-        XCTAssertTrue(kit.logs.filteredEntries.contains { $0.message == "panel test log" })
-        XCTAssertTrue(kit.events.events.contains { $0.type == .instanceReady })
+        XCTAssertTrue(kit.logs.filteredEntries.contains { $0.bodyString == "panel test log" })
+        XCTAssertTrue(kit.events.events.contains { $0.record.eventName == EventInstanceReady })
         XCTAssertTrue(kit.metrics.latest?.counters.contains { $0.name == "panel_test_total" } ?? false)
         XCTAssertEqual(kit.relay.activeMembers.map(\.slug), ["gabriel-greeting-swift"])
         XCTAssertNotNil(ObservabilityPanel(kit: kit).body)
