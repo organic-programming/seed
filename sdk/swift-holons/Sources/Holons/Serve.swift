@@ -9,19 +9,58 @@ import NIOPosix
   import Darwin
 #endif
 
+public enum CurrentTransport {
+  private static let lock = NSLock()
+  private nonisolated(unsafe) static var scheme = ""
+
+  public static var value: String {
+    lock.lock()
+    defer { lock.unlock() }
+    return scheme
+  }
+
+  fileprivate static func set(_ value: String) {
+    lock.lock()
+    scheme = value
+    lock.unlock()
+  }
+
+  fileprivate static func clear() {
+    set("")
+  }
+}
+
+public func currentTransport() -> String {
+  CurrentTransport.value
+}
+
 public enum Serve {
+  public struct MemberRef: Sendable {
+    public var slug: String
+    public var address: String
+
+    public init(slug: String, address: String) {
+      self.slug = slug
+      self.address = address
+    }
+  }
+
   public struct ParsedFlags {
     public var listenURI: String
     public var reflect: Bool
+    public var memberEndpoints: [MemberRef]
 
-    public init(listenURI: String, reflect: Bool) {
+    public init(listenURI: String, reflect: Bool, memberEndpoints: [MemberRef] = []) {
       self.listenURI = listenURI
       self.reflect = reflect
+      self.memberEndpoints = memberEndpoints
     }
   }
 
   public struct Options {
     public var reflect: Bool
+    public var slug: String
+    public var memberEndpoints: [MemberRef]
     public var logger: (String) -> Void
     public var onListen: ((String) -> Void)?
     public var shutdownGracePeriodSeconds: TimeInterval
@@ -30,6 +69,8 @@ public enum Serve {
 
     public init(
       reflect: Bool = false,
+      slug: String = "",
+      memberEndpoints: [MemberRef] = [],
       logger: @escaping (String) -> Void = { message in
         guard let data = (message + "\n").data(using: .utf8) else {
           return
@@ -42,6 +83,8 @@ public enum Serve {
       environment: [String: String]? = nil
     ) {
       self.reflect = reflect
+      self.slug = slug
+      self.memberEndpoints = memberEndpoints
       self.logger = logger
       self.onListen = onListen
       self.shutdownGracePeriodSeconds = shutdownGracePeriodSeconds
@@ -110,6 +153,7 @@ public enum Serve {
   public static func parseOptions(_ args: [String]) -> ParsedFlags {
     var listenURI = Transport.defaultURI
     var reflect = false
+    var members: [MemberRef] = []
     var idx = 0
     while idx < args.count {
       if args[idx] == "--listen", idx + 1 < args.count {
@@ -121,9 +165,62 @@ public enum Serve {
       if args[idx] == "--reflect" {
         reflect = true
       }
+      if args[idx] == "--member", idx + 1 < args.count {
+        members.append(tryParseMember(args[idx + 1]))
+        idx += 1
+      } else if args[idx].hasPrefix("--member=") {
+        members.append(tryParseMember(String(args[idx].dropFirst("--member=".count))))
+      }
       idx += 1
     }
-    return ParsedFlags(listenURI: listenURI, reflect: reflect)
+    return ParsedFlags(listenURI: listenURI, reflect: reflect, memberEndpoints: members)
+  }
+
+  public static func parseChildFlags(_ args: [String]) -> (children: [ChildSpec], remaining: [String]) {
+    var children: [ChildSpec] = []
+    var remaining: [String] = []
+    var idx = 0
+    while idx < args.count {
+      let arg = args[idx]
+      if arg == "--child", idx + 1 < args.count {
+        if let child = parseChild(args[idx + 1]) {
+          children.append(child)
+        }
+        idx += 2
+        continue
+      }
+      if arg.hasPrefix("--child=") {
+        if let child = parseChild(String(arg.dropFirst("--child=".count))) {
+          children.append(child)
+        }
+        idx += 1
+        continue
+      }
+      remaining.append(arg)
+      idx += 1
+    }
+    return (children, remaining)
+  }
+
+  private static func parseChild(_ raw: String) -> ChildSpec? {
+    guard let idx = raw.firstIndex(of: "=") else {
+      return nil
+    }
+    let slug = raw[..<idx].trimmingCharacters(in: .whitespacesAndNewlines)
+    let binary = raw[raw.index(after: idx)...].trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !slug.isEmpty, !binary.isEmpty else {
+      return nil
+    }
+    return ChildSpec(slug: slug, binary: binary)
+  }
+
+  private static func tryParseMember(_ raw: String) -> MemberRef {
+    guard let idx = raw.firstIndex(of: "=") else {
+      return MemberRef(slug: "", address: "")
+    }
+    let slug = raw[..<idx].trimmingCharacters(in: .whitespacesAndNewlines)
+    let address = raw[raw.index(after: idx)...].trimmingCharacters(in: .whitespacesAndNewlines)
+    return MemberRef(slug: slug, address: address)
   }
 
   public static func run(
@@ -152,6 +249,7 @@ public enum Serve {
       options.logger("shutting down gRPC server")
       running.stop(gracePeriodSeconds: options.shutdownGracePeriodSeconds)
     }
+    let parentMonitor = parentDeathMonitor(options: options, running: running)
 
     let termSource = DispatchSource.makeSignalSource(signal: SIGTERM, queue: queue)
     termSource.setEventHandler(handler: stopServer)
@@ -162,6 +260,7 @@ public enum Serve {
     intSource.resume()
 
     defer {
+      parentMonitor?.cancel()
       termSource.cancel()
       intSource.cancel()
       signal(SIGTERM, SIG_DFL)
@@ -171,18 +270,60 @@ public enum Serve {
     try running.await()
   }
 
+  private static func parentDeathMonitor(options: Options, running: RunningServer) -> DispatchSourceTimer? {
+    let env = options.environment ?? ProcessInfo.processInfo.environment
+    guard let raw = env["HOLONS_PARENT_PID"],
+          let parentPID = Int32(raw.trimmingCharacters(in: .whitespacesAndNewlines)),
+          parentPID > 1 else {
+      return nil
+    }
+
+    let queue = DispatchQueue(label: "holons.serve.parent-monitor")
+    let source = DispatchSource.makeTimerSource(queue: queue)
+    source.schedule(deadline: .now() + .milliseconds(250), repeating: .milliseconds(250))
+    source.setEventHandler {
+      if !servePidExists(parentPID) {
+        options.logger("parent process exited; shutting down gRPC server")
+        running.stop(gracePeriodSeconds: options.shutdownGracePeriodSeconds)
+        source.cancel()
+      }
+    }
+    source.resume()
+    return source
+  }
+
   public static func startWithOptions(
     _ listenURI: String,
     serviceProviders: [CallHandlerProvider],
     options: Options = Options()
   ) throws -> RunningServer {
     let parsed = try Transport.parse(listenURI.isEmpty ? Transport.defaultURI : listenURI)
+    CurrentTransport.set(parsed.scheme)
+    do {
+      return try startWithParsedOptions(parsed, originalListenURI: listenURI, serviceProviders: serviceProviders, options: options)
+    } catch {
+      CurrentTransport.clear()
+      throw error
+    }
+  }
+
+  private static func startWithParsedOptions(
+    _ parsed: TransportURI,
+    originalListenURI listenURI: String,
+    serviceProviders: [CallHandlerProvider],
+    options: Options
+  ) throws -> RunningServer {
     var providers = serviceProviders
     let env = options.environment ?? ProcessInfo.processInfo.environment
     try checkEnv(env)
-    let obs = (env["OP_OBS"] ?? "").trimmingCharacters(in: .whitespaces).isEmpty
-      ? nil
-      : try fromEnv(ObsConfig(), env: env)
+    let observabilitySlug = resolvedObservabilitySlug(options: options)
+    let obs: Observability?
+    if (env["OP_OBS"] ?? "").trimmingCharacters(in: .whitespaces).isEmpty {
+      obs = nil
+    } else {
+      let existing = current()
+      obs = existing.families.isEmpty ? try fromEnv(ObsConfig(slug: observabilitySlug), env: env) : existing
+    }
     let describeEnabled: Bool
     do {
       describeEnabled = try maybeAddDescribe(&providers)
@@ -207,8 +348,18 @@ public enum Serve {
         reflectionEnabled: reflectionEnabled,
         options: options
       )
-      startObservabilityRuntime(obs, publicURI: running.publicURI, transport: parsed.scheme)
-      return running
+      let obsStop = startObservabilityRuntime(obs, publicURI: running.publicURI, transport: parsed.scheme, options: options)
+      return RunningServer(
+        server: running.server,
+        group: running.group,
+        publicURI: running.publicURI,
+        logger: options.logger,
+        defaultGracePeriodSeconds: options.shutdownGracePeriodSeconds,
+        auxiliaryStop: {
+          obsStop?()
+          CurrentTransport.clear()
+        }
+      )
     case "stdio":
       let backing = try startTCPServer(
         host: "127.0.0.1",
@@ -229,7 +380,7 @@ public enum Serve {
       }
       bridge.start()
       let mode = formatMode(describeEnabled: describeEnabled, reflectionEnabled: reflectionEnabled)
-      startObservabilityRuntime(obs, publicURI: "stdio://", transport: parsed.scheme)
+      let obsStop = startObservabilityRuntime(obs, publicURI: "stdio://", transport: parsed.scheme, options: options)
       options.onListen?("stdio://")
       options.logger("gRPC server listening on stdio:// (\(mode))")
       return RunningServer(
@@ -238,7 +389,11 @@ public enum Serve {
         publicURI: "stdio://",
         logger: options.logger,
         defaultGracePeriodSeconds: options.shutdownGracePeriodSeconds,
-        auxiliaryStop: { bridge.stop() }
+        auxiliaryStop: {
+          obsStop?()
+          bridge.stop()
+          CurrentTransport.clear()
+        }
       )
     case "unix":
       let path = parsed.path ?? ""
@@ -261,7 +416,7 @@ public enum Serve {
       bridge.start()
       let publicURI = "unix://\(path)"
       let mode = formatMode(describeEnabled: describeEnabled, reflectionEnabled: reflectionEnabled)
-      startObservabilityRuntime(obs, publicURI: publicURI, transport: parsed.scheme)
+      let obsStop = startObservabilityRuntime(obs, publicURI: publicURI, transport: parsed.scheme, options: options)
       options.onListen?(publicURI)
       options.logger("gRPC server listening on \(publicURI) (\(mode))")
       return RunningServer(
@@ -270,7 +425,11 @@ public enum Serve {
         publicURI: publicURI,
         logger: options.logger,
         defaultGracePeriodSeconds: options.shutdownGracePeriodSeconds,
-        auxiliaryStop: { bridge.stop() }
+        auxiliaryStop: {
+          obsStop?()
+          bridge.stop()
+          CurrentTransport.clear()
+        }
       )
     default:
       throw TransportError.runtimeUnsupported(
@@ -280,33 +439,66 @@ public enum Serve {
     }
   }
 
+  private static func resolvedObservabilitySlug(options: Options) -> String {
+    let explicit = options.slug.trimmingCharacters(in: .whitespacesAndNewlines)
+    if !explicit.isEmpty {
+      return explicit
+    }
+    guard let response = Describe.staticResponse() else {
+      return ""
+    }
+    let binary = response.manifest.artifacts.binary.trimmingCharacters(in: .whitespacesAndNewlines)
+    if !binary.isEmpty {
+      return binary
+    }
+    return ""
+  }
+
   private static func startObservabilityRuntime(
     _ obs: Observability?,
     publicURI: String,
-    transport: String
-  ) {
-    guard let obs, !obs.families.isEmpty, !obs.cfg.runDir.isEmpty else { return }
-    enableDiskWriters(obs.cfg.runDir)
-    if obs.enabled(.events) {
-      obs.emit(.instanceReady, payload: ["listener": publicURI])
+    transport: String,
+    options: Options
+  ) -> (() -> Void)? {
+    guard let obs, !obs.families.isEmpty else { return nil }
+    let prom = obs.enabled(.prom) ? try? PrometheusServer(obs: obs, bind: obs.cfg.promAddr.isEmpty ? "127.0.0.1:0" : obs.cfg.promAddr) : nil
+    var relays: [MemberRelay] = []
+    for member in options.memberEndpoints where !member.slug.isEmpty && !member.address.isEmpty {
+      let relay = MemberRelay(obs: obs, memberSlug: member.slug, address: member.address, logger: options.logger)
+      relay.start()
+      relays.append(relay)
     }
-    let logPath = obs.enabled(.logs)
-      ? (obs.cfg.runDir as NSString).appendingPathComponent("stdout.log")
-      : ""
-    try? writeMetaJson(
-      obs.cfg.runDir,
-      MetaJson(
-        slug: obs.cfg.slug,
-        uid: obs.cfg.instanceUid,
-        pid: Int(getpid()),
-        startedAt: Date(),
-        transport: transport,
-        address: publicURI,
-        logPath: logPath,
-        organismUid: obs.cfg.organismUid,
-        organismSlug: obs.cfg.organismSlug
+    if !obs.cfg.runDir.isEmpty {
+      enableDiskWriters(obs.cfg.runDir)
+    }
+    if obs.enabled(.events) {
+      obs.emit(EventInstanceReady, payload: ["listener": .string(publicURI), "metrics_addr": .string(prom?.address ?? "")])
+    }
+    if !obs.cfg.runDir.isEmpty {
+      let logPath = obs.enabled(.logs)
+        ? (obs.cfg.runDir as NSString).appendingPathComponent("stdout.log")
+        : ""
+      try? writeMetaJson(
+        obs.cfg.runDir,
+        MetaJson(
+          slug: obs.cfg.slug,
+          uid: obs.cfg.instanceUid,
+          pid: Int(getpid()),
+          startedAt: Date(),
+          transport: transport,
+          address: publicURI,
+          metricsAddr: prom?.address ?? "",
+          logPath: logPath,
+          organismUid: obs.cfg.organismUid,
+          organismSlug: obs.cfg.organismSlug
+        )
       )
-    )
+    }
+    return {
+      for relay in relays { relay.stop() }
+      prom?.stop()
+      obs.close()
+    }
   }
 
   private static func startTCPServer(
@@ -419,7 +611,10 @@ private final class StdioBridge {
       self.completion.leave()
     }
 
-    completion.notify(queue: .global(qos: .utility)) { [onDisconnect] in
+    completion.notify(queue: .global(qos: .utility)) { [weak self, onDisconnect] in
+      guard let self, !self.isStopped else {
+        return
+      }
       onDisconnect()
     }
   }
@@ -532,6 +727,13 @@ private final class StdioBridge {
     let fd = socketFD
     stateLock.unlock()
     return fd
+  }
+
+  private var isStopped: Bool {
+    stateLock.lock()
+    let value = stopped
+    stateLock.unlock()
+    return value
   }
 }
 
@@ -874,5 +1076,16 @@ private func bridgeClose(_ fd: Int32) -> Int32 {
     return Glibc.close(fd)
   #else
     return Darwin.close(fd)
+  #endif
+}
+
+private func servePidExists(_ pid: Int32) -> Bool {
+  guard pid > 0 else { return false }
+  #if os(Linux)
+    if Glibc.kill(pid, 0) == 0 { return true }
+    return Glibc.errno == EPERM
+  #else
+    if Darwin.kill(pid, 0) == 0 { return true }
+    return Darwin.errno == EPERM
   #endif
 }

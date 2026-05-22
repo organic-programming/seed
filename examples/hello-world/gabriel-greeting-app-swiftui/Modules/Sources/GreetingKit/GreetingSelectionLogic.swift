@@ -32,39 +32,41 @@ func resolvedHolonSelection(
   slug: String,
   availableHolons: [GabrielHolonIdentity]
 ) throws -> GabrielHolonIdentity {
-  guard let identity = availableHolons.first(where: { $0.slug == slug }) else {
-    throw GreetingSelectionError.holonNotFound(slug)
-  }
-  return identity
+  try resolvedSelection(
+    slug,
+    availableItems: availableHolons,
+    idOf: { $0.slug },
+    errorFactory: { GreetingSelectionError.holonNotFound($0) }
+  )
 }
 
 func validatedTransportSelection(_ value: String) throws -> HolonTransportName {
-  guard let transport = HolonTransportName.parseCanonical(value) else {
-    throw GreetingSelectionError.unsupportedTransport(value)
-  }
-  return transport
+  try HolonsApp.validatedTransportSelection(
+    value,
+    errorFactory: { GreetingSelectionError.unsupportedTransport($0) }
+  )
 }
 
 func resolvedLanguageSelection(
   availableLanguages: [Greeting_V1_Language],
   preferredCode: String
 ) -> String {
-  availableLanguages.first(where: { $0.code == preferredCode })?.code
-    ?? availableLanguages.first(where: { $0.code == "en" })?.code
-    ?? availableLanguages.first?.code
-    ?? ""
+  resolvedPreferredSelection(
+    availableItems: availableLanguages,
+    preferredID: preferredCode,
+    fallbackIDs: ["en"],
+    idOf: { $0.code }
+  )
 }
 
 func validatedLanguageSelection(
   _ value: String,
   availableLanguages: [Greeting_V1_Language]
 ) throws -> String {
-  let code = value.trimmingCharacters(in: .whitespacesAndNewlines)
-  guard !code.isEmpty else {
-    throw GreetingSelectionError.unsupportedLanguage(value)
-  }
-  guard availableLanguages.contains(where: { $0.code == code }) else {
-    throw GreetingSelectionError.unsupportedLanguage(code)
-  }
-  return code
+  try validatedSelection(
+    value,
+    availableItems: availableLanguages,
+    idOf: { $0.code },
+    errorFactory: { GreetingSelectionError.unsupportedLanguage($0) }
+  )
 }

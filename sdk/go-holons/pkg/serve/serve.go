@@ -14,6 +14,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/url"
@@ -22,9 +23,11 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
+	holonsv1 "github.com/organic-programming/go-holons/gen/go/holons/v1"
 	"github.com/organic-programming/go-holons/pkg/describe"
 	"github.com/organic-programming/go-holons/pkg/grpcclient"
 	"github.com/organic-programming/go-holons/pkg/holonrpc"
@@ -63,6 +66,18 @@ type ServeOptions struct {
 type grpcEndpoint struct {
 	uri string
 	lis net.Listener
+}
+
+var currentTransport atomic.Value // string
+
+// CurrentTransport returns the transport scheme currently in use by the
+// active server: "stdio", "tcp", "unix", or "" if not yet started. Safe to
+// call from any goroutine, including RPC handlers.
+func CurrentTransport() string {
+	if v, ok := currentTransport.Load().(string); ok {
+		return v
+	}
+	return ""
 }
 
 // ParseFlags extracts --listen and --port from command-line args.
@@ -133,13 +148,15 @@ func RunWithOptions(listenURI string, register RegisterFunc, reflect bool, moreL
 // organism member endpoints for observability relay.
 func RunWithServeOptions(listenURI string, register RegisterFunc, options ServeOptions, moreListenURIs ...string) (runErr error) {
 	listenURIs := normalizeListenURIs(listenURI, moreListenURIs)
+	currentTransport.Store(transport.Scheme(listenURIs[0]))
+	defer currentTransport.Store("")
 
 	// Observability: fail-fast on unknown OP_OBS tokens, then install
 	// the singleton (safe no-op when OP_OBS is empty).
 	if err := observability.CheckEnv(); err != nil {
 		return fmt.Errorf("observability env: %w", err)
 	}
-	obs := observability.FromEnv(observability.Config{})
+	obs := currentOrEnvObservability()
 
 	grpcOptions := []grpc.ServerOption{
 		grpc.UnaryInterceptor(observability.UnaryServerInterceptor()),
@@ -337,7 +354,7 @@ func RunWithServeOptions(listenURI string, register RegisterFunc, options ServeO
 	// even when events are disabled the call is a no-op.
 	readyAddress, readyTransport := firstReadyEndpoint(grpcEndpoints, httpAddresses)
 	if readyAddress != "" {
-		observability.EmitReady(context.Background(), readyAddress)
+		observability.EmitReady(context.Background(), readyAddress, metricsAddr)
 		// Write meta.json for `op ps` / HolonInstance.List when we
 		// have a run directory. Skips silently when OP_RUN_DIR is
 		// empty (manual launch without `op run`).
@@ -411,6 +428,17 @@ func RunWithServeOptions(listenURI string, register RegisterFunc, options ServeO
 		serveWG.Wait()
 		return err
 	}
+}
+
+func currentOrEnvObservability() *observability.Observability {
+	obs := observability.Current()
+	if obs.Enabled(observability.FamilyLogs) ||
+		obs.Enabled(observability.FamilyMetrics) ||
+		obs.Enabled(observability.FamilyEvents) ||
+		obs.Enabled(observability.FamilyProm) {
+		return obs
+	}
+	return observability.FromEnv(observability.Config{})
 }
 
 func advertisedURI(listenURI string, addr net.Addr) string {
@@ -507,7 +535,7 @@ func startMemberRelays(ctx context.Context, members []MemberRef) ([]*observabili
 		member.Slug = strings.TrimSpace(member.Slug)
 		member.UID = strings.TrimSpace(member.UID)
 		member.Address = strings.TrimSpace(member.Address)
-		if member.Slug == "" || member.UID == "" || member.Address == "" {
+		if member.Slug == "" || member.Address == "" {
 			log.Printf("warning: observability relay skipped incomplete member ref: slug=%q uid=%q address=%q", member.Slug, member.UID, member.Address)
 			continue
 		}
@@ -515,6 +543,10 @@ func startMemberRelays(ctx context.Context, members []MemberRef) ([]*observabili
 		if err != nil {
 			log.Printf("warning: observability relay dial %s/%s: %v", member.Slug, member.UID, err)
 			continue
+		}
+		member = resolveRelayMemberIdentity(ctx, conn, member)
+		if member.UID == "" {
+			log.Printf("warning: observability relay uid unresolved for %s at %s; chain hops will have empty uid", member.Slug, member.Address)
 		}
 		relay := observability.NewRelay(member.Slug, member.UID, conn)
 		if err := relay.Start(ctx); err != nil {
@@ -526,6 +558,76 @@ func startMemberRelays(ctx context.Context, members []MemberRef) ([]*observabili
 		conns = append(conns, conn)
 	}
 	return relays, conns
+}
+
+func resolveRelayMemberIdentity(ctx context.Context, conn *grpc.ClientConn, member MemberRef) MemberRef {
+	if member.UID != "" {
+		return member
+	}
+	client := holonsv1.NewHolonObservabilityClient(conn)
+	resolveCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+
+	if stream, err := client.Events(resolveCtx, &holonsv1.EventsRequest{
+		EventNames: []string{observability.EventInstanceReady},
+		Follow:     false,
+	}); err == nil {
+		for {
+			ev, recvErr := stream.Recv()
+			if recvErr == io.EOF {
+				break
+			}
+			if recvErr != nil {
+				break
+			}
+			uid := strings.TrimSpace(observability.StringAttribute(ev.GetAttributes(), observability.AttrHolonsInstanceUID))
+			if uid == "" || len(ev.GetChain()) != 0 {
+				continue
+			}
+			member.UID = uid
+			if slug := strings.TrimSpace(observability.StringAttribute(ev.GetAttributes(), observability.AttrHolonsSlug)); slug != "" {
+				member.Slug = slug
+			}
+			return member
+		}
+	}
+
+	if stream, err := client.Metrics(resolveCtx, &holonsv1.MetricsRequest{}); err == nil {
+		for {
+			metric, recvErr := stream.Recv()
+			if recvErr == io.EOF {
+				break
+			}
+			if recvErr != nil {
+				break
+			}
+			attrs := metricAttributes(metric)
+			if uid := strings.TrimSpace(observability.StringAttribute(attrs, observability.AttrHolonsInstanceUID)); uid != "" {
+				member.UID = uid
+				if slug := strings.TrimSpace(observability.StringAttribute(attrs, observability.AttrHolonsSlug)); slug != "" {
+					member.Slug = slug
+				}
+				break
+			}
+		}
+	}
+	return member
+}
+
+func metricAttributes(metric *holonsv1.Metric) []*holonsv1.KeyValue {
+	if metric == nil {
+		return nil
+	}
+	if gauge := metric.GetGauge(); gauge != nil && len(gauge.GetDataPoints()) > 0 {
+		return gauge.GetDataPoints()[0].GetAttributes()
+	}
+	if sum := metric.GetSum(); sum != nil && len(sum.GetDataPoints()) > 0 {
+		return sum.GetDataPoints()[0].GetAttributes()
+	}
+	if hist := metric.GetHistogram(); hist != nil && len(hist.GetDataPoints()) > 0 {
+		return hist.GetDataPoints()[0].GetAttributes()
+	}
+	return nil
 }
 
 func normalizeRelayDialTarget(target string) string {

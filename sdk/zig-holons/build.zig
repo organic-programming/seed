@@ -15,6 +15,7 @@ const generated_c_sources = [_][]const u8{
     "holons/v1/session.pb-c.c",
     "holons/v1/observability.pb-c.c",
     "holons/v1/instance.pb-c.c",
+    "relay/v1/relay.pb-c.c",
     "v1/greeting.pb-c.c",
 };
 
@@ -309,7 +310,8 @@ pub fn build(b: *std.Build) void {
         \\"$protoc" \
         \\  --plugin=protoc-gen-c="$ZIG_HOLONS_NATIVE_ROOT/bin/protoc-gen-c" \
         \\  -I ../../holons/grace-op/_protos \
-        \\  -I ../../examples/_protos \
+        \\  -I ../../examples/hello-world/_protos \
+        \\  -I ../../examples/observability-cascade/_protos \
         \\  -I third_party/grpc/third_party/protobuf/src \
         \\  third_party/grpc/third_party/protobuf/src/google/protobuf/descriptor.proto \
         \\  third_party/grpc/third_party/protobuf/src/google/protobuf/timestamp.proto \
@@ -320,7 +322,8 @@ pub fn build(b: *std.Build) void {
         \\  ../../holons/grace-op/_protos/holons/v1/session.proto \
         \\  ../../holons/grace-op/_protos/holons/v1/observability.proto \
         \\  ../../holons/grace-op/_protos/holons/v1/instance.proto \
-        \\  ../../examples/_protos/v1/greeting.proto \
+        \\  ../../examples/observability-cascade/_protos/relay/v1/relay.proto \
+        \\  ../../examples/hello-world/_protos/v1/greeting.proto \
         \\  --c_out=gen/c
     );
     generate_protos.setEnvironmentVariable("ZIG_HOLONS_NATIVE_ROOT", native_root.path);
@@ -420,6 +423,22 @@ pub fn build(b: *std.Build) void {
     serve_tcp_tests.step.dependOn(&native_ready.step);
     const run_serve_tcp_tests = b.addRunArtifact(serve_tcp_tests);
     test_step.dependOn(&run_serve_tcp_tests.step);
+
+    const grpc_streaming_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/grpc_streaming_test.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "zig_holons", .module = mod },
+            },
+        }),
+    });
+    grpc_streaming_tests.step.dependOn(&native_ready.step);
+    const run_grpc_streaming_tests = b.addRunArtifact(grpc_streaming_tests);
+    const test_grpc_streaming_step = b.step("test-grpc-streaming", "Run native gRPC streaming tests");
+    test_grpc_streaming_step.dependOn(&run_grpc_streaming_tests.step);
+    test_step.dependOn(&run_grpc_streaming_tests.step);
 
     const serve_unix_tests = b.addTest(.{
         .root_module = b.createModule(.{
@@ -579,6 +598,38 @@ pub fn build(b: *std.Build) void {
     const test_observability_step = b.step("test-observability", "Run observability tests");
     test_observability_step.dependOn(&run_observability_tests.step);
     test_step.dependOn(&run_observability_tests.step);
+
+    const member_relay_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/member_relay_test.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "zig_holons", .module = mod },
+            },
+        }),
+    });
+    member_relay_tests.step.dependOn(&native_ready.step);
+    const run_member_relay_tests = b.addRunArtifact(member_relay_tests);
+    const test_member_relay_step = b.step("test-member-relay", "Run member relay tests");
+    test_member_relay_step.dependOn(&run_member_relay_tests.step);
+    test_step.dependOn(&run_member_relay_tests.step);
+
+    const stdio_respawn_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/stdio_respawn_test.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "zig_holons", .module = mod },
+            },
+        }),
+    });
+    stdio_respawn_tests.step.dependOn(&native_ready.step);
+    const run_stdio_respawn_tests = b.addRunArtifact(stdio_respawn_tests);
+    const test_stdio_respawn_step = b.step("test-stdio-respawn", "Run stdio respawn relay regression test");
+    test_stdio_respawn_step.dependOn(&run_stdio_respawn_tests.step);
+    test_step.dependOn(&run_stdio_respawn_tests.step);
 
     const prepare_c_abi = sh(b, "mkdir -p zig-out/bin");
     prepare_c_abi.step.dependOn(b.getInstallStep());

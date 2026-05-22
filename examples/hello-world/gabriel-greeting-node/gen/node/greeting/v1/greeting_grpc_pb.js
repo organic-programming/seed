@@ -55,8 +55,8 @@ function deserialize_greeting_v1_SayHelloResponse(buffer_arg) {
 //
 var GreetingServiceService = exports.GreetingServiceService = {
   // Returns all available greeting languages.
-// @example {}
-listLanguages: {
+  // @example {}
+  listLanguages: {
     path: '/greeting.v1.GreetingService/ListLanguages',
     requestStream: false,
     responseStream: false,
@@ -68,9 +68,9 @@ listLanguages: {
     responseDeserialize: deserialize_greeting_v1_ListLanguagesResponse,
   },
   // Greets the user in the chosen language.
-// @example {"name":"Bob","lang_code":"fr"}
-// @example {"name":"Bob","lang_code":"fr"} --origin
-sayHello: {
+  // @example {"name":"Bob","lang_code":"fr"}
+  // @example {"name":"Bob","lang_code":"fr"} --origin
+  sayHello: {
     path: '/greeting.v1.GreetingService/SayHello',
     requestStream: false,
     responseStream: false,
@@ -83,4 +83,4 @@ sayHello: {
   },
 };
 
-exports.GreetingServiceClient = grpc.makeGenericClientConstructor(GreetingServiceService, 'GreetingService');
+exports.GreetingServiceClient = grpc.makeGenericClientConstructor(GreetingServiceService);

@@ -2,11 +2,21 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:grpc/grpc.dart';
+import 'package:holons/gen/holons/v1/observability.pb.dart' as obs_pb;
+import 'package:holons/gen/holons/v1/observability.pbgrpc.dart' as obs_grpc;
 
+import 'connect.dart' as connect_impl;
 import 'describe.dart';
 import 'observability.dart' as observability;
 import 'reflection.dart';
 import 'transport.dart';
+import 'composite.dart' as composite;
+
+String CurrentTransport = '';
+
+void setCurrentTransport(String transport) {
+  CurrentTransport = transport.trim();
+}
 
 class ParsedFlags {
   const ParsedFlags({
@@ -16,6 +26,16 @@ class ParsedFlags {
 
   final String listenUri;
   final bool reflect;
+}
+
+class ParsedChildFlags {
+  const ParsedChildFlags({
+    required this.children,
+    required this.remaining,
+  });
+
+  final List<composite.ChildSpec> children;
+  final List<String> remaining;
 }
 
 /// Parse --listen or --port from command-line args.
@@ -38,10 +58,47 @@ ParsedFlags parseOptions(List<String> args) {
   return ParsedFlags(listenUri: listenUri, reflect: reflect);
 }
 
+ParsedChildFlags parseChildFlags(List<String> args) {
+  final children = <composite.ChildSpec>[];
+  final remaining = <String>[];
+  for (var i = 0; i < args.length; i++) {
+    final arg = args[i];
+    if (arg == '--child' && i + 1 < args.length) {
+      final parsed = _parseChildSpec(args[i + 1]);
+      if (parsed != null) {
+        children.add(parsed);
+      }
+      i += 1;
+    } else if (arg.startsWith('--child=')) {
+      final parsed = _parseChildSpec(arg.substring('--child='.length));
+      if (parsed != null) {
+        children.add(parsed);
+      }
+    } else {
+      remaining.add(arg);
+    }
+  }
+  return ParsedChildFlags(children: children, remaining: remaining);
+}
+
+composite.ChildSpec? _parseChildSpec(String raw) {
+  final index = raw.indexOf('=');
+  if (index < 0) {
+    return null;
+  }
+  final slug = raw.substring(0, index).trim();
+  final binary = raw.substring(index + 1).trim();
+  if (slug.isEmpty || binary.isEmpty) {
+    return null;
+  }
+  return composite.ChildSpec(slug: slug, binary: binary);
+}
+
 class ServeOptions {
   const ServeOptions({
     this.describe = true,
     this.reflect = false,
+    this.memberEndpoints = const [],
     this.onListen,
     this.logger = _defaultLogger,
     this.protoDir,
@@ -50,10 +107,23 @@ class ServeOptions {
 
   final bool describe;
   final bool reflect;
+  final List<MemberRef> memberEndpoints;
   final void Function(String publicUri)? onListen;
   final void Function(String message) logger;
   final String? protoDir;
   final Map<String, String>? environment;
+}
+
+class MemberRef {
+  const MemberRef({
+    required this.slug,
+    this.uid = '',
+    required this.address,
+  });
+
+  final String slug;
+  final String uid;
+  final String address;
 }
 
 class RunningServer {
@@ -126,104 +196,335 @@ Future<RunningServer> startWithOptions(
   ServeOptions options = const ServeOptions(),
 }) async {
   final parsed = parseUri(listenUri.isEmpty ? defaultUri : listenUri);
-  final resolvedServices = List<Service>.from(services);
-  final env = options.environment ?? Platform.environment;
-  observability.checkEnv(env);
-  final obs = _resolveObservability(env);
-  final describeEnabled = _maybeAddDescribe(resolvedServices, options);
-  if (obs != null && obs.families.isNotEmpty) {
-    resolvedServices.add(observability.registerService(obs));
-  }
-  final reflectionEnabled = _maybeAddReflection(resolvedServices, options);
+  setCurrentTransport(parsed.scheme);
+  try {
+    final resolvedServices = List<Service>.from(services);
+    final env = options.environment ?? Platform.environment;
+    observability.checkEnv(env);
+    final obs = _resolveObservability(env);
+    final describeEnabled = _maybeAddDescribe(resolvedServices, options);
+    if (obs != null && obs.families.isNotEmpty) {
+      resolvedServices.add(observability.registerService(obs));
+    }
+    final reflectionEnabled = _maybeAddReflection(resolvedServices, options);
 
-  switch (parsed.scheme) {
-    case 'tcp':
-      final host = parsed.host ?? '0.0.0.0';
-      final port = parsed.port ?? 9090;
-      final running = await _startTcpServer(
-        host: host,
-        port: port,
-        publicUri: null,
-        services: resolvedServices,
-        describeEnabled: describeEnabled,
-        reflectionEnabled: reflectionEnabled,
-        options: options,
+    switch (parsed.scheme) {
+      case 'tcp':
+        final host = parsed.host ?? '0.0.0.0';
+        final port = parsed.port ?? 9090;
+        final running = await _startTcpServer(
+          host: host,
+          port: port,
+          publicUri: null,
+          services: resolvedServices,
+          describeEnabled: describeEnabled,
+          reflectionEnabled: reflectionEnabled,
+          options: options,
+        );
+        return _withCurrentTransportLifecycle(
+            await _finalizeObservabilityRuntime(
+          running,
+          obs,
+          running.publicUri,
+          parsed.scheme,
+          options,
+        ));
+      case 'stdio':
+        final backing = await _startTcpServer(
+          host: '127.0.0.1',
+          port: 0,
+          publicUri: null,
+          services: resolvedServices,
+          describeEnabled: describeEnabled,
+          reflectionEnabled: reflectionEnabled,
+          options: options,
+          suppressAnnouncement: true,
+        );
+        final port = int.parse(backing.publicUri.split(':').last);
+        late final RunningServer running;
+        final bridge = await _StdioServerBridge.connect(
+          host: '127.0.0.1',
+          port: port,
+          onDisconnect: () {
+            unawaited(running.stop());
+          },
+        );
+        running = RunningServer._(
+          server: backing.server,
+          publicUri: 'stdio://',
+          completion: backing.completion,
+          stopCallback: () async {
+            await bridge.close();
+            await backing.stop();
+          },
+        );
+        bridge.start();
+        final mode = _formatMode(describeEnabled, reflectionEnabled);
+        final finalized = await _finalizeObservabilityRuntime(
+          running,
+          obs,
+          'stdio://',
+          parsed.scheme,
+          options,
+        );
+        options.onListen?.call('stdio://');
+        options.logger('gRPC server listening on stdio:// ($mode)');
+        return _withCurrentTransportLifecycle(finalized);
+      case 'unix':
+        final path = parsed.path ?? '';
+        final backing = await _startTcpServer(
+          host: '127.0.0.1',
+          port: 0,
+          publicUri: null,
+          services: resolvedServices,
+          describeEnabled: describeEnabled,
+          reflectionEnabled: reflectionEnabled,
+          options: options,
+          suppressAnnouncement: true,
+        );
+        final port = int.parse(backing.publicUri.split(':').last);
+        final bridge = await _UnixServerBridge.bind(
+          path: path,
+          host: '127.0.0.1',
+          port: port,
+        );
+        final publicUri = 'unix://$path';
+        final mode = _formatMode(describeEnabled, reflectionEnabled);
+        final running = RunningServer._(
+          server: backing.server,
+          publicUri: publicUri,
+          completion: backing.completion,
+          stopCallback: () async {
+            await bridge.close();
+            await backing.stop();
+          },
+        );
+        final finalized = await _finalizeObservabilityRuntime(
+          running,
+          obs,
+          publicUri,
+          parsed.scheme,
+          options,
+        );
+        options.onListen?.call(publicUri);
+        options.logger('gRPC server listening on $publicUri ($mode)');
+        return _withCurrentTransportLifecycle(finalized);
+      default:
+        throw ArgumentError.value(
+          listenUri,
+          'listenUri',
+          'Serve.run(...) currently supports tcp://, unix://, and stdio:// only',
+        );
+    }
+  } catch (_) {
+    setCurrentTransport('');
+    rethrow;
+  }
+}
+
+RunningServer _withCurrentTransportLifecycle(RunningServer running) {
+  return RunningServer._(
+    server: running.server,
+    publicUri: running.publicUri,
+    completion: running.completion,
+    stopCallback: () async {
+      try {
+        await running.stop();
+      } finally {
+        setCurrentTransport('');
+      }
+    },
+  );
+}
+
+Future<RunningServer> _finalizeObservabilityRuntime(
+  RunningServer running,
+  observability.Observability? obs,
+  String publicUri,
+  String transportName,
+  ServeOptions options,
+) async {
+  final promServer = await _startPromServer(obs, options.logger);
+  _startObservabilityRuntime(
+    obs,
+    publicUri,
+    transportName,
+    promServer?.$2 ?? '',
+  );
+  final memberRelays = await _startMemberRelays(
+    obs,
+    options.memberEndpoints,
+    options.logger,
+  );
+  if (promServer == null && memberRelays.isEmpty) {
+    return running;
+  }
+  return RunningServer._(
+    server: running.server,
+    publicUri: running.publicUri,
+    completion: running.completion,
+    stopCallback: () async {
+      await Future.wait<void>([
+        for (final relay in memberRelays) relay.stop(),
+      ]);
+      if (promServer != null) {
+        await promServer.$1.close();
+      }
+      await running.stop();
+    },
+  );
+}
+
+Future<(observability.PromServer, String)?> _startPromServer(
+  observability.Observability? obs,
+  void Function(String message) logger,
+) async {
+  if (obs == null || !obs.enabled(observability.Family.prom)) {
+    return null;
+  }
+  final addr = obs.cfg.promAddr.isEmpty ? ':0' : obs.cfg.promAddr;
+  final server = observability.PromServer(addr);
+  try {
+    final metricsAddr = await server.start();
+    logger('Prometheus /metrics listening on $metricsAddr');
+    return (server, metricsAddr);
+  } on Object catch (error) {
+    logger('warning: prom HTTP bind failed: $error');
+    return null;
+  }
+}
+
+Future<List<_StartedMemberRelay>> _startMemberRelays(
+  observability.Observability? obs,
+  List<MemberRef> members,
+  void Function(String message) logger,
+) async {
+  if (obs == null ||
+      (!obs.enabled(observability.Family.logs) &&
+          !obs.enabled(observability.Family.events))) {
+    return const [];
+  }
+  final relays = <_StartedMemberRelay>[];
+  for (final raw in members) {
+    var member = MemberRef(
+      slug: raw.slug.trim(),
+      uid: raw.uid.trim(),
+      address: raw.address.trim(),
+    );
+    if (member.slug.isEmpty || member.address.isEmpty) {
+      logger(
+          'warning: observability relay skipped incomplete member ref: slug="${member.slug}" uid="${member.uid}" address="${member.address}"');
+      continue;
+    }
+    ClientChannel? channel;
+    try {
+      channel = await connect_impl.connect(
+        member.address,
+        const connect_impl.ConnectOptions(start: false),
+      ) as ClientChannel;
+      member = await _resolveRelayMemberIdentity(channel, member);
+      if (member.uid.isEmpty) {
+        logger(
+            'warning: observability relay uid unresolved for ${member.slug} at ${member.address}; chain hops will have empty uid');
+      }
+      final relay = observability.MemberRelay(
+        childSlug: member.slug,
+        childUid: member.uid,
+        channel: channel,
+        observability: obs,
       );
-      _startObservabilityRuntime(obs, running.publicUri, parsed.scheme);
-      return running;
-    case 'stdio':
-      final backing = await _startTcpServer(
-        host: '127.0.0.1',
-        port: 0,
-        publicUri: null,
-        services: resolvedServices,
-        describeEnabled: describeEnabled,
-        reflectionEnabled: reflectionEnabled,
-        options: options,
-        suppressAnnouncement: true,
+      await relay.start();
+      relays.add(_StartedMemberRelay(relay, channel));
+      channel = null;
+    } on Object catch (error) {
+      await channel?.shutdown();
+      logger(
+          'warning: observability relay start ${member.slug}/${member.uid}: $error');
+    }
+  }
+  return relays;
+}
+
+Future<MemberRef> _resolveRelayMemberIdentity(
+  ClientChannel channel,
+  MemberRef member,
+) async {
+  if (member.uid.isNotEmpty) {
+    return member;
+  }
+  final client = obs_grpc.HolonObservabilityClient(channel);
+  try {
+    final stream = client.events(
+      obs_pb.EventsRequest(
+        eventNames: [observability.eventInstanceReady],
+        follow: false,
+      ),
+    );
+    await for (final event in stream.timeout(const Duration(seconds: 2))) {
+      final uid = observability.stringAttribute(
+          event.attributes, observability.attrHolonsInstanceUid);
+      if (uid.isEmpty || event.chain.isNotEmpty) {
+        continue;
+      }
+      final slug = observability.stringAttribute(
+          event.attributes, observability.attrHolonsSlug);
+      return MemberRef(
+        slug: slug.trim().isEmpty ? member.slug : slug.trim(),
+        uid: uid.trim(),
+        address: member.address,
       );
-      final port = int.parse(backing.publicUri.split(':').last);
-      late final RunningServer running;
-      final bridge = await _StdioServerBridge.connect(
-        host: '127.0.0.1',
-        port: port,
-        onDisconnect: () {
-          unawaited(running.stop());
-        },
-      );
-      running = RunningServer._(
-        server: backing.server,
-        publicUri: 'stdio://',
-        completion: backing.completion,
-        stopCallback: () async {
-          await bridge.close();
-          await backing.stop();
-        },
-      );
-      bridge.start();
-      final mode = _formatMode(describeEnabled, reflectionEnabled);
-      _startObservabilityRuntime(obs, 'stdio://', parsed.scheme);
-      options.onListen?.call('stdio://');
-      options.logger('gRPC server listening on stdio:// ($mode)');
-      return running;
-    case 'unix':
-      final path = parsed.path ?? '';
-      final backing = await _startTcpServer(
-        host: '127.0.0.1',
-        port: 0,
-        publicUri: null,
-        services: resolvedServices,
-        describeEnabled: describeEnabled,
-        reflectionEnabled: reflectionEnabled,
-        options: options,
-        suppressAnnouncement: true,
-      );
-      final port = int.parse(backing.publicUri.split(':').last);
-      final bridge = await _UnixServerBridge.bind(
-        path: path,
-        host: '127.0.0.1',
-        port: port,
-      );
-      final publicUri = 'unix://$path';
-      final mode = _formatMode(describeEnabled, reflectionEnabled);
-      _startObservabilityRuntime(obs, publicUri, parsed.scheme);
-      options.onListen?.call(publicUri);
-      options.logger('gRPC server listening on $publicUri ($mode)');
-      return RunningServer._(
-        server: backing.server,
-        publicUri: publicUri,
-        completion: backing.completion,
-        stopCallback: () async {
-          await bridge.close();
-          await backing.stop();
-        },
-      );
-    default:
-      throw ArgumentError.value(
-        listenUri,
-        'listenUri',
-        'Serve.run(...) currently supports tcp://, unix://, and stdio:// only',
-      );
+    }
+  } on Object {
+    // Fall back to Metrics below.
+  }
+
+  try {
+    final metrics = await client
+        .metrics(obs_pb.MetricsRequest())
+        .toList()
+        .timeout(const Duration(seconds: 2));
+    for (final metric in metrics) {
+      final attrs = _metricAttributes(metric);
+      final uid = observability.stringAttribute(
+          attrs, observability.attrHolonsInstanceUid);
+      if (uid.isEmpty) {
+        continue;
+      }
+      final slug =
+          observability.stringAttribute(attrs, observability.attrHolonsSlug);
+      return MemberRef(
+          slug: slug.trim().isEmpty ? member.slug : slug.trim(),
+          uid: uid.trim(),
+          address: member.address);
+    }
+  } on Object {
+    // Leave the UID empty and let the relay still run.
+  }
+  return member;
+}
+
+List<obs_pb.KeyValue> _metricAttributes(obs_pb.Metric metric) {
+  if (metric.hasGauge() && metric.gauge.dataPoints.isNotEmpty) {
+    return metric.gauge.dataPoints.first.attributes;
+  }
+  if (metric.hasSum() && metric.sum.dataPoints.isNotEmpty) {
+    return metric.sum.dataPoints.first.attributes;
+  }
+  if (metric.hasHistogram() && metric.histogram.dataPoints.isNotEmpty) {
+    return metric.histogram.dataPoints.first.attributes;
+  }
+  return const [];
+}
+
+class _StartedMemberRelay {
+  _StartedMemberRelay(this.relay, this.channel);
+
+  final observability.MemberRelay relay;
+  final ClientChannel channel;
+
+  Future<void> stop() async {
+    await relay.stop();
+    await channel.shutdown();
   }
 }
 
@@ -232,10 +533,13 @@ observability.Observability? _resolveObservability(Map<String, String> env) {
     return null;
   }
   final current = observability.current();
-  if (current.families.isNotEmpty) {
+  if (current.families.isNotEmpty && current.cfg.slug.trim().isNotEmpty) {
     return current;
   }
-  return observability.fromEnv(const observability.Config(), env);
+  return observability.fromEnv(
+    observability.Config(slug: registeredManifestSlug()),
+    env,
+  );
 }
 
 Future<RunningServer> _startTcpServer({
@@ -281,12 +585,13 @@ void _startObservabilityRuntime(
   observability.Observability? obs,
   String publicUri,
   String transportName,
+  String metricsAddr,
 ) {
   if (obs == null || obs.families.isEmpty || obs.cfg.runDir.isEmpty) return;
   observability.enableDiskWriters(obs.cfg.runDir);
   if (obs.enabled(observability.Family.events)) {
-    obs.emit(observability.EventType.instanceReady,
-        payload: {'listener': publicUri});
+    obs.emit(observability.eventInstanceReady,
+        payload: {'listener': publicUri, 'metrics_addr': metricsAddr});
   }
   observability.writeMetaJson(
     obs.cfg.runDir,
@@ -297,6 +602,7 @@ void _startObservabilityRuntime(
       startedAt: DateTime.now(),
       transport: transportName,
       address: publicUri,
+      metricsAddr: metricsAddr,
       logPath: obs.enabled(observability.Family.logs)
           ? '${obs.cfg.runDir}${Platform.pathSeparator}stdout.log'
           : '',

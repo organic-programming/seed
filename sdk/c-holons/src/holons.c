@@ -11,6 +11,7 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <netdb.h>
+#include <pthread.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,6 +29,9 @@
 #endif
 
 static volatile sig_atomic_t g_stop_requested = 0;
+static _Thread_local char g_current_transport_tls[16];
+static pthread_mutex_t g_current_transport_lock = PTHREAD_MUTEX_INITIALIZER;
+static char g_current_transport_process[16];
 
 #define HOLONS_CONNECT_DEFAULT_TIMEOUT_MS 5000
 #define HOLONS_CONNECT_STOP_TIMEOUT_MS 2000
@@ -89,6 +93,45 @@ static void set_err(char *err, size_t err_len, const char *fmt, ...) {
   va_start(ap, fmt);
   (void)vsnprintf(err, err_len, fmt, ap);
   va_end(ap);
+}
+
+static void holons_set_current_transport_name(const char *transport) {
+  if (transport == NULL) {
+    transport = "";
+  }
+  (void)snprintf(g_current_transport_tls, sizeof(g_current_transport_tls), "%s", transport);
+  pthread_mutex_lock(&g_current_transport_lock);
+  (void)snprintf(g_current_transport_process, sizeof(g_current_transport_process), "%s", transport);
+  pthread_mutex_unlock(&g_current_transport_lock);
+}
+
+const char *holons_current_transport(void) {
+  if (g_current_transport_tls[0] != '\0') {
+    return g_current_transport_tls;
+  }
+  pthread_mutex_lock(&g_current_transport_lock);
+  (void)snprintf(g_current_transport_tls,
+                 sizeof(g_current_transport_tls),
+                 "%s",
+                 g_current_transport_process);
+  pthread_mutex_unlock(&g_current_transport_lock);
+  return g_current_transport_tls;
+}
+
+int holons_set_current_transport_from_uri(const char *uri, char *err, size_t err_len) {
+  holons_uri_t parsed;
+  if (uri == NULL || uri[0] == '\0') {
+    uri = HOLONS_DEFAULT_URI;
+  }
+  if (holons_parse_uri(uri, &parsed, err, err_len) != 0) {
+    return -1;
+  }
+  holons_set_current_transport_name(holons_scheme_name(parsed.scheme));
+  return 0;
+}
+
+void holons_clear_current_transport(void) {
+  holons_set_current_transport_name("");
 }
 
 static int copy_string(char *dst, size_t dst_len, const char *src, char *err, size_t err_len) {
@@ -1445,6 +1488,7 @@ int holons_serve(const char *listen_uri,
   if (holons_listen(listen_uri, &listener, err, err_len) != 0) {
     return -1;
   }
+  holons_set_current_transport_name(holons_scheme_name(listener.uri.scheme));
 
   if (install_signal_handlers) {
     (void)memset(&act, 0, sizeof(act));
@@ -1502,6 +1546,7 @@ int holons_serve(const char *listen_uri,
   }
 
   g_stop_requested = previous_stop;
+  holons_clear_current_transport();
   return rc;
 }
 

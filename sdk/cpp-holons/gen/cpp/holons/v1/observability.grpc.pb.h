@@ -29,9 +29,18 @@
 namespace holons {
 namespace v1 {
 
-// HolonObservability is auto-registered by the SDK's serve runner
-// when OP_OBS is set. Provides structured logs, metrics snapshots,
-// and lifecycle events. See OBSERVABILITY.md.
+// HolonObservability emits OTLP-shaped records through the SDK-managed
+// observability service. Events are LogRecord values with event_name set.
+//
+// Canonical event_name values for this wave:
+//   instance.spawned
+//   instance.ready
+//   instance.exited
+//   instance.crashed
+//   session.started
+//   session.ended
+//   handler.panic
+//   config.reloaded
 class HolonObservability final {
  public:
   static constexpr char const* service_full_name() {
@@ -40,99 +49,90 @@ class HolonObservability final {
   class StubInterface {
    public:
     virtual ~StubInterface() {}
-    // Logs streams log entries. If follow=true, the stream stays open
-    // and emits new entries as they arrive. If follow=false, drains
-    // the current ring buffer and ends.
-    std::unique_ptr< ::grpc::ClientReaderInterface< ::holons::v1::LogEntry>> Logs(::grpc::ClientContext* context, const ::holons::v1::LogsRequest& request) {
-      return std::unique_ptr< ::grpc::ClientReaderInterface< ::holons::v1::LogEntry>>(LogsRaw(context, request));
+    std::unique_ptr< ::grpc::ClientReaderInterface< ::holons::v1::LogRecord>> Logs(::grpc::ClientContext* context, const ::holons::v1::LogsRequest& request) {
+      return std::unique_ptr< ::grpc::ClientReaderInterface< ::holons::v1::LogRecord>>(LogsRaw(context, request));
     }
-    std::unique_ptr< ::grpc::ClientAsyncReaderInterface< ::holons::v1::LogEntry>> AsyncLogs(::grpc::ClientContext* context, const ::holons::v1::LogsRequest& request, ::grpc::CompletionQueue* cq, void* tag) {
-      return std::unique_ptr< ::grpc::ClientAsyncReaderInterface< ::holons::v1::LogEntry>>(AsyncLogsRaw(context, request, cq, tag));
+    std::unique_ptr< ::grpc::ClientAsyncReaderInterface< ::holons::v1::LogRecord>> AsyncLogs(::grpc::ClientContext* context, const ::holons::v1::LogsRequest& request, ::grpc::CompletionQueue* cq, void* tag) {
+      return std::unique_ptr< ::grpc::ClientAsyncReaderInterface< ::holons::v1::LogRecord>>(AsyncLogsRaw(context, request, cq, tag));
     }
-    std::unique_ptr< ::grpc::ClientAsyncReaderInterface< ::holons::v1::LogEntry>> PrepareAsyncLogs(::grpc::ClientContext* context, const ::holons::v1::LogsRequest& request, ::grpc::CompletionQueue* cq) {
-      return std::unique_ptr< ::grpc::ClientAsyncReaderInterface< ::holons::v1::LogEntry>>(PrepareAsyncLogsRaw(context, request, cq));
+    std::unique_ptr< ::grpc::ClientAsyncReaderInterface< ::holons::v1::LogRecord>> PrepareAsyncLogs(::grpc::ClientContext* context, const ::holons::v1::LogsRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncReaderInterface< ::holons::v1::LogRecord>>(PrepareAsyncLogsRaw(context, request, cq));
     }
-    // Metrics returns a point-in-time snapshot of all current metrics.
-    // Unary, not streaming — scraping cadence is the caller's concern.
-    virtual ::grpc::Status Metrics(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest& request, ::holons::v1::MetricsSnapshot* response) = 0;
-    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::holons::v1::MetricsSnapshot>> AsyncMetrics(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest& request, ::grpc::CompletionQueue* cq) {
-      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::holons::v1::MetricsSnapshot>>(AsyncMetricsRaw(context, request, cq));
+    std::unique_ptr< ::grpc::ClientReaderInterface< ::holons::v1::Metric>> Metrics(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest& request) {
+      return std::unique_ptr< ::grpc::ClientReaderInterface< ::holons::v1::Metric>>(MetricsRaw(context, request));
     }
-    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::holons::v1::MetricsSnapshot>> PrepareAsyncMetrics(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest& request, ::grpc::CompletionQueue* cq) {
-      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::holons::v1::MetricsSnapshot>>(PrepareAsyncMetricsRaw(context, request, cq));
+    std::unique_ptr< ::grpc::ClientAsyncReaderInterface< ::holons::v1::Metric>> AsyncMetrics(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest& request, ::grpc::CompletionQueue* cq, void* tag) {
+      return std::unique_ptr< ::grpc::ClientAsyncReaderInterface< ::holons::v1::Metric>>(AsyncMetricsRaw(context, request, cq, tag));
     }
-    // Events streams lifecycle events. If follow=true, stays open.
-    std::unique_ptr< ::grpc::ClientReaderInterface< ::holons::v1::EventInfo>> Events(::grpc::ClientContext* context, const ::holons::v1::EventsRequest& request) {
-      return std::unique_ptr< ::grpc::ClientReaderInterface< ::holons::v1::EventInfo>>(EventsRaw(context, request));
+    std::unique_ptr< ::grpc::ClientAsyncReaderInterface< ::holons::v1::Metric>> PrepareAsyncMetrics(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncReaderInterface< ::holons::v1::Metric>>(PrepareAsyncMetricsRaw(context, request, cq));
     }
-    std::unique_ptr< ::grpc::ClientAsyncReaderInterface< ::holons::v1::EventInfo>> AsyncEvents(::grpc::ClientContext* context, const ::holons::v1::EventsRequest& request, ::grpc::CompletionQueue* cq, void* tag) {
-      return std::unique_ptr< ::grpc::ClientAsyncReaderInterface< ::holons::v1::EventInfo>>(AsyncEventsRaw(context, request, cq, tag));
+    std::unique_ptr< ::grpc::ClientReaderInterface< ::holons::v1::LogRecord>> Events(::grpc::ClientContext* context, const ::holons::v1::EventsRequest& request) {
+      return std::unique_ptr< ::grpc::ClientReaderInterface< ::holons::v1::LogRecord>>(EventsRaw(context, request));
     }
-    std::unique_ptr< ::grpc::ClientAsyncReaderInterface< ::holons::v1::EventInfo>> PrepareAsyncEvents(::grpc::ClientContext* context, const ::holons::v1::EventsRequest& request, ::grpc::CompletionQueue* cq) {
-      return std::unique_ptr< ::grpc::ClientAsyncReaderInterface< ::holons::v1::EventInfo>>(PrepareAsyncEventsRaw(context, request, cq));
+    std::unique_ptr< ::grpc::ClientAsyncReaderInterface< ::holons::v1::LogRecord>> AsyncEvents(::grpc::ClientContext* context, const ::holons::v1::EventsRequest& request, ::grpc::CompletionQueue* cq, void* tag) {
+      return std::unique_ptr< ::grpc::ClientAsyncReaderInterface< ::holons::v1::LogRecord>>(AsyncEventsRaw(context, request, cq, tag));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncReaderInterface< ::holons::v1::LogRecord>> PrepareAsyncEvents(::grpc::ClientContext* context, const ::holons::v1::EventsRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncReaderInterface< ::holons::v1::LogRecord>>(PrepareAsyncEventsRaw(context, request, cq));
     }
     class async_interface {
      public:
       virtual ~async_interface() {}
-      // Logs streams log entries. If follow=true, the stream stays open
-      // and emits new entries as they arrive. If follow=false, drains
-      // the current ring buffer and ends.
-      virtual void Logs(::grpc::ClientContext* context, const ::holons::v1::LogsRequest* request, ::grpc::ClientReadReactor< ::holons::v1::LogEntry>* reactor) = 0;
-      // Metrics returns a point-in-time snapshot of all current metrics.
-      // Unary, not streaming — scraping cadence is the caller's concern.
-      virtual void Metrics(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest* request, ::holons::v1::MetricsSnapshot* response, std::function<void(::grpc::Status)>) = 0;
-      virtual void Metrics(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest* request, ::holons::v1::MetricsSnapshot* response, ::grpc::ClientUnaryReactor* reactor) = 0;
-      // Events streams lifecycle events. If follow=true, stays open.
-      virtual void Events(::grpc::ClientContext* context, const ::holons::v1::EventsRequest* request, ::grpc::ClientReadReactor< ::holons::v1::EventInfo>* reactor) = 0;
+      virtual void Logs(::grpc::ClientContext* context, const ::holons::v1::LogsRequest* request, ::grpc::ClientReadReactor< ::holons::v1::LogRecord>* reactor) = 0;
+      virtual void Metrics(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest* request, ::grpc::ClientReadReactor< ::holons::v1::Metric>* reactor) = 0;
+      virtual void Events(::grpc::ClientContext* context, const ::holons::v1::EventsRequest* request, ::grpc::ClientReadReactor< ::holons::v1::LogRecord>* reactor) = 0;
     };
     typedef class async_interface experimental_async_interface;
     virtual class async_interface* async() { return nullptr; }
     class async_interface* experimental_async() { return async(); }
    private:
-    virtual ::grpc::ClientReaderInterface< ::holons::v1::LogEntry>* LogsRaw(::grpc::ClientContext* context, const ::holons::v1::LogsRequest& request) = 0;
-    virtual ::grpc::ClientAsyncReaderInterface< ::holons::v1::LogEntry>* AsyncLogsRaw(::grpc::ClientContext* context, const ::holons::v1::LogsRequest& request, ::grpc::CompletionQueue* cq, void* tag) = 0;
-    virtual ::grpc::ClientAsyncReaderInterface< ::holons::v1::LogEntry>* PrepareAsyncLogsRaw(::grpc::ClientContext* context, const ::holons::v1::LogsRequest& request, ::grpc::CompletionQueue* cq) = 0;
-    virtual ::grpc::ClientAsyncResponseReaderInterface< ::holons::v1::MetricsSnapshot>* AsyncMetricsRaw(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest& request, ::grpc::CompletionQueue* cq) = 0;
-    virtual ::grpc::ClientAsyncResponseReaderInterface< ::holons::v1::MetricsSnapshot>* PrepareAsyncMetricsRaw(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest& request, ::grpc::CompletionQueue* cq) = 0;
-    virtual ::grpc::ClientReaderInterface< ::holons::v1::EventInfo>* EventsRaw(::grpc::ClientContext* context, const ::holons::v1::EventsRequest& request) = 0;
-    virtual ::grpc::ClientAsyncReaderInterface< ::holons::v1::EventInfo>* AsyncEventsRaw(::grpc::ClientContext* context, const ::holons::v1::EventsRequest& request, ::grpc::CompletionQueue* cq, void* tag) = 0;
-    virtual ::grpc::ClientAsyncReaderInterface< ::holons::v1::EventInfo>* PrepareAsyncEventsRaw(::grpc::ClientContext* context, const ::holons::v1::EventsRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientReaderInterface< ::holons::v1::LogRecord>* LogsRaw(::grpc::ClientContext* context, const ::holons::v1::LogsRequest& request) = 0;
+    virtual ::grpc::ClientAsyncReaderInterface< ::holons::v1::LogRecord>* AsyncLogsRaw(::grpc::ClientContext* context, const ::holons::v1::LogsRequest& request, ::grpc::CompletionQueue* cq, void* tag) = 0;
+    virtual ::grpc::ClientAsyncReaderInterface< ::holons::v1::LogRecord>* PrepareAsyncLogsRaw(::grpc::ClientContext* context, const ::holons::v1::LogsRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientReaderInterface< ::holons::v1::Metric>* MetricsRaw(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest& request) = 0;
+    virtual ::grpc::ClientAsyncReaderInterface< ::holons::v1::Metric>* AsyncMetricsRaw(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest& request, ::grpc::CompletionQueue* cq, void* tag) = 0;
+    virtual ::grpc::ClientAsyncReaderInterface< ::holons::v1::Metric>* PrepareAsyncMetricsRaw(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientReaderInterface< ::holons::v1::LogRecord>* EventsRaw(::grpc::ClientContext* context, const ::holons::v1::EventsRequest& request) = 0;
+    virtual ::grpc::ClientAsyncReaderInterface< ::holons::v1::LogRecord>* AsyncEventsRaw(::grpc::ClientContext* context, const ::holons::v1::EventsRequest& request, ::grpc::CompletionQueue* cq, void* tag) = 0;
+    virtual ::grpc::ClientAsyncReaderInterface< ::holons::v1::LogRecord>* PrepareAsyncEventsRaw(::grpc::ClientContext* context, const ::holons::v1::EventsRequest& request, ::grpc::CompletionQueue* cq) = 0;
   };
   class Stub final : public StubInterface {
    public:
     Stub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options = ::grpc::StubOptions());
-    std::unique_ptr< ::grpc::ClientReader< ::holons::v1::LogEntry>> Logs(::grpc::ClientContext* context, const ::holons::v1::LogsRequest& request) {
-      return std::unique_ptr< ::grpc::ClientReader< ::holons::v1::LogEntry>>(LogsRaw(context, request));
+    std::unique_ptr< ::grpc::ClientReader< ::holons::v1::LogRecord>> Logs(::grpc::ClientContext* context, const ::holons::v1::LogsRequest& request) {
+      return std::unique_ptr< ::grpc::ClientReader< ::holons::v1::LogRecord>>(LogsRaw(context, request));
     }
-    std::unique_ptr< ::grpc::ClientAsyncReader< ::holons::v1::LogEntry>> AsyncLogs(::grpc::ClientContext* context, const ::holons::v1::LogsRequest& request, ::grpc::CompletionQueue* cq, void* tag) {
-      return std::unique_ptr< ::grpc::ClientAsyncReader< ::holons::v1::LogEntry>>(AsyncLogsRaw(context, request, cq, tag));
+    std::unique_ptr< ::grpc::ClientAsyncReader< ::holons::v1::LogRecord>> AsyncLogs(::grpc::ClientContext* context, const ::holons::v1::LogsRequest& request, ::grpc::CompletionQueue* cq, void* tag) {
+      return std::unique_ptr< ::grpc::ClientAsyncReader< ::holons::v1::LogRecord>>(AsyncLogsRaw(context, request, cq, tag));
     }
-    std::unique_ptr< ::grpc::ClientAsyncReader< ::holons::v1::LogEntry>> PrepareAsyncLogs(::grpc::ClientContext* context, const ::holons::v1::LogsRequest& request, ::grpc::CompletionQueue* cq) {
-      return std::unique_ptr< ::grpc::ClientAsyncReader< ::holons::v1::LogEntry>>(PrepareAsyncLogsRaw(context, request, cq));
+    std::unique_ptr< ::grpc::ClientAsyncReader< ::holons::v1::LogRecord>> PrepareAsyncLogs(::grpc::ClientContext* context, const ::holons::v1::LogsRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncReader< ::holons::v1::LogRecord>>(PrepareAsyncLogsRaw(context, request, cq));
     }
-    ::grpc::Status Metrics(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest& request, ::holons::v1::MetricsSnapshot* response) override;
-    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::holons::v1::MetricsSnapshot>> AsyncMetrics(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest& request, ::grpc::CompletionQueue* cq) {
-      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::holons::v1::MetricsSnapshot>>(AsyncMetricsRaw(context, request, cq));
+    std::unique_ptr< ::grpc::ClientReader< ::holons::v1::Metric>> Metrics(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest& request) {
+      return std::unique_ptr< ::grpc::ClientReader< ::holons::v1::Metric>>(MetricsRaw(context, request));
     }
-    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::holons::v1::MetricsSnapshot>> PrepareAsyncMetrics(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest& request, ::grpc::CompletionQueue* cq) {
-      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::holons::v1::MetricsSnapshot>>(PrepareAsyncMetricsRaw(context, request, cq));
+    std::unique_ptr< ::grpc::ClientAsyncReader< ::holons::v1::Metric>> AsyncMetrics(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest& request, ::grpc::CompletionQueue* cq, void* tag) {
+      return std::unique_ptr< ::grpc::ClientAsyncReader< ::holons::v1::Metric>>(AsyncMetricsRaw(context, request, cq, tag));
     }
-    std::unique_ptr< ::grpc::ClientReader< ::holons::v1::EventInfo>> Events(::grpc::ClientContext* context, const ::holons::v1::EventsRequest& request) {
-      return std::unique_ptr< ::grpc::ClientReader< ::holons::v1::EventInfo>>(EventsRaw(context, request));
+    std::unique_ptr< ::grpc::ClientAsyncReader< ::holons::v1::Metric>> PrepareAsyncMetrics(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncReader< ::holons::v1::Metric>>(PrepareAsyncMetricsRaw(context, request, cq));
     }
-    std::unique_ptr< ::grpc::ClientAsyncReader< ::holons::v1::EventInfo>> AsyncEvents(::grpc::ClientContext* context, const ::holons::v1::EventsRequest& request, ::grpc::CompletionQueue* cq, void* tag) {
-      return std::unique_ptr< ::grpc::ClientAsyncReader< ::holons::v1::EventInfo>>(AsyncEventsRaw(context, request, cq, tag));
+    std::unique_ptr< ::grpc::ClientReader< ::holons::v1::LogRecord>> Events(::grpc::ClientContext* context, const ::holons::v1::EventsRequest& request) {
+      return std::unique_ptr< ::grpc::ClientReader< ::holons::v1::LogRecord>>(EventsRaw(context, request));
     }
-    std::unique_ptr< ::grpc::ClientAsyncReader< ::holons::v1::EventInfo>> PrepareAsyncEvents(::grpc::ClientContext* context, const ::holons::v1::EventsRequest& request, ::grpc::CompletionQueue* cq) {
-      return std::unique_ptr< ::grpc::ClientAsyncReader< ::holons::v1::EventInfo>>(PrepareAsyncEventsRaw(context, request, cq));
+    std::unique_ptr< ::grpc::ClientAsyncReader< ::holons::v1::LogRecord>> AsyncEvents(::grpc::ClientContext* context, const ::holons::v1::EventsRequest& request, ::grpc::CompletionQueue* cq, void* tag) {
+      return std::unique_ptr< ::grpc::ClientAsyncReader< ::holons::v1::LogRecord>>(AsyncEventsRaw(context, request, cq, tag));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncReader< ::holons::v1::LogRecord>> PrepareAsyncEvents(::grpc::ClientContext* context, const ::holons::v1::EventsRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncReader< ::holons::v1::LogRecord>>(PrepareAsyncEventsRaw(context, request, cq));
     }
     class async final :
       public StubInterface::async_interface {
      public:
-      void Logs(::grpc::ClientContext* context, const ::holons::v1::LogsRequest* request, ::grpc::ClientReadReactor< ::holons::v1::LogEntry>* reactor) override;
-      void Metrics(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest* request, ::holons::v1::MetricsSnapshot* response, std::function<void(::grpc::Status)>) override;
-      void Metrics(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest* request, ::holons::v1::MetricsSnapshot* response, ::grpc::ClientUnaryReactor* reactor) override;
-      void Events(::grpc::ClientContext* context, const ::holons::v1::EventsRequest* request, ::grpc::ClientReadReactor< ::holons::v1::EventInfo>* reactor) override;
+      void Logs(::grpc::ClientContext* context, const ::holons::v1::LogsRequest* request, ::grpc::ClientReadReactor< ::holons::v1::LogRecord>* reactor) override;
+      void Metrics(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest* request, ::grpc::ClientReadReactor< ::holons::v1::Metric>* reactor) override;
+      void Events(::grpc::ClientContext* context, const ::holons::v1::EventsRequest* request, ::grpc::ClientReadReactor< ::holons::v1::LogRecord>* reactor) override;
      private:
       friend class Stub;
       explicit async(Stub* stub): stub_(stub) { }
@@ -144,14 +144,15 @@ class HolonObservability final {
    private:
     std::shared_ptr< ::grpc::ChannelInterface> channel_;
     class async async_stub_{this};
-    ::grpc::ClientReader< ::holons::v1::LogEntry>* LogsRaw(::grpc::ClientContext* context, const ::holons::v1::LogsRequest& request) override;
-    ::grpc::ClientAsyncReader< ::holons::v1::LogEntry>* AsyncLogsRaw(::grpc::ClientContext* context, const ::holons::v1::LogsRequest& request, ::grpc::CompletionQueue* cq, void* tag) override;
-    ::grpc::ClientAsyncReader< ::holons::v1::LogEntry>* PrepareAsyncLogsRaw(::grpc::ClientContext* context, const ::holons::v1::LogsRequest& request, ::grpc::CompletionQueue* cq) override;
-    ::grpc::ClientAsyncResponseReader< ::holons::v1::MetricsSnapshot>* AsyncMetricsRaw(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest& request, ::grpc::CompletionQueue* cq) override;
-    ::grpc::ClientAsyncResponseReader< ::holons::v1::MetricsSnapshot>* PrepareAsyncMetricsRaw(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest& request, ::grpc::CompletionQueue* cq) override;
-    ::grpc::ClientReader< ::holons::v1::EventInfo>* EventsRaw(::grpc::ClientContext* context, const ::holons::v1::EventsRequest& request) override;
-    ::grpc::ClientAsyncReader< ::holons::v1::EventInfo>* AsyncEventsRaw(::grpc::ClientContext* context, const ::holons::v1::EventsRequest& request, ::grpc::CompletionQueue* cq, void* tag) override;
-    ::grpc::ClientAsyncReader< ::holons::v1::EventInfo>* PrepareAsyncEventsRaw(::grpc::ClientContext* context, const ::holons::v1::EventsRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientReader< ::holons::v1::LogRecord>* LogsRaw(::grpc::ClientContext* context, const ::holons::v1::LogsRequest& request) override;
+    ::grpc::ClientAsyncReader< ::holons::v1::LogRecord>* AsyncLogsRaw(::grpc::ClientContext* context, const ::holons::v1::LogsRequest& request, ::grpc::CompletionQueue* cq, void* tag) override;
+    ::grpc::ClientAsyncReader< ::holons::v1::LogRecord>* PrepareAsyncLogsRaw(::grpc::ClientContext* context, const ::holons::v1::LogsRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientReader< ::holons::v1::Metric>* MetricsRaw(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest& request) override;
+    ::grpc::ClientAsyncReader< ::holons::v1::Metric>* AsyncMetricsRaw(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest& request, ::grpc::CompletionQueue* cq, void* tag) override;
+    ::grpc::ClientAsyncReader< ::holons::v1::Metric>* PrepareAsyncMetricsRaw(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientReader< ::holons::v1::LogRecord>* EventsRaw(::grpc::ClientContext* context, const ::holons::v1::EventsRequest& request) override;
+    ::grpc::ClientAsyncReader< ::holons::v1::LogRecord>* AsyncEventsRaw(::grpc::ClientContext* context, const ::holons::v1::EventsRequest& request, ::grpc::CompletionQueue* cq, void* tag) override;
+    ::grpc::ClientAsyncReader< ::holons::v1::LogRecord>* PrepareAsyncEventsRaw(::grpc::ClientContext* context, const ::holons::v1::EventsRequest& request, ::grpc::CompletionQueue* cq) override;
     const ::grpc::internal::RpcMethod rpcmethod_Logs_;
     const ::grpc::internal::RpcMethod rpcmethod_Metrics_;
     const ::grpc::internal::RpcMethod rpcmethod_Events_;
@@ -162,15 +163,9 @@ class HolonObservability final {
    public:
     Service();
     virtual ~Service();
-    // Logs streams log entries. If follow=true, the stream stays open
-    // and emits new entries as they arrive. If follow=false, drains
-    // the current ring buffer and ends.
-    virtual ::grpc::Status Logs(::grpc::ServerContext* context, const ::holons::v1::LogsRequest* request, ::grpc::ServerWriter< ::holons::v1::LogEntry>* writer);
-    // Metrics returns a point-in-time snapshot of all current metrics.
-    // Unary, not streaming — scraping cadence is the caller's concern.
-    virtual ::grpc::Status Metrics(::grpc::ServerContext* context, const ::holons::v1::MetricsRequest* request, ::holons::v1::MetricsSnapshot* response);
-    // Events streams lifecycle events. If follow=true, stays open.
-    virtual ::grpc::Status Events(::grpc::ServerContext* context, const ::holons::v1::EventsRequest* request, ::grpc::ServerWriter< ::holons::v1::EventInfo>* writer);
+    virtual ::grpc::Status Logs(::grpc::ServerContext* context, const ::holons::v1::LogsRequest* request, ::grpc::ServerWriter< ::holons::v1::LogRecord>* writer);
+    virtual ::grpc::Status Metrics(::grpc::ServerContext* context, const ::holons::v1::MetricsRequest* request, ::grpc::ServerWriter< ::holons::v1::Metric>* writer);
+    virtual ::grpc::Status Events(::grpc::ServerContext* context, const ::holons::v1::EventsRequest* request, ::grpc::ServerWriter< ::holons::v1::LogRecord>* writer);
   };
   template <class BaseClass>
   class WithAsyncMethod_Logs : public BaseClass {
@@ -184,11 +179,11 @@ class HolonObservability final {
       BaseClassMustBeDerivedFromService(this);
     }
     // disable synchronous version of this method
-    ::grpc::Status Logs(::grpc::ServerContext* /*context*/, const ::holons::v1::LogsRequest* /*request*/, ::grpc::ServerWriter< ::holons::v1::LogEntry>* /*writer*/) override {
+    ::grpc::Status Logs(::grpc::ServerContext* /*context*/, const ::holons::v1::LogsRequest* /*request*/, ::grpc::ServerWriter< ::holons::v1::LogRecord>* /*writer*/) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
-    void RequestLogs(::grpc::ServerContext* context, ::holons::v1::LogsRequest* request, ::grpc::ServerAsyncWriter< ::holons::v1::LogEntry>* writer, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+    void RequestLogs(::grpc::ServerContext* context, ::holons::v1::LogsRequest* request, ::grpc::ServerAsyncWriter< ::holons::v1::LogRecord>* writer, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
       ::grpc::Service::RequestAsyncServerStreaming(0, context, request, writer, new_call_cq, notification_cq, tag);
     }
   };
@@ -204,12 +199,12 @@ class HolonObservability final {
       BaseClassMustBeDerivedFromService(this);
     }
     // disable synchronous version of this method
-    ::grpc::Status Metrics(::grpc::ServerContext* /*context*/, const ::holons::v1::MetricsRequest* /*request*/, ::holons::v1::MetricsSnapshot* /*response*/) override {
+    ::grpc::Status Metrics(::grpc::ServerContext* /*context*/, const ::holons::v1::MetricsRequest* /*request*/, ::grpc::ServerWriter< ::holons::v1::Metric>* /*writer*/) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
-    void RequestMetrics(::grpc::ServerContext* context, ::holons::v1::MetricsRequest* request, ::grpc::ServerAsyncResponseWriter< ::holons::v1::MetricsSnapshot>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
-      ::grpc::Service::RequestAsyncUnary(1, context, request, response, new_call_cq, notification_cq, tag);
+    void RequestMetrics(::grpc::ServerContext* context, ::holons::v1::MetricsRequest* request, ::grpc::ServerAsyncWriter< ::holons::v1::Metric>* writer, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncServerStreaming(1, context, request, writer, new_call_cq, notification_cq, tag);
     }
   };
   template <class BaseClass>
@@ -224,11 +219,11 @@ class HolonObservability final {
       BaseClassMustBeDerivedFromService(this);
     }
     // disable synchronous version of this method
-    ::grpc::Status Events(::grpc::ServerContext* /*context*/, const ::holons::v1::EventsRequest* /*request*/, ::grpc::ServerWriter< ::holons::v1::EventInfo>* /*writer*/) override {
+    ::grpc::Status Events(::grpc::ServerContext* /*context*/, const ::holons::v1::EventsRequest* /*request*/, ::grpc::ServerWriter< ::holons::v1::LogRecord>* /*writer*/) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
-    void RequestEvents(::grpc::ServerContext* context, ::holons::v1::EventsRequest* request, ::grpc::ServerAsyncWriter< ::holons::v1::EventInfo>* writer, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+    void RequestEvents(::grpc::ServerContext* context, ::holons::v1::EventsRequest* request, ::grpc::ServerAsyncWriter< ::holons::v1::LogRecord>* writer, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
       ::grpc::Service::RequestAsyncServerStreaming(2, context, request, writer, new_call_cq, notification_cq, tag);
     }
   };
@@ -240,7 +235,7 @@ class HolonObservability final {
    public:
     WithCallbackMethod_Logs() {
       ::grpc::Service::MarkMethodCallback(0,
-          new ::grpc::internal::CallbackServerStreamingHandler< ::holons::v1::LogsRequest, ::holons::v1::LogEntry>(
+          new ::grpc::internal::CallbackServerStreamingHandler< ::holons::v1::LogsRequest, ::holons::v1::LogRecord>(
             [this](
                    ::grpc::CallbackServerContext* context, const ::holons::v1::LogsRequest* request) { return this->Logs(context, request); }));
     }
@@ -248,11 +243,11 @@ class HolonObservability final {
       BaseClassMustBeDerivedFromService(this);
     }
     // disable synchronous version of this method
-    ::grpc::Status Logs(::grpc::ServerContext* /*context*/, const ::holons::v1::LogsRequest* /*request*/, ::grpc::ServerWriter< ::holons::v1::LogEntry>* /*writer*/) override {
+    ::grpc::Status Logs(::grpc::ServerContext* /*context*/, const ::holons::v1::LogsRequest* /*request*/, ::grpc::ServerWriter< ::holons::v1::LogRecord>* /*writer*/) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
-    virtual ::grpc::ServerWriteReactor< ::holons::v1::LogEntry>* Logs(
+    virtual ::grpc::ServerWriteReactor< ::holons::v1::LogRecord>* Logs(
       ::grpc::CallbackServerContext* /*context*/, const ::holons::v1::LogsRequest* /*request*/)  { return nullptr; }
   };
   template <class BaseClass>
@@ -262,25 +257,20 @@ class HolonObservability final {
    public:
     WithCallbackMethod_Metrics() {
       ::grpc::Service::MarkMethodCallback(1,
-          new ::grpc::internal::CallbackUnaryHandler< ::holons::v1::MetricsRequest, ::holons::v1::MetricsSnapshot>(
+          new ::grpc::internal::CallbackServerStreamingHandler< ::holons::v1::MetricsRequest, ::holons::v1::Metric>(
             [this](
-                   ::grpc::CallbackServerContext* context, const ::holons::v1::MetricsRequest* request, ::holons::v1::MetricsSnapshot* response) { return this->Metrics(context, request, response); }));}
-    void SetMessageAllocatorFor_Metrics(
-        ::grpc::MessageAllocator< ::holons::v1::MetricsRequest, ::holons::v1::MetricsSnapshot>* allocator) {
-      ::grpc::internal::MethodHandler* const handler = ::grpc::Service::GetHandler(1);
-      static_cast<::grpc::internal::CallbackUnaryHandler< ::holons::v1::MetricsRequest, ::holons::v1::MetricsSnapshot>*>(handler)
-              ->SetMessageAllocator(allocator);
+                   ::grpc::CallbackServerContext* context, const ::holons::v1::MetricsRequest* request) { return this->Metrics(context, request); }));
     }
     ~WithCallbackMethod_Metrics() override {
       BaseClassMustBeDerivedFromService(this);
     }
     // disable synchronous version of this method
-    ::grpc::Status Metrics(::grpc::ServerContext* /*context*/, const ::holons::v1::MetricsRequest* /*request*/, ::holons::v1::MetricsSnapshot* /*response*/) override {
+    ::grpc::Status Metrics(::grpc::ServerContext* /*context*/, const ::holons::v1::MetricsRequest* /*request*/, ::grpc::ServerWriter< ::holons::v1::Metric>* /*writer*/) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
-    virtual ::grpc::ServerUnaryReactor* Metrics(
-      ::grpc::CallbackServerContext* /*context*/, const ::holons::v1::MetricsRequest* /*request*/, ::holons::v1::MetricsSnapshot* /*response*/)  { return nullptr; }
+    virtual ::grpc::ServerWriteReactor< ::holons::v1::Metric>* Metrics(
+      ::grpc::CallbackServerContext* /*context*/, const ::holons::v1::MetricsRequest* /*request*/)  { return nullptr; }
   };
   template <class BaseClass>
   class WithCallbackMethod_Events : public BaseClass {
@@ -289,7 +279,7 @@ class HolonObservability final {
    public:
     WithCallbackMethod_Events() {
       ::grpc::Service::MarkMethodCallback(2,
-          new ::grpc::internal::CallbackServerStreamingHandler< ::holons::v1::EventsRequest, ::holons::v1::EventInfo>(
+          new ::grpc::internal::CallbackServerStreamingHandler< ::holons::v1::EventsRequest, ::holons::v1::LogRecord>(
             [this](
                    ::grpc::CallbackServerContext* context, const ::holons::v1::EventsRequest* request) { return this->Events(context, request); }));
     }
@@ -297,11 +287,11 @@ class HolonObservability final {
       BaseClassMustBeDerivedFromService(this);
     }
     // disable synchronous version of this method
-    ::grpc::Status Events(::grpc::ServerContext* /*context*/, const ::holons::v1::EventsRequest* /*request*/, ::grpc::ServerWriter< ::holons::v1::EventInfo>* /*writer*/) override {
+    ::grpc::Status Events(::grpc::ServerContext* /*context*/, const ::holons::v1::EventsRequest* /*request*/, ::grpc::ServerWriter< ::holons::v1::LogRecord>* /*writer*/) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
-    virtual ::grpc::ServerWriteReactor< ::holons::v1::EventInfo>* Events(
+    virtual ::grpc::ServerWriteReactor< ::holons::v1::LogRecord>* Events(
       ::grpc::CallbackServerContext* /*context*/, const ::holons::v1::EventsRequest* /*request*/)  { return nullptr; }
   };
   typedef WithCallbackMethod_Logs<WithCallbackMethod_Metrics<WithCallbackMethod_Events<Service > > > CallbackService;
@@ -318,7 +308,7 @@ class HolonObservability final {
       BaseClassMustBeDerivedFromService(this);
     }
     // disable synchronous version of this method
-    ::grpc::Status Logs(::grpc::ServerContext* /*context*/, const ::holons::v1::LogsRequest* /*request*/, ::grpc::ServerWriter< ::holons::v1::LogEntry>* /*writer*/) override {
+    ::grpc::Status Logs(::grpc::ServerContext* /*context*/, const ::holons::v1::LogsRequest* /*request*/, ::grpc::ServerWriter< ::holons::v1::LogRecord>* /*writer*/) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
@@ -335,7 +325,7 @@ class HolonObservability final {
       BaseClassMustBeDerivedFromService(this);
     }
     // disable synchronous version of this method
-    ::grpc::Status Metrics(::grpc::ServerContext* /*context*/, const ::holons::v1::MetricsRequest* /*request*/, ::holons::v1::MetricsSnapshot* /*response*/) override {
+    ::grpc::Status Metrics(::grpc::ServerContext* /*context*/, const ::holons::v1::MetricsRequest* /*request*/, ::grpc::ServerWriter< ::holons::v1::Metric>* /*writer*/) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
@@ -352,7 +342,7 @@ class HolonObservability final {
       BaseClassMustBeDerivedFromService(this);
     }
     // disable synchronous version of this method
-    ::grpc::Status Events(::grpc::ServerContext* /*context*/, const ::holons::v1::EventsRequest* /*request*/, ::grpc::ServerWriter< ::holons::v1::EventInfo>* /*writer*/) override {
+    ::grpc::Status Events(::grpc::ServerContext* /*context*/, const ::holons::v1::EventsRequest* /*request*/, ::grpc::ServerWriter< ::holons::v1::LogRecord>* /*writer*/) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
@@ -369,7 +359,7 @@ class HolonObservability final {
       BaseClassMustBeDerivedFromService(this);
     }
     // disable synchronous version of this method
-    ::grpc::Status Logs(::grpc::ServerContext* /*context*/, const ::holons::v1::LogsRequest* /*request*/, ::grpc::ServerWriter< ::holons::v1::LogEntry>* /*writer*/) override {
+    ::grpc::Status Logs(::grpc::ServerContext* /*context*/, const ::holons::v1::LogsRequest* /*request*/, ::grpc::ServerWriter< ::holons::v1::LogRecord>* /*writer*/) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
@@ -389,12 +379,12 @@ class HolonObservability final {
       BaseClassMustBeDerivedFromService(this);
     }
     // disable synchronous version of this method
-    ::grpc::Status Metrics(::grpc::ServerContext* /*context*/, const ::holons::v1::MetricsRequest* /*request*/, ::holons::v1::MetricsSnapshot* /*response*/) override {
+    ::grpc::Status Metrics(::grpc::ServerContext* /*context*/, const ::holons::v1::MetricsRequest* /*request*/, ::grpc::ServerWriter< ::holons::v1::Metric>* /*writer*/) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
-    void RequestMetrics(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
-      ::grpc::Service::RequestAsyncUnary(1, context, request, response, new_call_cq, notification_cq, tag);
+    void RequestMetrics(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncWriter< ::grpc::ByteBuffer>* writer, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncServerStreaming(1, context, request, writer, new_call_cq, notification_cq, tag);
     }
   };
   template <class BaseClass>
@@ -409,7 +399,7 @@ class HolonObservability final {
       BaseClassMustBeDerivedFromService(this);
     }
     // disable synchronous version of this method
-    ::grpc::Status Events(::grpc::ServerContext* /*context*/, const ::holons::v1::EventsRequest* /*request*/, ::grpc::ServerWriter< ::holons::v1::EventInfo>* /*writer*/) override {
+    ::grpc::Status Events(::grpc::ServerContext* /*context*/, const ::holons::v1::EventsRequest* /*request*/, ::grpc::ServerWriter< ::holons::v1::LogRecord>* /*writer*/) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
@@ -432,7 +422,7 @@ class HolonObservability final {
       BaseClassMustBeDerivedFromService(this);
     }
     // disable synchronous version of this method
-    ::grpc::Status Logs(::grpc::ServerContext* /*context*/, const ::holons::v1::LogsRequest* /*request*/, ::grpc::ServerWriter< ::holons::v1::LogEntry>* /*writer*/) override {
+    ::grpc::Status Logs(::grpc::ServerContext* /*context*/, const ::holons::v1::LogsRequest* /*request*/, ::grpc::ServerWriter< ::holons::v1::LogRecord>* /*writer*/) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
@@ -446,20 +436,20 @@ class HolonObservability final {
    public:
     WithRawCallbackMethod_Metrics() {
       ::grpc::Service::MarkMethodRawCallback(1,
-          new ::grpc::internal::CallbackUnaryHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+          new ::grpc::internal::CallbackServerStreamingHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
             [this](
-                   ::grpc::CallbackServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response) { return this->Metrics(context, request, response); }));
+                   ::grpc::CallbackServerContext* context, const::grpc::ByteBuffer* request) { return this->Metrics(context, request); }));
     }
     ~WithRawCallbackMethod_Metrics() override {
       BaseClassMustBeDerivedFromService(this);
     }
     // disable synchronous version of this method
-    ::grpc::Status Metrics(::grpc::ServerContext* /*context*/, const ::holons::v1::MetricsRequest* /*request*/, ::holons::v1::MetricsSnapshot* /*response*/) override {
+    ::grpc::Status Metrics(::grpc::ServerContext* /*context*/, const ::holons::v1::MetricsRequest* /*request*/, ::grpc::ServerWriter< ::holons::v1::Metric>* /*writer*/) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
-    virtual ::grpc::ServerUnaryReactor* Metrics(
-      ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
+    virtual ::grpc::ServerWriteReactor< ::grpc::ByteBuffer>* Metrics(
+      ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/)  { return nullptr; }
   };
   template <class BaseClass>
   class WithRawCallbackMethod_Events : public BaseClass {
@@ -476,41 +466,14 @@ class HolonObservability final {
       BaseClassMustBeDerivedFromService(this);
     }
     // disable synchronous version of this method
-    ::grpc::Status Events(::grpc::ServerContext* /*context*/, const ::holons::v1::EventsRequest* /*request*/, ::grpc::ServerWriter< ::holons::v1::EventInfo>* /*writer*/) override {
+    ::grpc::Status Events(::grpc::ServerContext* /*context*/, const ::holons::v1::EventsRequest* /*request*/, ::grpc::ServerWriter< ::holons::v1::LogRecord>* /*writer*/) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
     virtual ::grpc::ServerWriteReactor< ::grpc::ByteBuffer>* Events(
       ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/)  { return nullptr; }
   };
-  template <class BaseClass>
-  class WithStreamedUnaryMethod_Metrics : public BaseClass {
-   private:
-    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
-   public:
-    WithStreamedUnaryMethod_Metrics() {
-      ::grpc::Service::MarkMethodStreamed(1,
-        new ::grpc::internal::StreamedUnaryHandler<
-          ::holons::v1::MetricsRequest, ::holons::v1::MetricsSnapshot>(
-            [this](::grpc::ServerContext* context,
-                   ::grpc::ServerUnaryStreamer<
-                     ::holons::v1::MetricsRequest, ::holons::v1::MetricsSnapshot>* streamer) {
-                       return this->StreamedMetrics(context,
-                         streamer);
-                  }));
-    }
-    ~WithStreamedUnaryMethod_Metrics() override {
-      BaseClassMustBeDerivedFromService(this);
-    }
-    // disable regular version of this method
-    ::grpc::Status Metrics(::grpc::ServerContext* /*context*/, const ::holons::v1::MetricsRequest* /*request*/, ::holons::v1::MetricsSnapshot* /*response*/) override {
-      abort();
-      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
-    }
-    // replace default version of method with streamed unary
-    virtual ::grpc::Status StreamedMetrics(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::holons::v1::MetricsRequest,::holons::v1::MetricsSnapshot>* server_unary_streamer) = 0;
-  };
-  typedef WithStreamedUnaryMethod_Metrics<Service > StreamedUnaryService;
+  typedef Service StreamedUnaryService;
   template <class BaseClass>
   class WithSplitStreamingMethod_Logs : public BaseClass {
    private:
@@ -519,10 +482,10 @@ class HolonObservability final {
     WithSplitStreamingMethod_Logs() {
       ::grpc::Service::MarkMethodStreamed(0,
         new ::grpc::internal::SplitServerStreamingHandler<
-          ::holons::v1::LogsRequest, ::holons::v1::LogEntry>(
+          ::holons::v1::LogsRequest, ::holons::v1::LogRecord>(
             [this](::grpc::ServerContext* context,
                    ::grpc::ServerSplitStreamer<
-                     ::holons::v1::LogsRequest, ::holons::v1::LogEntry>* streamer) {
+                     ::holons::v1::LogsRequest, ::holons::v1::LogRecord>* streamer) {
                        return this->StreamedLogs(context,
                          streamer);
                   }));
@@ -531,12 +494,39 @@ class HolonObservability final {
       BaseClassMustBeDerivedFromService(this);
     }
     // disable regular version of this method
-    ::grpc::Status Logs(::grpc::ServerContext* /*context*/, const ::holons::v1::LogsRequest* /*request*/, ::grpc::ServerWriter< ::holons::v1::LogEntry>* /*writer*/) override {
+    ::grpc::Status Logs(::grpc::ServerContext* /*context*/, const ::holons::v1::LogsRequest* /*request*/, ::grpc::ServerWriter< ::holons::v1::LogRecord>* /*writer*/) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
     // replace default version of method with split streamed
-    virtual ::grpc::Status StreamedLogs(::grpc::ServerContext* context, ::grpc::ServerSplitStreamer< ::holons::v1::LogsRequest,::holons::v1::LogEntry>* server_split_streamer) = 0;
+    virtual ::grpc::Status StreamedLogs(::grpc::ServerContext* context, ::grpc::ServerSplitStreamer< ::holons::v1::LogsRequest,::holons::v1::LogRecord>* server_split_streamer) = 0;
+  };
+  template <class BaseClass>
+  class WithSplitStreamingMethod_Metrics : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithSplitStreamingMethod_Metrics() {
+      ::grpc::Service::MarkMethodStreamed(1,
+        new ::grpc::internal::SplitServerStreamingHandler<
+          ::holons::v1::MetricsRequest, ::holons::v1::Metric>(
+            [this](::grpc::ServerContext* context,
+                   ::grpc::ServerSplitStreamer<
+                     ::holons::v1::MetricsRequest, ::holons::v1::Metric>* streamer) {
+                       return this->StreamedMetrics(context,
+                         streamer);
+                  }));
+    }
+    ~WithSplitStreamingMethod_Metrics() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status Metrics(::grpc::ServerContext* /*context*/, const ::holons::v1::MetricsRequest* /*request*/, ::grpc::ServerWriter< ::holons::v1::Metric>* /*writer*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with split streamed
+    virtual ::grpc::Status StreamedMetrics(::grpc::ServerContext* context, ::grpc::ServerSplitStreamer< ::holons::v1::MetricsRequest,::holons::v1::Metric>* server_split_streamer) = 0;
   };
   template <class BaseClass>
   class WithSplitStreamingMethod_Events : public BaseClass {
@@ -546,10 +536,10 @@ class HolonObservability final {
     WithSplitStreamingMethod_Events() {
       ::grpc::Service::MarkMethodStreamed(2,
         new ::grpc::internal::SplitServerStreamingHandler<
-          ::holons::v1::EventsRequest, ::holons::v1::EventInfo>(
+          ::holons::v1::EventsRequest, ::holons::v1::LogRecord>(
             [this](::grpc::ServerContext* context,
                    ::grpc::ServerSplitStreamer<
-                     ::holons::v1::EventsRequest, ::holons::v1::EventInfo>* streamer) {
+                     ::holons::v1::EventsRequest, ::holons::v1::LogRecord>* streamer) {
                        return this->StreamedEvents(context,
                          streamer);
                   }));
@@ -558,15 +548,15 @@ class HolonObservability final {
       BaseClassMustBeDerivedFromService(this);
     }
     // disable regular version of this method
-    ::grpc::Status Events(::grpc::ServerContext* /*context*/, const ::holons::v1::EventsRequest* /*request*/, ::grpc::ServerWriter< ::holons::v1::EventInfo>* /*writer*/) override {
+    ::grpc::Status Events(::grpc::ServerContext* /*context*/, const ::holons::v1::EventsRequest* /*request*/, ::grpc::ServerWriter< ::holons::v1::LogRecord>* /*writer*/) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
     // replace default version of method with split streamed
-    virtual ::grpc::Status StreamedEvents(::grpc::ServerContext* context, ::grpc::ServerSplitStreamer< ::holons::v1::EventsRequest,::holons::v1::EventInfo>* server_split_streamer) = 0;
+    virtual ::grpc::Status StreamedEvents(::grpc::ServerContext* context, ::grpc::ServerSplitStreamer< ::holons::v1::EventsRequest,::holons::v1::LogRecord>* server_split_streamer) = 0;
   };
-  typedef WithSplitStreamingMethod_Logs<WithSplitStreamingMethod_Events<Service > > SplitStreamedService;
-  typedef WithSplitStreamingMethod_Logs<WithStreamedUnaryMethod_Metrics<WithSplitStreamingMethod_Events<Service > > > StreamedService;
+  typedef WithSplitStreamingMethod_Logs<WithSplitStreamingMethod_Metrics<WithSplitStreamingMethod_Events<Service > > > SplitStreamedService;
+  typedef WithSplitStreamingMethod_Logs<WithSplitStreamingMethod_Metrics<WithSplitStreamingMethod_Events<Service > > > StreamedService;
 };
 
 }  // namespace v1

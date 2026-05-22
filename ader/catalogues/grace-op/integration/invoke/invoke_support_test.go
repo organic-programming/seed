@@ -50,6 +50,34 @@ func invokeCLIJSON(t *testing.T, sb *integration.Sandbox, opts integration.RunOp
 	return integration.DecodeJSON[map[string]any](t, result.Stdout)
 }
 
+type invokeCall struct {
+	Method  string
+	Payload string
+}
+
+// invokeCLIMultiJSON runs multiple RPCs in a single `op invoke` so that the
+// callee binary keeps state between calls. Returns one decoded JSON payload
+// per call, in order. This is the realistic test pattern for persistent
+// composite apps that hold per-session state (selected holon, languages, …),
+// where each separate `op invoke` would otherwise spawn a fresh, stateless
+// binary.
+func invokeCLIMultiJSON(t *testing.T, sb *integration.Sandbox, opts integration.RunOptions, target string, calls []invokeCall) []map[string]any {
+	t.Helper()
+	if opts.Timeout <= 0 {
+		opts.Timeout = invokeCommandTimeout
+	}
+	args := []string{"--format", "json", "invoke", target}
+	for _, c := range calls {
+		args = append(args, c.Method)
+		if c.Payload != "" {
+			args = append(args, c.Payload)
+		}
+	}
+	result := sb.RunOPWithOptions(t, opts, args...)
+	integration.RequireSuccess(t, result)
+	return integration.DecodeJSONLines(t, result.Stdout)
+}
+
 func exampleInvokeTransports() []invokeTransport {
 	transports := []invokeTransport{
 		{Name: "stdio"},

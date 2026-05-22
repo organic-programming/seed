@@ -1,13 +1,22 @@
 import 'package:grpc/grpc.dart';
-import 'package:holons_app/holons_app.dart' show HolonTransportName;
+import 'package:holons/holons.dart' as holons_obs;
+import 'package:holons_app/holons_app.dart' show HolonRpcSelectionAdapter;
 
 import '../controller/greeting_controller.dart';
 import '../gen/v1/holon.pbgrpc.dart';
+import '../model/app_model.dart';
+
+// Dart serve does not yet expose a handler-visible current transport.
+const _transportUnknown = 'unknown';
+const _greetingCounterHelp =
+    'Greetings emitted, partitioned by language and transport.';
 
 class GreetingAppRpcService extends GreetingAppServiceBase {
-  GreetingAppRpcService(this._controller);
+  GreetingAppRpcService(this._controller)
+    : _selection = HolonRpcSelectionAdapter<GabrielHolonIdentity>(_controller);
 
   final GreetingController _controller;
+  final HolonRpcSelectionAdapter<GabrielHolonIdentity> _selection;
 
   String _validatedLanguageCode(String value) {
     final code = value.trim();
@@ -28,21 +37,11 @@ class GreetingAppRpcService extends GreetingAppServiceBase {
     ServiceCall call,
     SelectHolonRequest request,
   ) async {
-    try {
-      await _controller.selectHolonBySlug(request.slug);
-      final identity = _controller.selectedHolon;
-      if (identity == null) {
-        throw GrpcError.notFound("Holon '${request.slug}' not found");
-      }
-      return SelectHolonResponse(
-        slug: identity.slug,
-        displayName: identity.displayName,
-      );
-    } on GrpcError {
-      rethrow;
-    } on Object catch (error) {
-      throw GrpcError.notFound('$error');
-    }
+    final identity = await _selection.selectHolon(request.slug);
+    return SelectHolonResponse(
+      slug: identity.slug,
+      displayName: identity.displayName,
+    );
   }
 
   @override
@@ -50,26 +49,8 @@ class GreetingAppRpcService extends GreetingAppServiceBase {
     ServiceCall call,
     SelectTransportRequest request,
   ) async {
-    final transport = HolonTransportName.parseCanonical(request.transport);
-    if (transport == null) {
-      throw GrpcError.invalidArgument(
-        'Unsupported transport "${request.transport}". Expected one of: stdio, tcp, unix',
-      );
-    }
-    if (!_controller.capabilities.holonTransportNames.contains(transport)) {
-      throw GrpcError.invalidArgument(
-        'Transport "${transport.rawValue}" is not available on this platform',
-      );
-    }
-
-    await _controller.setTransport(transport.rawValue, reload: true);
-    if (_controller.connectionError != null) {
-      throw GrpcError.unavailable(_controller.connectionError!);
-    }
-    if (_controller.error != null) {
-      throw GrpcError.unavailable(_controller.error!);
-    }
-    return SelectTransportResponse(transport: transport.rawValue);
+    final transport = await _selection.selectTransport(request.transport);
+    return SelectTransportResponse(transport: transport);
   }
 
   @override
@@ -79,14 +60,14 @@ class GreetingAppRpcService extends GreetingAppServiceBase {
   ) async {
     final code = _validatedLanguageCode(request.code);
     await _controller.setSelectedLanguage(code);
-    if (_controller.error != null) {
-      throw GrpcError.unavailable(_controller.error!);
-    }
+    _selection.throwIfRuntimeError();
     return SelectLanguageResponse(code: code);
   }
 
   @override
   Future<GreetResponse> greet(ServiceCall call, GreetRequest request) async {
+    call;
+    final stopwatch = Stopwatch()..start();
     if (request.name.trim().isNotEmpty) {
       await _controller.setUserName(request.name, greetNow: false);
     }
@@ -101,9 +82,72 @@ class GreetingAppRpcService extends GreetingAppServiceBase {
       name: request.name.trim().isEmpty ? null : request.name,
       langCode: request.langCode.trim().isEmpty ? null : request.langCode,
     );
-    if (_controller.error != null) {
-      throw GrpcError.unavailable(_controller.error!);
+    _selection.throwIfRuntimeError();
+    final response = GreetResponse(greeting: _controller.greeting);
+    final langCode = _controller.selectedLanguageCode.trim();
+    final language = _languageName(langCode);
+    final name = _resolvedName(request.name);
+    final transport = _currentTransport();
+    final durationNs = stopwatch.elapsedMicroseconds * 1000;
+    _emitGreeting(
+      response: response,
+      langCode: langCode,
+      language: language,
+      name: name,
+      transport: transport,
+      durationNs: durationNs,
+    );
+    return response;
+  }
+
+  String _resolvedName(String requestedName) {
+    final name = requestedName.trim();
+    if (name.isNotEmpty) {
+      return name;
     }
-    return GreetResponse(greeting: _controller.greeting);
+    return _controller.userName.trim();
+  }
+
+  String _languageName(String langCode) {
+    for (final language in _controller.availableLanguages) {
+      if (language.code == langCode) {
+        return language.name;
+      }
+    }
+    return langCode;
+  }
+
+  String _currentTransport() => _transportUnknown;
+
+  void _emitGreeting({
+    required GreetResponse response,
+    required String langCode,
+    required String language,
+    required String name,
+    required String transport,
+    required int durationNs,
+  }) {
+    final message = 'Greeted $name in $language ($langCode)';
+    final obs = holons_obs.current();
+    final fields = <String, Object?>{
+      'lang_code': langCode,
+      'language': language,
+      'name': name,
+      'greeting': response.greeting,
+      'transport': transport,
+      'duration_ns': durationNs,
+    };
+    obs.logger('greeting').info(message, fields: fields);
+    obs
+        .counter(
+          'greeting_emitted_total',
+          help: _greetingCounterHelp,
+          labels: {
+            'lang_code': langCode,
+            'language': language,
+            'transport': transport,
+          },
+        )
+        ?.inc();
   }
 }

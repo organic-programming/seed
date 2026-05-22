@@ -8,13 +8,18 @@ require "json"
 
 require_relative "holons/transport"
 require_relative "holons/observability"
+require_relative "holons/discovery_types"
+require_relative "holons/composite"
+require_relative "holons/relay"
 require_relative "holons/serve"
 require_relative "holons/identity"
-require_relative "holons/discovery_types"
 require_relative "holons/discover"
 require_relative "holons/connect"
 require_relative "holons/describe"
 require_relative "holons/holonrpc"
 
 module Holons
+  def self.current_transport
+    Serve.current_transport
+  end
 end

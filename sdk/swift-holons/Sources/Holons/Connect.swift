@@ -115,6 +115,7 @@ private struct ConnectionHandle {
     let group: MultiThreadedEventLoopGroup
     let process: Process?
     let relay: (any RelayHandle)?
+    let transitiveRelay: TransitiveObservabilityRelay?
     let ephemeral: Bool
 }
 
@@ -393,6 +394,7 @@ public func disconnect(_ channel: GRPCChannel) throws {
         firstError = error
     }
 
+    handle?.transitiveRelay?.stop()
     handle?.relay?.close()
 
     if let group = handle?.group {
@@ -769,6 +771,7 @@ private func dialReady(
         group: group,
         process: process,
         relay: relay,
+        transitiveRelay: nil,
         ephemeral: ephemeral
     )
 
@@ -1641,6 +1644,380 @@ private func isResolvedDirectTarget(_ target: String) -> Bool {
     return isDirectTarget(trimmed)
 }
 
+public struct ChildSpec: Sendable {
+    public var slug: String
+    public var binary: String
+
+    public init(slug: String, binary: String) {
+        self.slug = slug
+        self.binary = binary
+    }
+}
+
+public struct DialOptions: Sendable {
+    public var transitiveObservability: Bool?
+}
+
+public typealias DialOption = @Sendable (inout DialOptions) -> Void
+
+public func WithTransitiveObservability(_ enabled: Bool) -> DialOption {
+    { options in options.transitiveObservability = enabled }
+}
+
+public struct SpawnOptions {
+    public var slug: String
+    public var binaryPath: String
+    public var transport: String
+    public var instanceUid: String
+    public var downstreamChain: [ChildSpec]
+    public var extraEnv: [String: String]
+    public var dialOptions: [DialOption]
+
+    public init(
+        slug: String,
+        binaryPath: String,
+        transport: String = "stdio",
+        instanceUid: String = "",
+        downstreamChain: [ChildSpec] = [],
+        extraEnv: [String: String] = [:],
+        dialOptions: [DialOption] = []
+    ) {
+        self.slug = slug
+        self.binaryPath = binaryPath
+        self.transport = transport
+        self.instanceUid = instanceUid
+        self.downstreamChain = downstreamChain
+        self.extraEnv = extraEnv
+        self.dialOptions = dialOptions
+    }
+}
+
+public final class SpawnedMember: @unchecked Sendable {
+    public let slug: String
+    public let uid: String
+    public let listenURI: String
+    public let channel: GRPCChannel
+    public var conn: GRPCChannel { channel }
+
+    private let process: Process
+    private let relay: TransitiveObservabilityRelay?
+    private let lock = NSLock()
+    private var stopped = false
+
+    fileprivate init(slug: String, uid: String, listenURI: String, channel: GRPCChannel, process: Process, relay: TransitiveObservabilityRelay?) {
+        self.slug = slug
+        self.uid = uid
+        self.listenURI = listenURI
+        self.channel = channel
+        self.process = process
+        self.relay = relay
+    }
+
+    public func stop(timeout: TimeInterval = 3) {
+        lock.lock()
+        if stopped {
+            lock.unlock()
+            return
+        }
+        stopped = true
+        lock.unlock()
+
+        relay?.stop()
+        try? disconnect(channel)
+        try? stopProcess(process, timeout: timeout)
+    }
+}
+
+public struct CascadeOptions {
+    public var transport: String
+    public var members: [ChildSpec]
+    public var extraEnv: [String: String]
+
+    public init(transport: String = "stdio", members: [ChildSpec], extraEnv: [String: String] = [:]) {
+        self.transport = transport
+        self.members = members
+        self.extraEnv = extraEnv
+    }
+}
+
+public final class Cascade: @unchecked Sendable {
+    public let top: SpawnedMember
+    public var Top: SpawnedMember { top }
+
+    fileprivate init(top: SpawnedMember) {
+        self.top = top
+    }
+
+    public func stop() {
+        top.stop()
+    }
+}
+
+public let TransportCoverageSequence: [String] = [
+    "stdio", "stdio", "tcp", "unix", "tcp", "tcp", "stdio", "unix", "unix", "stdio",
+]
+
+public extension Composite {
+    static func spawnMember(_ opts: SpawnOptions) throws -> SpawnedMember {
+        try spawnMemberRuntime(opts)
+    }
+
+    static func buildCascade(_ opts: CascadeOptions) throws -> Cascade {
+        guard let first = opts.members.first else {
+            throw ConnectError.ioFailure("build cascade: at least one member is required")
+        }
+        let spawned = try spawnMemberRuntime(SpawnOptions(
+            slug: first.slug,
+            binaryPath: first.binary,
+            transport: opts.transport,
+            downstreamChain: Array(opts.members.dropFirst()),
+            extraEnv: opts.extraEnv
+        ))
+        return Cascade(top: spawned)
+    }
+
+    static func dial(_ address: String, options: [DialOption] = []) throws -> GRPCChannel {
+        let channel = try connect(address, options: ConnectOptions(timeout: 10, transport: "tcp", lifecycle: "persistent", start: false))
+        var applied = DialOptions()
+        for option in options { option(&applied) }
+        if applied.transitiveObservability == true,
+           let identity = resolveRelayIdentity(channel: channel, fallbackSlug: "") {
+            let relay = TransitiveObservabilityRelay(memberSlug: identity.slug, memberUid: identity.uid, channel: channel)
+            relay.start()
+            attachTransitiveRelay(relay, to: channel)
+        }
+        return channel
+    }
+}
+
+public func SpawnMember(_ opts: SpawnOptions) throws -> SpawnedMember {
+    try Composite.spawnMember(opts)
+}
+
+public func BuildCascade(_ opts: CascadeOptions) throws -> Cascade {
+    try Composite.buildCascade(opts)
+}
+
+public func Dial(_ address: String, options: [DialOption] = []) throws -> GRPCChannel {
+    try Composite.dial(address, options: options)
+}
+
+private func spawnMemberRuntime(_ opts: SpawnOptions) throws -> SpawnedMember {
+    let slug = opts.slug.trimmingCharacters(in: .whitespacesAndNewlines)
+    let binary = opts.binaryPath.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !slug.isEmpty else { throw ConnectError.ioFailure("spawn member: slug is required") }
+    guard !binary.isEmpty else { throw ConnectError.ioFailure("spawn member \(slug): binary path is required") }
+
+    let uid = opts.instanceUid.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        ? UUID().uuidString
+        : opts.instanceUid.trimmingCharacters(in: .whitespacesAndNewlines)
+    let transport = normalizedSpawnTransport(opts.transport)
+    let runRoot = spawnRunRoot(extraEnv: opts.extraEnv)
+    let listenURI = try listenURIForSpawn(transport: transport, uid: uid)
+    let env = spawnEnvironment(uid: uid, runRoot: runRoot, extra: opts.extraEnv)
+    let args = spawnArguments(listenURI: listenURI, transport: transport, downstream: opts.downstreamChain)
+
+    let started: (channel: GRPCChannel, process: Process, publicURI: String)
+    if transport == "stdio" {
+        started = try startStdioSpawn(binary: binary, args: args, env: env)
+    } else {
+        started = try startSocketSpawn(binary: binary, args: args, env: env, slug: slug, uid: uid, runRoot: runRoot, fallbackURI: listenURI)
+    }
+
+    var applied = DialOptions()
+    for option in opts.dialOptions { option(&applied) }
+    let enabled = applied.transitiveObservability ?? true
+    let relay: TransitiveObservabilityRelay?
+    if enabled {
+        let created = TransitiveObservabilityRelay(memberSlug: slug, memberUid: uid, channel: started.channel)
+        created.start()
+        relay = created
+        attachTransitiveRelay(created, to: started.channel)
+    } else {
+        relay = nil
+    }
+
+    return SpawnedMember(slug: slug, uid: uid, listenURI: started.publicURI, channel: started.channel, process: started.process, relay: relay)
+}
+
+private func normalizedSpawnTransport(_ value: String) -> String {
+    let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    return trimmed.isEmpty ? "stdio" : trimmed
+}
+
+private func listenURIForSpawn(transport: String, uid: String) throws -> String {
+    switch transport {
+    case "stdio":
+        return "stdio://"
+    case "tcp":
+        return "tcp://127.0.0.1:0"
+    case "unix":
+        let token = uid.replacingOccurrences(of: "/", with: "-")
+        let path = (NSTemporaryDirectory() as NSString).appendingPathComponent("op-\(token).sock")
+        if FileManager.default.fileExists(atPath: path) {
+            try? FileManager.default.removeItem(atPath: path)
+        }
+        return "unix://\(path)"
+    default:
+        throw ConnectError.unsupportedTransport(transport)
+    }
+}
+
+private func spawnRunRoot(extraEnv: [String: String]) -> String {
+    let existing = extraEnv["OP_RUN_DIR"] ?? ProcessInfo.processInfo.environment["OP_RUN_DIR"] ?? ""
+    if !existing.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        return existing
+    }
+    return (NSTemporaryDirectory() as NSString).appendingPathComponent("op-swift-spawn-\(UUID().uuidString)")
+}
+
+private func spawnEnvironment(uid: String, runRoot: String, extra: [String: String]) -> [String: String] {
+    var env = ProcessInfo.processInfo.environment
+    for (key, value) in extra { env[key] = value }
+    env["OP_INSTANCE_UID"] = uid
+    env["OP_RUN_DIR"] = runRoot
+    env["HOLONS_PARENT_PID"] = String(ProcessInfo.processInfo.processIdentifier)
+    return env
+}
+
+private func spawnArguments(listenURI: String, transport: String, downstream: [ChildSpec]) -> [String] {
+    var args = ["serve", "--listen", listenURI, "--transport", transport]
+    for child in downstream {
+        let slug = child.slug.trimmingCharacters(in: .whitespacesAndNewlines)
+        let binary = child.binary.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !slug.isEmpty, !binary.isEmpty {
+            args += ["--child", "\(slug)=\(binary)"]
+        }
+    }
+    return args
+}
+
+private func startStdioSpawn(binary: String, args: [String], env: [String: String]) throws -> (GRPCChannel, Process, String) {
+    let sockets = try makeSocketPair()
+    let childInputFD = try duplicateDescriptor(sockets.child)
+    let childOutputFD = try duplicateDescriptor(sockets.child)
+    let childInput = FileHandle(fileDescriptor: childInputFD, closeOnDealloc: true)
+    let childOutput = FileHandle(fileDescriptor: childOutputFD, closeOnDealloc: true)
+    let stderrPipe = Pipe()
+    let stderrCollector = StringCollector()
+    let relay: SocketRelay
+    do {
+        relay = try SocketRelay(upstreamFD: sockets.client)
+    } catch {
+        try? childInput.close()
+        try? childOutput.close()
+        _ = sysClose(sockets.child)
+        _ = sysClose(sockets.client)
+        throw error
+    }
+
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: binary)
+    process.arguments = args
+    process.environment = env
+    process.currentDirectoryURL = launchWorkingDirectoryURL((binary as NSString).deletingLastPathComponent)
+    process.standardInput = childInput
+    process.standardOutput = childOutput
+    process.standardError = stderrPipe
+    do {
+        try process.run()
+    } catch {
+        relay.close()
+        try? childInput.close()
+        try? childOutput.close()
+        _ = sysClose(sockets.child)
+        throw error
+    }
+    startLineReader(handle: stderrPipe.fileHandleForReading, queue: nil, collector: stderrCollector)
+    try? childInput.close()
+    try? childOutput.close()
+    _ = sysClose(sockets.child)
+
+    do {
+        let channel = try dialReady(
+            target: try normalizeDialTarget(relay.boundURI),
+            timeout: 10,
+            process: process,
+            relay: relay,
+            ephemeral: true,
+            stderr: stderrCollector
+        )
+        return (channel, process, "stdio://")
+    } catch {
+        relay.close()
+        try? stopProcess(process)
+        throw error
+    }
+}
+
+private func startSocketSpawn(binary: String, args: [String], env: [String: String], slug: String, uid: String, runRoot: String, fallbackURI: String) throws -> (GRPCChannel, Process, String) {
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: binary)
+    process.arguments = args
+    process.environment = env
+    process.currentDirectoryURL = launchWorkingDirectoryURL((binary as NSString).deletingLastPathComponent)
+    let stdout = Pipe()
+    let stderr = Pipe()
+    let stderrCollector = StringCollector()
+    process.standardOutput = stdout
+    process.standardError = stderr
+    try process.run()
+    startLineReader(handle: stdout.fileHandleForReading, queue: nil, collector: nil)
+    startLineReader(handle: stderr.fileHandleForReading, queue: nil, collector: stderrCollector)
+
+    let meta = try waitSpawnMeta(slug: slug, uid: uid, runRoot: runRoot, process: process, stderr: stderrCollector, timeout: 10)
+    let publicURI = meta.address.isEmpty ? fallbackURI : meta.address
+    do {
+        let channel = try dialReady(
+            target: try normalizeDialTarget(publicURI),
+            timeout: 10,
+            process: process,
+            ephemeral: true,
+            stderr: stderrCollector
+        )
+        return (channel, process, publicURI)
+    } catch {
+        try? stopProcess(process)
+        throw error
+    }
+}
+
+private func waitSpawnMeta(slug: String, uid: String, runRoot: String, process: Process, stderr: StringCollector, timeout: TimeInterval) throws -> MetaJson {
+    let path = (deriveRunDir(root: runRoot, slug: slug, uid: uid) as NSString).appendingPathComponent("meta.json")
+    let deadline = Date().addingTimeInterval(timeout)
+    let decoder = JSONDecoder()
+    decoder.dateDecodingStrategy = .iso8601
+    while Date() < deadline {
+        if let data = FileManager.default.contents(atPath: path),
+           let meta = try? decoder.decode(MetaJson.self, from: data) {
+            return meta
+        }
+        if !process.isRunning {
+            let stderrText = stderr.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            throw ConnectError.startupFailed(stderrText.isEmpty ? "spawned holon exited before meta.json" : "spawned holon exited before meta.json: \(stderrText)")
+        }
+        Thread.sleep(forTimeInterval: 0.03)
+    }
+    let stderrText = stderr.text.trimmingCharacters(in: .whitespacesAndNewlines)
+    throw ConnectError.readinessFailed(stderrText.isEmpty ? "timed out waiting for \(path)" : "timed out waiting for \(path): \(stderrText)")
+}
+
+private func attachTransitiveRelay(_ relay: TransitiveObservabilityRelay, to channel: GRPCChannel) {
+    guard let connection = channel as? ClientConnection else { return }
+    let key = ObjectIdentifier(connection)
+    connectStateLock.lock()
+    if let handle = connectHandles[key] {
+        connectHandles[key] = ConnectionHandle(
+            group: handle.group,
+            process: handle.process,
+            relay: handle.relay,
+            transitiveRelay: relay,
+            ephemeral: handle.ephemeral
+        )
+    }
+    connectStateLock.unlock()
+}
+
 private func uniformConnectTimeout(_ timeout: Int) -> TimeInterval {
     timeout > 0 ? TimeInterval(timeout) / 1000.0 : 5.0
 }
@@ -1687,33 +2064,91 @@ private func startLineReader(handle: FileHandle, queue: LineQueue?, collector: S
     }
 }
 
-private func stopProcess(_ process: Process) throws {
-    guard process.isRunning else {
+private func stopProcess(_ process: Process, timeout: TimeInterval = 3) throws {
+    let rootPID = process.processIdentifier
+    guard rootPID > 0, process.isRunning else {
         return
     }
 
-    let pid = process.processIdentifier
-    if pid > 0 {
+    let totalTimeout = timeout > 0 ? timeout : 3
+    let termTimeout = min(0.2, totalTimeout)
+    let killTimeout = min(0.5, max(0.2, totalTimeout - termTimeout))
+    let initialTree = processTreePIDs(root: rootPID)
+    for pid in initialTree {
         if sysKill(pid, SIGTERM) != 0 && currentErrno() != ESRCH {
-            throw ConnectError.ioFailure("failed to send SIGTERM: \(sysErrnoMessage())")
+            throw ConnectError.ioFailure("failed to send SIGTERM to \(pid): \(sysErrnoMessage())")
         }
     }
 
-    let termDeadline = Date().addingTimeInterval(2.0)
+    let termDeadline = Date().addingTimeInterval(termTimeout)
     while process.isRunning && Date() < termDeadline {
         Thread.sleep(forTimeInterval: 0.05)
     }
 
-    if process.isRunning, pid > 0 {
+    let remaining = processTreePIDs(root: rootPID).union(initialTree.filter(pidExists))
+    for pid in remaining {
         if sysKill(pid, SIGKILL) != 0 && currentErrno() != ESRCH {
-            throw ConnectError.ioFailure("failed to send SIGKILL: \(sysErrnoMessage())")
+            throw ConnectError.ioFailure("failed to send SIGKILL to \(pid): \(sysErrnoMessage())")
         }
     }
 
-    let killDeadline = Date().addingTimeInterval(2.0)
+    let killDeadline = Date().addingTimeInterval(killTimeout)
     while process.isRunning && Date() < killDeadline {
         Thread.sleep(forTimeInterval: 0.05)
     }
+}
+
+private func processTreePIDs(root: Int32) -> Set<Int32> {
+    guard root > 0 else { return [] }
+    var childrenByParent: [Int32: [Int32]] = [:]
+    for (pid, ppid) in processTable() where pid > 0 && ppid > 0 {
+        childrenByParent[ppid, default: []].append(pid)
+    }
+    var out: Set<Int32> = [root]
+    var stack = childrenByParent[root] ?? []
+    while let pid = stack.popLast() {
+        guard out.insert(pid).inserted else {
+            continue
+        }
+        stack.append(contentsOf: childrenByParent[pid] ?? [])
+    }
+    return out
+}
+
+private func processTable() -> [(pid: Int32, ppid: Int32)] {
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/bin/ps")
+    process.arguments = ["-axo", "pid=,ppid="]
+    let pipe = Pipe()
+    process.standardOutput = pipe
+    process.standardError = Pipe()
+    do {
+        try process.run()
+        process.waitUntilExit()
+    } catch {
+        return []
+    }
+    let data = pipe.fileHandleForReading.readDataToEndOfFile()
+    guard let text = String(data: data, encoding: .utf8) else {
+        return []
+    }
+    return text.split(separator: "\n").compactMap { line -> (Int32, Int32)? in
+        let parts = line.split(whereSeparator: { $0 == " " || $0 == "\t" })
+        guard parts.count >= 2,
+              let pid = Int32(String(parts[0])),
+              let ppid = Int32(String(parts[1])) else {
+            return nil
+        }
+        return (pid, ppid)
+    }
+}
+
+private func pidExists(_ pid: Int32) -> Bool {
+    guard pid > 0 else { return false }
+    if sysKill(pid, 0) == 0 {
+        return true
+    }
+    return currentErrno() == EPERM
 }
 
 private func reapProcess(_ process: Process) {

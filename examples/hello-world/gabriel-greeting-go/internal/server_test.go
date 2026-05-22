@@ -3,10 +3,14 @@ package internal_test
 import (
 	"context"
 	"net"
+	"strings"
 	"testing"
 
 	pb "gabriel-greeting-go/gen/go/greeting/v1"
 	"gabriel-greeting-go/internal"
+
+	v1 "github.com/organic-programming/go-holons/gen/go/holons/v1"
+	"github.com/organic-programming/go-holons/pkg/observability"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -118,4 +122,91 @@ func TestSayHello_UnknownLanguageFallsBackToEnglish(t *testing.T) {
 	if resp.Greeting != "Hello Bob" {
 		t.Errorf("expected 'Hello Bob', got %q", resp.Greeting)
 	}
+}
+
+func TestSayHello_EmitsObservabilitySignals(t *testing.T) {
+	observability.Reset()
+	t.Setenv("OP_OBS", "logs,metrics")
+	obs := observability.Configure(observability.Config{Slug: "gabriel-greeting-go", InstanceUID: "greeting-test-uid"})
+	t.Cleanup(func() {
+		_ = obs.Close()
+		observability.Reset()
+	})
+
+	resp, err := (&internal.Server{}).SayHello(context.Background(), &pb.SayHelloRequest{
+		Name:     " Bob ",
+		LangCode: "en",
+	})
+	if err != nil {
+		t.Fatalf("SayHello: %v", err)
+	}
+	if resp.Greeting != "Hello Bob" {
+		t.Fatalf("expected greeting 'Hello Bob', got %q", resp.Greeting)
+	}
+
+	snap := observability.Current().Registry().Snapshot()
+	var foundCounter bool
+	for _, sample := range snap.Counters {
+		if sample.Name == "greeting_emitted_total" &&
+			sample.Labels["lang_code"] == "en" &&
+			sample.Labels["language"] == "English" &&
+			sample.Labels["transport"] == "unknown" {
+			foundCounter = true
+			if sample.Value != 1 {
+				t.Fatalf("greeting_emitted_total = %d, want 1", sample.Value)
+			}
+		}
+	}
+	if !foundCounter {
+		t.Fatalf("missing greeting_emitted_total counter in %+v", snap.Counters)
+	}
+
+	var foundLog bool
+	for _, entry := range observability.Current().LogRing().Drain() {
+		record := observability.ToProtoLogRecord(entry)
+		attrs := keyValues(record.GetAttributes())
+		body := record.GetBody().GetStringValue()
+		if strings.HasPrefix(body, "Greeted ") &&
+			strings.HasSuffix(body, " (en)") &&
+			attrs["lang_code"].GetStringValue() == "en" {
+			foundLog = true
+			if body != "Greeted Bob in English (en)" {
+				t.Fatalf("unexpected greeting log message: %q", body)
+			}
+			if record.GetSeverityNumber() != v1.SeverityNumber_SEVERITY_NUMBER_INFO {
+				t.Fatalf("severity_number = %v, want INFO", record.GetSeverityNumber())
+			}
+			if attrs[observability.AttrHolonsSlug].GetStringValue() != "gabriel-greeting-go" ||
+				attrs[observability.AttrHolonsInstanceUID].GetStringValue() != "greeting-test-uid" ||
+				attrs[observability.AttrServiceName].GetStringValue() != "gabriel-greeting-go" ||
+				attrs[observability.AttrServiceInstanceID].GetStringValue() != "greeting-test-uid" {
+				t.Fatalf("resource attributes missing or mistyped: %+v", attrs)
+			}
+			if attrs["language"].GetStringValue() != "English" ||
+				attrs["name"].GetStringValue() != "Bob" ||
+				attrs["greeting"].GetStringValue() != "Hello Bob" ||
+				attrs["transport"].GetStringValue() != "unknown" {
+				t.Fatalf("unexpected greeting log attributes: %+v", attrs)
+			}
+			if _, ok := attrs["duration_ns"].GetValue().(*v1.AnyValue_IntValue); !ok {
+				t.Fatalf("duration_ns = %+v, want int_value", attrs["duration_ns"])
+			}
+			if attrs["duration_ns"].GetIntValue() < 0 {
+				t.Fatalf("duration_ns = %d, want non-negative", attrs["duration_ns"].GetIntValue())
+			}
+		}
+	}
+	if !foundLog {
+		t.Fatal("missing canonical greeting log entry")
+	}
+}
+
+func keyValues(attrs []*v1.KeyValue) map[string]*v1.AnyValue {
+	out := make(map[string]*v1.AnyValue, len(attrs))
+	for _, attr := range attrs {
+		if attr != nil {
+			out[attr.GetKey()] = attr.GetValue()
+		}
+	}
+	return out
 }

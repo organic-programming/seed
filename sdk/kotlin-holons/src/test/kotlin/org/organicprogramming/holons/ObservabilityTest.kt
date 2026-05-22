@@ -11,7 +11,6 @@ import java.util.concurrent.TimeUnit
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class ObservabilityTest {
@@ -86,7 +85,7 @@ class ObservabilityTest {
             Observability.enableDiskWriters(inst.cfg.runDir)
             inst.logger("test").info("service-log", mapOf("component" to "kotlin"))
             inst.counter("kotlin_requests_total")!!.inc()
-            inst.emit(Observability.EventType.INSTANCE_READY, mapOf("listener" to "tcp://127.0.0.1:1"))
+            inst.emit(Observability.EventName.INSTANCE_READY, mapOf("listener" to "tcp://127.0.0.1:1"))
             Observability.writeMetaJson(
                 inst.cfg.runDir,
                 Observability.MetaJson(
@@ -101,7 +100,7 @@ class ObservabilityTest {
 
             val runDir = root.resolve("gabriel-greeting-kotlin").resolve("uid-2")
             assertTrue(Files.readString(runDir.resolve("stdout.log")).contains("\"message\":\"service-log\""))
-            assertTrue(Files.readString(runDir.resolve("events.jsonl")).contains("\"type\":\"INSTANCE_READY\""))
+            assertTrue(Files.readString(runDir.resolve("events.jsonl")).contains("\"event_name\":\"instance.ready\""))
             assertTrue(Files.readString(runDir.resolve("meta.json")).contains("\"uid\":\"uid-2\""))
 
             val server = ServerBuilder.forPort(0)
@@ -115,19 +114,24 @@ class ObservabilityTest {
                     Observability.logsMethod,
                     CallOptions.DEFAULT,
                     ObsProto.LogsRequest.newBuilder()
-                        .setMinLevel(ObsProto.LogLevel.INFO)
+                        .setMinSeverityNumber(ObsProto.SeverityNumber.SEVERITY_NUMBER_INFO)
                         .build(),
                 ).asSequence().toList()
-                assertTrue(logs.any { it.message == "service-log" })
+                assertTrue(logs.any { it.body.stringValue == "service-log" })
 
-                val metrics = ClientCalls.blockingUnaryCall(
+                val metrics = ClientCalls.blockingServerStreamingCall(
                     channel,
                     Observability.metricsMethod,
                     CallOptions.DEFAULT,
                     ObsProto.MetricsRequest.getDefaultInstance(),
-                )
-                assertTrue(metrics.samplesList.any { it.name == "kotlin_requests_total" })
-                assertFalse(metrics.hasSessionRollup())
+                ).asSequence().toList()
+                assertTrue(metrics.any {
+                    it.name == "kotlin_requests_total" &&
+                        it.hasSum() &&
+                        it.sum.isMonotonic &&
+                        it.sum.aggregationTemporality ==
+                        ObsProto.AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE
+                })
 
                 val events = ClientCalls.blockingServerStreamingCall(
                     channel,
@@ -135,7 +139,7 @@ class ObservabilityTest {
                     CallOptions.DEFAULT,
                     ObsProto.EventsRequest.getDefaultInstance(),
                 ).asSequence().toList()
-                assertTrue(events.any { it.type == ObsProto.EventType.INSTANCE_READY })
+                assertTrue(events.any { it.eventName == Observability.EventName.INSTANCE_READY })
             } finally {
                 channel.shutdownNow()
                 channel.awaitTermination(5, TimeUnit.SECONDS)
@@ -145,6 +149,124 @@ class ObservabilityTest {
         } finally {
             Observability.reset()
             root.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
+    fun prometheusTextInjectsIdentityLabelsAndRoundTripsProto() {
+        Observability.reset()
+        try {
+            val inst = Observability.configureFromEnv(
+                Observability.Config(
+                    slug = "cascade-node-kotlin",
+                    instanceUid = "kotlin-prom-1",
+                ),
+                mapOf("OP_OBS" to "logs,metrics,events,prom"),
+            )
+            inst.counter(
+                "cascade_ticks_total",
+                "Ticks received by this cascade node.",
+                mapOf("responder_uid" to "kotlin-prom-1"),
+            )!!.inc()
+
+            val text = Observability.toPrometheusText(inst)
+            assertTrue(text.contains("# HELP cascade_ticks_total Ticks received by this cascade node."))
+            assertTrue(text.contains("# TYPE cascade_ticks_total counter"))
+            assertTrue(text.contains("instance_uid=\"kotlin-prom-1\""))
+            assertTrue(text.contains("responder_uid=\"kotlin-prom-1\""))
+            assertTrue(text.contains("slug=\"cascade-node-kotlin\""))
+
+            val log = Observability.LogRecord(
+                timestamp = java.time.Instant.now(),
+                level = Observability.Level.INFO,
+                slug = "child",
+                instanceUid = "uid-child",
+                message = "tick received",
+                fields = mapOf("sender" to "test"),
+                chain = listOf("leaf"),
+            )
+            val roundTrip = Observability.fromProtoLogRecord(Observability.toProtoLogRecord(log))
+            assertEquals("tick received", roundTrip.message)
+            assertEquals("leaf", roundTrip.chain.single())
+        } finally {
+            Observability.reset()
+        }
+    }
+
+    @Test
+    fun testLogsFollowReplaysRingOnSubscribe() {
+        Observability.reset()
+        val inst = Observability.configureFromEnv(
+            Observability.Config(slug = "kotlin-log-replay", instanceUid = "log-replay-1"),
+            mapOf("OP_OBS" to "logs"),
+        )
+        inst.logger("test").info("before-subscribe")
+
+        val server = ServerBuilder.forPort(0)
+            .addService(Observability.service(inst))
+            .build()
+            .start()
+        val channel = ManagedChannelBuilder.forAddress("127.0.0.1", server.port).usePlaintext().build()
+        try {
+            val iterator = ClientCalls.blockingServerStreamingCall(
+                channel,
+                Observability.logsMethod,
+                CallOptions.DEFAULT.withDeadlineAfter(2, TimeUnit.SECONDS),
+                ObsProto.LogsRequest.newBuilder()
+                    .setFollow(true)
+                    .setMinSeverityNumber(ObsProto.SeverityNumber.SEVERITY_NUMBER_INFO)
+                    .build(),
+            )
+
+            assertTrue(iterator.hasNext())
+            assertEquals("before-subscribe", iterator.next().body.stringValue)
+            inst.logger("test").info("after-subscribe")
+            assertTrue(iterator.hasNext())
+            assertEquals("after-subscribe", iterator.next().body.stringValue)
+        } finally {
+            channel.shutdownNow()
+            channel.awaitTermination(5, TimeUnit.SECONDS)
+            server.shutdownNow()
+            server.awaitTermination(5, TimeUnit.SECONDS)
+            Observability.reset()
+        }
+    }
+
+    @Test
+    fun testEventsFollowReplaysRingOnSubscribe() {
+        Observability.reset()
+        val inst = Observability.configureFromEnv(
+            Observability.Config(slug = "kotlin-event-replay", instanceUid = "event-replay-1"),
+            mapOf("OP_OBS" to "events"),
+        )
+        inst.emit(Observability.EventName.INSTANCE_READY, mapOf("listener" to "tcp://127.0.0.1:1"))
+
+        val server = ServerBuilder.forPort(0)
+            .addService(Observability.service(inst))
+            .build()
+            .start()
+        val channel = ManagedChannelBuilder.forAddress("127.0.0.1", server.port).usePlaintext().build()
+        try {
+            val iterator = ClientCalls.blockingServerStreamingCall(
+                channel,
+                Observability.eventsMethod,
+                CallOptions.DEFAULT.withDeadlineAfter(2, TimeUnit.SECONDS),
+                ObsProto.EventsRequest.newBuilder()
+                    .setFollow(true)
+                    .build(),
+            )
+
+            assertTrue(iterator.hasNext())
+            assertEquals(Observability.EventName.INSTANCE_READY, iterator.next().eventName)
+            inst.emit(Observability.EventName.INSTANCE_EXITED, mapOf("listener" to "tcp://127.0.0.1:1"))
+            assertTrue(iterator.hasNext())
+            assertEquals(Observability.EventName.INSTANCE_EXITED, iterator.next().eventName)
+        } finally {
+            channel.shutdownNow()
+            channel.awaitTermination(5, TimeUnit.SECONDS)
+            server.shutdownNow()
+            server.awaitTermination(5, TimeUnit.SECONDS)
+            Observability.reset()
         }
     }
 }

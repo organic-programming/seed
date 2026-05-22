@@ -35,6 +35,12 @@ func TestInvoke_CLI_ExamplesAcrossTransports(t *testing.T) {
 
 func TestInvoke_CLI_CompositeAcrossTransports(t *testing.T) {
 	composites := integration.CompositeTestHolons(t)
+	// Composite holons are persistent apps: they hold per-session state
+	// (selected child holon, loaded languages, …) across RPCs. Each separate
+	// `op invoke` spawns a fresh, stateless binary, so a SelectLanguage call
+	// issued after a separate SelectHolon call would see an empty language
+	// list. The test mirrors the real usage pattern by chaining all RPCs in
+	// a single `op invoke`, so the composite handles them within one session.
 	methods := []struct {
 		name    string
 		payload string
@@ -72,6 +78,11 @@ func TestInvoke_CLI_CompositeAcrossTransports(t *testing.T) {
 		},
 	}
 
+	calls := make([]invokeCall, len(methods))
+	for i, m := range methods {
+		calls[i] = invokeCall{Method: m.name, Payload: m.payload}
+	}
+
 	for _, spec := range composites {
 		spec := spec
 		t.Run(spec.Slug, func(t *testing.T) {
@@ -83,10 +94,14 @@ func TestInvoke_CLI_CompositeAcrossTransports(t *testing.T) {
 					target, cleanup := startExampleTransportTarget(t, sb, spec.Slug, transport)
 					defer cleanup()
 
-					for _, method := range methods {
+					payloads := invokeCLIMultiJSON(t, sb, integration.RunOptions{}, target, calls)
+					if len(payloads) != len(methods) {
+						t.Fatalf("got %d payload(s), want %d\npayloads=%#v", len(payloads), len(methods), payloads)
+					}
+					for i, method := range methods {
+						i, method := i, method
 						t.Run(method.name, func(t *testing.T) {
-							payload := invokeCLIJSON(t, sb, integration.RunOptions{}, target, method.name, method.payload)
-							method.assert(t, payload)
+							method.assert(t, payloads[i])
 						})
 					}
 				})

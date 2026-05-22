@@ -162,10 +162,13 @@ func discoverRefsWithResolutionCache(expression *string, root *string, specifier
 		resolutionCacheBypassCount.Add(1)
 	} else if slug, ok := resolutionSlugExpression(expression); ok {
 		if ref, ok := readResolutionGlobalEntry(slug); ok {
-			resolutionCacheHitCount.Add(1)
-			return sdkdiscover.DiscoverResult{Found: limitResolutionRefs([]sdkdiscover.HolonRef{ref}, limit)}
+			if !isInternalSourceRef(canonicalRoot, ref) && resolutionRefMatchesSpecifiers(canonicalRoot, ref, specifiers) {
+				resolutionCacheHitCount.Add(1)
+				return sdkdiscover.DiscoverResult{Found: limitResolutionRefs([]sdkdiscover.HolonRef{ref}, limit)}
+			}
 		}
 	} else if refs, ok := readResolutionSnapshot(canonicalRoot, specifiers); ok {
+		refs = filterInternalSourceRefs(canonicalRoot, refs)
 		filtered := filterResolutionRefs(refs, expression)
 		if expression == nil || len(filtered) > 0 {
 			resolutionCacheHitCount.Add(1)
@@ -175,6 +178,7 @@ func discoverRefsWithResolutionCache(expression *string, root *string, specifier
 
 	if !noCache {
 		if refs, ok := readResolutionSnapshot(canonicalRoot, specifiers); ok {
+			refs = filterInternalSourceRefs(canonicalRoot, refs)
 			filtered := filterResolutionRefs(refs, expression)
 			if expression == nil || len(filtered) > 0 {
 				resolutionCacheHitCount.Add(1)
@@ -188,6 +192,7 @@ func discoverRefsWithResolutionCache(expression *string, root *string, specifier
 	if fresh.Error != "" {
 		return fresh
 	}
+	fresh.Found = filterInternalSourceRefs(canonicalRoot, fresh.Found)
 	_ = writeResolutionSnapshot(canonicalRoot, specifiers, fresh.Found)
 	filtered := filterResolutionRefs(fresh.Found, expression)
 	if _, ok := resolutionSlugExpression(expression); ok && len(filtered) == 1 {
@@ -301,6 +306,34 @@ func resolutionCacheBypassExpression(expression *string) bool {
 		strings.Contains(trimmed, "/") ||
 		strings.Contains(trimmed, `\`) ||
 		strings.HasSuffix(strings.ToLower(trimmed), ".holon")
+}
+
+func resolutionRefMatchesSpecifiers(root string, ref sdkdiscover.HolonRef, specifiers int) bool {
+	if ref.Info == nil {
+		return true
+	}
+	switch strings.TrimSpace(strings.ToLower(ref.Info.SourceKind)) {
+	case "source":
+		return specifiers&sdkdiscover.SOURCE != 0
+	case "package":
+		path, err := pathFromRefURL(ref.URL)
+		if err != nil {
+			return specifiers&(sdkdiscover.BUILT|sdkdiscover.INSTALLED|sdkdiscover.CACHED|sdkdiscover.SIBLINGS|sdkdiscover.CWD) != 0
+		}
+		cleanPath := filepath.Clean(path)
+		switch {
+		case isWithinBase(openv.OPBIN(), cleanPath):
+			return specifiers&sdkdiscover.INSTALLED != 0
+		case isWithinBase(filepath.Join(root, ".op", "build"), cleanPath):
+			return specifiers&sdkdiscover.BUILT != 0
+		case isWithinBase(openv.CacheDir(), cleanPath):
+			return specifiers&sdkdiscover.CACHED != 0
+		default:
+			return specifiers&(sdkdiscover.BUILT|sdkdiscover.INSTALLED|sdkdiscover.CACHED|sdkdiscover.SIBLINGS|sdkdiscover.CWD) != 0
+		}
+	default:
+		return true
+	}
 }
 
 func resolutionSlugExpression(expression *string) (string, bool) {
@@ -603,6 +636,27 @@ func filterResolutionRefs(refs []sdkdiscover.HolonRef, expression *string) []sdk
 		}
 	}
 	return filtered
+}
+
+func filterInternalSourceRefs(root string, refs []sdkdiscover.HolonRef) []sdkdiscover.HolonRef {
+	filtered := refs[:0]
+	for _, ref := range refs {
+		if !isInternalSourceRef(root, ref) {
+			filtered = append(filtered, ref)
+		}
+	}
+	return filtered
+}
+
+func isInternalSourceRef(root string, ref sdkdiscover.HolonRef) bool {
+	if ref.Info == nil || strings.TrimSpace(ref.Info.SourceKind) != "source" {
+		return false
+	}
+	refPath, err := pathFromRefURL(ref.URL)
+	if err != nil {
+		return false
+	}
+	return isInsideInternalHolonsDir(root, refPath)
 }
 
 func resolutionRefMatches(ref sdkdiscover.HolonRef, expression string) bool {

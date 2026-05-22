@@ -4,7 +4,7 @@ Reference implementation of a Node.js holon — a programmatic creature designed
 
 Gabriel is a multilingual greeting service. It exposes two RPCs — `SayHello` and `ListLanguages` — over a shared protobuf contract. The greeting table covers 56 languages with localized templates and culturally appropriate default names (for example `Marie` in French, `マリア` in Japanese, and `Мария` in Russian). This example demonstrates proto-based identity, layered facets, SDK-managed serving, and a fully symmetric surface across code, CLI, RPC, and tests.
 
-This holon is built with the [Node SDK](../../../sdk/js-holons) (`@organic-programming/holons`).
+This holon is built with the [Node SDK](../../../sdk/node-holons) (`@organic-programming/holons`).
 
 ## Discovery
 
@@ -31,7 +31,7 @@ The holon's `api/v1/holon.proto` imports from two shared `_protos` directories (
 | Path | Scope | Content |
 |------|-------|---------|
 | `../../../_protos/` | Platform | System types (`holons/v1/manifest.proto`) |
-| `../../_protos/` | Domain | Shared contract (`v1/greeting.proto` — service + messages) |
+| `../_protos/` | Domain | Shared contract (`v1/greeting.proto` — service + messages) |
 | `api/v1/holon.proto` | Local | Holon identity manifest + Node-specific metadata |
 
 ## Facets

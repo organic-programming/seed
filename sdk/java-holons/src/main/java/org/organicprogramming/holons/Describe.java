@@ -67,6 +67,24 @@ public final class Describe {
         staticResponse = cloneResponse(response);
     }
 
+    static String registeredSlug() {
+        holons.v1.Describe.DescribeResponse response = staticResponse;
+        if (response == null || !response.hasManifest() || !response.getManifest().hasIdentity()) {
+            return "";
+        }
+        holons.v1.Manifest.HolonManifest.Identity identity = response.getManifest().getIdentity();
+        String given = identity.getGivenName().trim();
+        String family = identity.getFamilyName().trim().replaceFirst("\\?$", "");
+        if (given.isEmpty() && family.isEmpty()) {
+            return "";
+        }
+        return (given + "-" + family)
+                .trim()
+                .toLowerCase()
+                .replace(" ", "-")
+                .replaceAll("^-+|-+$", "");
+    }
+
     public static ServerServiceDefinition service() {
         holons.v1.Describe.DescribeResponse response = registeredStaticResponse();
         return ServerServiceDefinition.builder(HOLON_META_SERVICE)

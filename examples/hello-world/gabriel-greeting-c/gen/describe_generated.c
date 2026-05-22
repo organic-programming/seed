@@ -167,12 +167,12 @@ static holons_service_doc_t holons_generated_services_1[] = {
   }
 };
 
-static const unsigned char holons_generated_describe_response_bytes_value[2458] = {
+static const unsigned char holons_generated_describe_response_bytes_value[2456] = {
   0x0a,
-  0xd2,
+  0xd0,
   0x0a,
   0x0a,
-  0xa1,
+  0x9f,
   0x01,
   0x0a,
   0x08,
@@ -327,14 +327,12 @@ static const unsigned char holons_generated_describe_response_bytes_value[2458] 
   0x31,
   0x36,
   0x52,
-  0x07,
+  0x05,
   0x30,
   0x2e,
-  0x31,
+  0x39,
   0x2e,
-  0x31,
-  0x35,
-  0x37,
+  0x30,
   0x1a,
   0x4c,
   0x41,
@@ -2655,7 +2653,7 @@ static holons_describe_response_t holons_generated_describe_response_value = {
 
 const unsigned char *holons_generated_describe_response_bytes(size_t *len) {
   if (len != NULL) {
-    *len = 2458;
+    *len = 2456;
   }
   return holons_generated_describe_response_bytes_value;
 }

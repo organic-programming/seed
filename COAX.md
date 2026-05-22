@@ -174,7 +174,7 @@ The proto import graph requires two include paths:
 | Import path | Contains |
 |---|---|
 | `_protos/` | [coax.proto](./_protos/holons/v1/coax.proto), [describe.proto](./_protos/holons/v1/describe.proto), [manifest.proto](./_protos/holons/v1/manifest.proto) |
-| `examples/_protos/` | [greeting.proto](./examples/_protos/v1/greeting.proto) |
+| `examples/hello-world/_protos/` | [greeting.proto](./examples/hello-world/_protos/v1/greeting.proto) |
 
 The app's contract is defined in
 [holon.proto](./examples/hello-world/gabriel-greeting-app-swiftui/api/v1/holon.proto),
@@ -219,7 +219,7 @@ $ grpcurl -plaintext \
 ```shell
 $ grpcurl -plaintext \
     -import-path _protos \
-    -import-path examples/_protos \
+    -import-path examples/hello-world/_protos \
     -import-path examples/hello-world/gabriel-greeting-app-swiftui \
     -proto api/v1/holon.proto \
     -d '{"name":"Bob"}' \
@@ -229,4 +229,3 @@ $ grpcurl -plaintext \
 > **Note**: With `grpcurl` you must use the **fully-qualified** method name
 > (e.g. `greeting.v1.GreetingAppService/Greet`), whereas `op` resolves short
 > names like `Greet` automatically via `Describe`.
-

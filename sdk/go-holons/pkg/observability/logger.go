@@ -7,19 +7,21 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	v1 "github.com/organic-programming/go-holons/gen/go/holons/v1"
 )
 
-// Level mirrors the proto LogLevel enum. Numeric values are stable.
+// Level mirrors the proto SeverityNumber enum for the severities the SDK emits.
 type Level int32
 
 const (
 	LevelUnset Level = 0
 	LevelTrace Level = 1
-	LevelDebug Level = 2
-	LevelInfo  Level = 3
-	LevelWarn  Level = 4
-	LevelError Level = 5
-	LevelFatal Level = 6
+	LevelDebug Level = 5
+	LevelInfo  Level = 9
+	LevelWarn  Level = 13
+	LevelError Level = 17
+	LevelFatal Level = 21
 )
 
 // String returns the enum name (e.g. "INFO").
@@ -63,22 +65,19 @@ func ParseLevel(s string) Level {
 	}
 }
 
-// LogEntry is the in-memory representation of a structured log line.
-// Convert to proto with ToProto.
-type LogEntry struct {
-	Timestamp   time.Time
-	Level       Level
-	Slug        string
-	InstanceUID string
-	SessionID   string
-	RPCMethod   string
-	Message     string
-	Fields      map[string]string
-	Caller      string // "file:line"
-	Chain       []Hop
+type privateMarker struct{}
+
+// Private marks a single log or event emission as local-only. The entry is
+// kept in the emitter's local ring and disk writer but is filtered out of
+// HolonObservability Logs/Events streams.
+func Private() any { return privateMarker{} }
+
+func isPrivateMarker(v any) bool {
+	_, ok := v.(privateMarker)
+	return ok
 }
 
-// Logger emits LogEntries into the active Observability. A zero-value
+// Logger emits LogRecords into the active Observability. A zero-value
 // Logger is safe (all methods are no-ops); acquire one via
 // Observability.Logger(name).
 type Logger struct {
@@ -133,37 +132,59 @@ func (l *Logger) log(ctx context.Context, lvl Level, msg string, kv []any) {
 	if !l.Enabled(lvl) {
 		return
 	}
-	fields := make(map[string]string, len(kv)/2)
-	for i := 0; i+1 < len(kv); i += 2 {
+	sessionID, rpcMethod := fromContext(ctx)
+	attrs := resourceAttributes(l.obs.cfg.Slug, l.obs.cfg.InstanceUID)
+	attrs = append(attrs, keyValue(AttrHolonsSessionID, sessionID))
+	if l.name != "" {
+		attrs = append(attrs, keyValue(AttrLoggerName, l.name))
+	}
+	private := false
+	for i := 0; i < len(kv); {
+		if isPrivateMarker(kv[i]) {
+			private = true
+			i++
+			continue
+		}
+		if i+1 >= len(kv) {
+			break
+		}
 		k, _ := kv[i].(string)
 		if k == "" {
+			if isPrivateMarker(kv[i+1]) {
+				private = true
+			}
+			i += 2
 			continue
 		}
 		if _, redacted := l.obs.redact[k]; redacted {
-			fields[k] = "<redacted>"
+			attrs = append(attrs, keyValue(k, "<redacted>"))
+			i += 2
 			continue
 		}
-		fields[k] = stringify(kv[i+1])
+		attrs = append(attrs, keyValue(k, kv[i+1]))
+		i += 2
 	}
 
 	// SDK-managed well-known fields (spec §Well-known fields).
-	sessionID, rpcMethod := fromContext(ctx)
-
-	entry := LogEntry{
-		Timestamp:   time.Now(),
-		Level:       lvl,
-		Slug:        l.obs.cfg.Slug,
-		InstanceUID: l.obs.cfg.InstanceUID,
-		SessionID:   sessionID,
-		RPCMethod:   rpcMethod,
-		Message:     msg,
-		Fields:      fields,
-		Caller:      callerFrame(3),
+	if rpcMethod != "" {
+		attrs = append(attrs, keyValue(AttrRPCMethod, rpcMethod))
+	}
+	if caller := callerFrame(3); caller != "" {
+		attrs = append(attrs, keyValue(AttrCodeCaller, caller))
 	}
 
-	l.obs.ringLogs.Push(entry)
-	// Disk write / broadcast is P2's responsibility; the ring is the
-	// authoritative replay cache.
+	now := time.Now()
+	record := &v1.LogRecord{
+		TimeUnixNano:         uint64(now.UnixNano()),
+		ObservedTimeUnixNano: uint64(now.UnixNano()),
+		SeverityNumber:       v1.SeverityNumber(lvl),
+		SeverityText:         lvl.String(),
+		Body:                 ToAnyValue(msg),
+		Attributes:           attrs,
+	}
+
+	l.obs.ringLogs.Push(newLogRecord(record, private))
+	// The ring is the authoritative replay cache.
 }
 
 // Trace emits a TRACE-level log.
@@ -181,12 +202,11 @@ func (l *Logger) Warn(msg string, kv ...any) { l.log(nil, LevelWarn, msg, kv) }
 // Error emits an ERROR-level log.
 func (l *Logger) Error(msg string, kv ...any) { l.log(nil, LevelError, msg, kv) }
 
-// Fatal emits a FATAL-level log. Flush-and-exit is the serve runner's
-// responsibility (P2); this method only stamps the entry.
+// Fatal emits a FATAL-level log. Process shutdown is the serve runner's
+// responsibility; this method only stamps the record.
 func (l *Logger) Fatal(msg string, kv ...any) { l.log(nil, LevelFatal, msg, kv) }
 
-// InfoContext variants that take a context (for session/method
-// correlation, P2 wires them via an interceptor).
+// InfoContext variants that take a context for session/method correlation.
 func (l *Logger) InfoContext(ctx context.Context, msg string, kv ...any) {
 	l.log(ctx, LevelInfo, msg, kv)
 }
@@ -220,8 +240,8 @@ func (l *Logger) FatalContext(ctx context.Context, msg string, kv ...any) {
 // off. Its methods are inlined to essentially a bounds check.
 var disabledLogger = &Logger{}
 
-// ctxKey is the package-private context key used by the interceptors
-// (P2) to attach session_id + rpc_method correlation data.
+// ctxKey is the package-private context key used by the interceptors to
+// attach session_id + rpc_method correlation data.
 type ctxKey struct{}
 
 // CtxValues carries correlation data injected by the serve runner.
@@ -268,42 +288,3 @@ func callerFrame(skip int) string {
 	}
 	return fmt.Sprintf("%s:%d", short, line)
 }
-
-// stringify is the SDK's value-to-string conversion. It handles the
-// common types without bringing in reflect on the hot path.
-func stringify(v any) string {
-	switch x := v.(type) {
-	case nil:
-		return ""
-	case string:
-		return x
-	case bool:
-		if x {
-			return "true"
-		}
-		return "false"
-	case int:
-		return fmt.Sprintf("%d", x)
-	case int32:
-		return fmt.Sprintf("%d", x)
-	case int64:
-		return fmt.Sprintf("%d", x)
-	case uint:
-		return fmt.Sprintf("%d", x)
-	case uint32:
-		return fmt.Sprintf("%d", x)
-	case uint64:
-		return fmt.Sprintf("%d", x)
-	case float32:
-		return fmt.Sprintf("%g", x)
-	case float64:
-		return fmt.Sprintf("%g", x)
-	case error:
-		return x.Error()
-	case fmt.Stringer:
-		return x.String()
-	default:
-		return fmt.Sprintf("%v", v)
-	}
-}
-

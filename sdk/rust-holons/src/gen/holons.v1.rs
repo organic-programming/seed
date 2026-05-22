@@ -2362,8 +2362,8 @@ pub mod holon_session_server {
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct LogsRequest {
-    #[prost(enumeration = "LogLevel", tag = "1")]
-    pub min_level: i32,
+    #[prost(enumeration = "SeverityNumber", tag = "1")]
+    pub min_severity_number: i32,
     #[prost(string, repeated, tag = "2")]
     pub session_ids: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     #[prost(string, repeated, tag = "3")]
@@ -2374,227 +2374,237 @@ pub struct LogsRequest {
     pub follow: bool,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct LogEntry {
-    #[prost(message, optional, tag = "1")]
-    pub ts: ::core::option::Option<::prost_types::Timestamp>,
-    #[prost(enumeration = "LogLevel", tag = "2")]
-    pub level: i32,
-    #[prost(string, tag = "3")]
-    pub slug: ::prost::alloc::string::String,
-    #[prost(string, tag = "4")]
-    pub instance_uid: ::prost::alloc::string::String,
-    #[prost(string, tag = "5")]
-    pub session_id: ::prost::alloc::string::String,
-    #[prost(string, tag = "6")]
-    pub rpc_method: ::prost::alloc::string::String,
-    #[prost(string, tag = "7")]
-    pub message: ::prost::alloc::string::String,
-    #[prost(map = "string, string", tag = "8")]
-    pub fields: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        ::prost::alloc::string::String,
-    >,
-    #[prost(string, tag = "9")]
-    pub caller: ::prost::alloc::string::String,
-    /// Relay path: ordered hops from the originator up through each
-    /// relay before arriving on the stream being read. Empty when the
-    /// entry was emitted by the holon whose stream the reader is
-    /// consuming. See OBSERVABILITY.md §Organism Relay.
-    #[prost(message, repeated, tag = "10")]
-    pub chain: ::prost::alloc::vec::Vec<ChainHop>,
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ChainHop {
-    #[prost(string, tag = "1")]
-    pub slug: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub instance_uid: ::prost::alloc::string::String,
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct MetricsRequest {
     #[prost(string, repeated, tag = "1")]
     pub name_prefixes: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
-    #[prost(bool, tag = "2")]
-    pub include_session_rollup: bool,
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct MetricsSnapshot {
-    #[prost(message, optional, tag = "1")]
-    pub captured_at: ::core::option::Option<::prost_types::Timestamp>,
-    #[prost(string, tag = "2")]
-    pub slug: ::prost::alloc::string::String,
-    #[prost(string, tag = "3")]
-    pub instance_uid: ::prost::alloc::string::String,
-    #[prost(message, repeated, tag = "4")]
-    pub samples: ::prost::alloc::vec::Vec<MetricSample>,
-    /// Reserved for v2; always empty in v1.
-    #[prost(message, optional, tag = "5")]
-    pub session_rollup: ::core::option::Option<SessionMetrics>,
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct MetricSample {
-    #[prost(string, tag = "1")]
-    pub name: ::prost::alloc::string::String,
-    #[prost(map = "string, string", tag = "2")]
-    pub labels: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        ::prost::alloc::string::String,
-    >,
-    #[prost(string, tag = "6")]
-    pub help: ::prost::alloc::string::String,
-    /// Relay path (see LogEntry.chain). Typically empty for metrics:
-    /// the caller asks `child.Metrics()` directly on each direct child,
-    /// so the stream identifies the source. Populated only when a holon
-    /// folds a direct child's cached samples into its own snapshot.
-    #[prost(message, repeated, tag = "7")]
-    pub chain: ::prost::alloc::vec::Vec<ChainHop>,
-    #[prost(oneof = "metric_sample::Value", tags = "3, 4, 5")]
-    pub value: ::core::option::Option<metric_sample::Value>,
-}
-/// Nested message and enum types in `MetricSample`.
-pub mod metric_sample {
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
-    pub enum Value {
-        #[prost(int64, tag = "3")]
-        Counter(i64),
-        #[prost(double, tag = "4")]
-        Gauge(f64),
-        #[prost(message, tag = "5")]
-        Histogram(super::HistogramSample),
-    }
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct HistogramSample {
-    /// Cumulative buckets — bucket.count includes all samples
-    /// where value <= bucket.upper_bound. Prometheus semantics.
-    #[prost(message, repeated, tag = "1")]
-    pub buckets: ::prost::alloc::vec::Vec<Bucket>,
-    #[prost(int64, tag = "2")]
-    pub count: i64,
-    #[prost(double, tag = "3")]
-    pub sum: f64,
-}
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
-pub struct Bucket {
-    #[prost(double, tag = "1")]
-    pub upper_bound: f64,
-    #[prost(int64, tag = "2")]
-    pub count: i64,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct EventsRequest {
-    #[prost(enumeration = "EventType", repeated, tag = "1")]
-    pub types: ::prost::alloc::vec::Vec<i32>,
+    #[prost(string, repeated, tag = "1")]
+    pub event_names: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     #[prost(message, optional, tag = "2")]
     pub since: ::core::option::Option<::prost_types::Duration>,
     #[prost(bool, tag = "3")]
     pub follow: bool,
 }
+/// Structurally mirrors opentelemetry.proto.common.v1.AnyValue.
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct EventInfo {
-    #[prost(message, optional, tag = "1")]
-    pub ts: ::core::option::Option<::prost_types::Timestamp>,
-    #[prost(enumeration = "EventType", tag = "2")]
-    pub r#type: i32,
-    #[prost(string, tag = "3")]
-    pub slug: ::prost::alloc::string::String,
-    #[prost(string, tag = "4")]
-    pub instance_uid: ::prost::alloc::string::String,
-    #[prost(string, tag = "5")]
-    pub session_id: ::prost::alloc::string::String,
-    #[prost(map = "string, string", tag = "6")]
-    pub payload: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        ::prost::alloc::string::String,
-    >,
-    /// Relay path (see LogEntry.chain, same semantics).
-    #[prost(message, repeated, tag = "7")]
-    pub chain: ::prost::alloc::vec::Vec<ChainHop>,
+pub struct AnyValue {
+    #[prost(oneof = "any_value::Value", tags = "1, 2, 3, 4")]
+    pub value: ::core::option::Option<any_value::Value>,
 }
+/// Nested message and enum types in `AnyValue`.
+pub mod any_value {
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Value {
+        #[prost(string, tag = "1")]
+        StringValue(::prost::alloc::string::String),
+        #[prost(bool, tag = "2")]
+        BoolValue(bool),
+        #[prost(int64, tag = "3")]
+        IntValue(i64),
+        #[prost(double, tag = "4")]
+        DoubleValue(f64),
+    }
+}
+/// Structurally mirrors opentelemetry.proto.common.v1.KeyValue.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct KeyValue {
+    #[prost(string, tag = "1")]
+    pub key: ::prost::alloc::string::String,
+    #[prost(message, optional, tag = "2")]
+    pub value: ::core::option::Option<AnyValue>,
+}
+/// Structurally mirrors opentelemetry.proto.resource.v1.Resource.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Resource {
+    #[prost(message, repeated, tag = "1")]
+    pub attributes: ::prost::alloc::vec::Vec<KeyValue>,
+    #[prost(uint32, tag = "2")]
+    pub dropped_attributes_count: u32,
+}
+/// Structurally mirrors opentelemetry.proto.logs.v1.LogRecord.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct LogRecord {
+    #[prost(fixed64, tag = "1")]
+    pub time_unix_nano: u64,
+    #[prost(enumeration = "SeverityNumber", tag = "2")]
+    pub severity_number: i32,
+    #[prost(string, tag = "3")]
+    pub severity_text: ::prost::alloc::string::String,
+    #[prost(message, optional, tag = "5")]
+    pub body: ::core::option::Option<AnyValue>,
+    #[prost(message, repeated, tag = "6")]
+    pub attributes: ::prost::alloc::vec::Vec<KeyValue>,
+    #[prost(uint32, tag = "7")]
+    pub dropped_attributes_count: u32,
+    #[prost(uint32, tag = "8")]
+    pub flags: u32,
+    #[prost(bytes = "vec", tag = "9")]
+    pub trace_id: ::prost::alloc::vec::Vec<u8>,
+    #[prost(bytes = "vec", tag = "10")]
+    pub span_id: ::prost::alloc::vec::Vec<u8>,
+    #[prost(fixed64, tag = "11")]
+    pub observed_time_unix_nano: u64,
+    #[prost(string, tag = "20")]
+    pub event_name: ::prost::alloc::string::String,
+    #[prost(string, repeated, tag = "21")]
+    pub chain: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+}
+/// Structurally mirrors opentelemetry.proto.metrics.v1.Metric.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Metric {
+    #[prost(string, tag = "1")]
+    pub name: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub description: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub unit: ::prost::alloc::string::String,
+    #[prost(oneof = "metric::Data", tags = "5, 7, 9")]
+    pub data: ::core::option::Option<metric::Data>,
+}
+/// Nested message and enum types in `Metric`.
+pub mod metric {
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Data {
+        #[prost(message, tag = "5")]
+        Gauge(super::Gauge),
+        #[prost(message, tag = "7")]
+        Sum(super::Sum),
+        #[prost(message, tag = "9")]
+        Histogram(super::Histogram),
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Gauge {
+    #[prost(message, repeated, tag = "1")]
+    pub data_points: ::prost::alloc::vec::Vec<NumberDataPoint>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Sum {
+    #[prost(message, repeated, tag = "1")]
+    pub data_points: ::prost::alloc::vec::Vec<NumberDataPoint>,
+    #[prost(enumeration = "AggregationTemporality", tag = "2")]
+    pub aggregation_temporality: i32,
+    #[prost(bool, tag = "3")]
+    pub is_monotonic: bool,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Histogram {
+    #[prost(message, repeated, tag = "1")]
+    pub data_points: ::prost::alloc::vec::Vec<HistogramDataPoint>,
+    #[prost(enumeration = "AggregationTemporality", tag = "2")]
+    pub aggregation_temporality: i32,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct NumberDataPoint {
+    #[prost(fixed64, tag = "2")]
+    pub start_time_unix_nano: u64,
+    #[prost(fixed64, tag = "3")]
+    pub time_unix_nano: u64,
+    #[prost(message, repeated, tag = "7")]
+    pub attributes: ::prost::alloc::vec::Vec<KeyValue>,
+    #[prost(oneof = "number_data_point::Value", tags = "4, 6")]
+    pub value: ::core::option::Option<number_data_point::Value>,
+}
+/// Nested message and enum types in `NumberDataPoint`.
+pub mod number_data_point {
+    #[derive(Clone, Copy, PartialEq, ::prost::Oneof)]
+    pub enum Value {
+        #[prost(double, tag = "4")]
+        AsDouble(f64),
+        #[prost(int64, tag = "6")]
+        AsInt(i64),
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct HistogramDataPoint {
+    #[prost(fixed64, tag = "2")]
+    pub start_time_unix_nano: u64,
+    #[prost(fixed64, tag = "3")]
+    pub time_unix_nano: u64,
+    #[prost(uint64, tag = "4")]
+    pub count: u64,
+    #[prost(double, tag = "5")]
+    pub sum: f64,
+    #[prost(uint64, repeated, tag = "6")]
+    pub bucket_counts: ::prost::alloc::vec::Vec<u64>,
+    #[prost(double, repeated, tag = "7")]
+    pub explicit_bounds: ::prost::alloc::vec::Vec<f64>,
+    #[prost(message, repeated, tag = "9")]
+    pub attributes: ::prost::alloc::vec::Vec<KeyValue>,
+    #[prost(double, tag = "11")]
+    pub min: f64,
+    #[prost(double, tag = "12")]
+    pub max: f64,
+}
+/// Structurally mirrors opentelemetry.proto.logs.v1.SeverityNumber.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
-pub enum LogLevel {
+pub enum SeverityNumber {
     Unspecified = 0,
     Trace = 1,
-    Debug = 2,
-    Info = 3,
-    Warn = 4,
-    Error = 5,
-    Fatal = 6,
+    Debug = 5,
+    Info = 9,
+    Warn = 13,
+    Error = 17,
+    Fatal = 21,
 }
-impl LogLevel {
+impl SeverityNumber {
     /// String value of the enum field names used in the ProtoBuf definition.
     ///
     /// The values are not transformed in any way and thus are considered stable
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            Self::Unspecified => "LOG_LEVEL_UNSPECIFIED",
-            Self::Trace => "TRACE",
-            Self::Debug => "DEBUG",
-            Self::Info => "INFO",
-            Self::Warn => "WARN",
-            Self::Error => "ERROR",
-            Self::Fatal => "FATAL",
+            Self::Unspecified => "SEVERITY_NUMBER_UNSPECIFIED",
+            Self::Trace => "SEVERITY_NUMBER_TRACE",
+            Self::Debug => "SEVERITY_NUMBER_DEBUG",
+            Self::Info => "SEVERITY_NUMBER_INFO",
+            Self::Warn => "SEVERITY_NUMBER_WARN",
+            Self::Error => "SEVERITY_NUMBER_ERROR",
+            Self::Fatal => "SEVERITY_NUMBER_FATAL",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
     pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
         match value {
-            "LOG_LEVEL_UNSPECIFIED" => Some(Self::Unspecified),
-            "TRACE" => Some(Self::Trace),
-            "DEBUG" => Some(Self::Debug),
-            "INFO" => Some(Self::Info),
-            "WARN" => Some(Self::Warn),
-            "ERROR" => Some(Self::Error),
-            "FATAL" => Some(Self::Fatal),
+            "SEVERITY_NUMBER_UNSPECIFIED" => Some(Self::Unspecified),
+            "SEVERITY_NUMBER_TRACE" => Some(Self::Trace),
+            "SEVERITY_NUMBER_DEBUG" => Some(Self::Debug),
+            "SEVERITY_NUMBER_INFO" => Some(Self::Info),
+            "SEVERITY_NUMBER_WARN" => Some(Self::Warn),
+            "SEVERITY_NUMBER_ERROR" => Some(Self::Error),
+            "SEVERITY_NUMBER_FATAL" => Some(Self::Fatal),
             _ => None,
         }
     }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
-pub enum EventType {
+pub enum AggregationTemporality {
     Unspecified = 0,
-    InstanceSpawned = 1,
-    InstanceReady = 2,
-    InstanceExited = 3,
-    InstanceCrashed = 4,
-    SessionStarted = 5,
-    SessionEnded = 6,
-    HandlerPanic = 7,
-    ConfigReloaded = 8,
+    Delta = 1,
+    Cumulative = 2,
 }
-impl EventType {
+impl AggregationTemporality {
     /// String value of the enum field names used in the ProtoBuf definition.
     ///
     /// The values are not transformed in any way and thus are considered stable
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            Self::Unspecified => "EVENT_TYPE_UNSPECIFIED",
-            Self::InstanceSpawned => "INSTANCE_SPAWNED",
-            Self::InstanceReady => "INSTANCE_READY",
-            Self::InstanceExited => "INSTANCE_EXITED",
-            Self::InstanceCrashed => "INSTANCE_CRASHED",
-            Self::SessionStarted => "SESSION_STARTED",
-            Self::SessionEnded => "SESSION_ENDED",
-            Self::HandlerPanic => "HANDLER_PANIC",
-            Self::ConfigReloaded => "CONFIG_RELOADED",
+            Self::Unspecified => "AGGREGATION_TEMPORALITY_UNSPECIFIED",
+            Self::Delta => "AGGREGATION_TEMPORALITY_DELTA",
+            Self::Cumulative => "AGGREGATION_TEMPORALITY_CUMULATIVE",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
     pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
         match value {
-            "EVENT_TYPE_UNSPECIFIED" => Some(Self::Unspecified),
-            "INSTANCE_SPAWNED" => Some(Self::InstanceSpawned),
-            "INSTANCE_READY" => Some(Self::InstanceReady),
-            "INSTANCE_EXITED" => Some(Self::InstanceExited),
-            "INSTANCE_CRASHED" => Some(Self::InstanceCrashed),
-            "SESSION_STARTED" => Some(Self::SessionStarted),
-            "SESSION_ENDED" => Some(Self::SessionEnded),
-            "HANDLER_PANIC" => Some(Self::HandlerPanic),
-            "CONFIG_RELOADED" => Some(Self::ConfigReloaded),
+            "AGGREGATION_TEMPORALITY_UNSPECIFIED" => Some(Self::Unspecified),
+            "AGGREGATION_TEMPORALITY_DELTA" => Some(Self::Delta),
+            "AGGREGATION_TEMPORALITY_CUMULATIVE" => Some(Self::Cumulative),
             _ => None,
         }
     }
@@ -2610,9 +2620,18 @@ pub mod holon_observability_client {
     )]
     use tonic::codegen::*;
     use tonic::codegen::http::Uri;
-    /// HolonObservability is auto-registered by the SDK's serve runner
-    /// when OP_OBS is set. Provides structured logs, metrics snapshots,
-    /// and lifecycle events. See OBSERVABILITY.md.
+    /// HolonObservability emits OTLP-shaped records through the SDK-managed
+    /// observability service. Events are LogRecord values with event_name set.
+    ///
+    /// Canonical event_name values for this wave:
+    ///   instance.spawned
+    ///   instance.ready
+    ///   instance.exited
+    ///   instance.crashed
+    ///   session.started
+    ///   session.ended
+    ///   handler.panic
+    ///   config.reloaded
     #[derive(Debug, Clone)]
     pub struct HolonObservabilityClient<T> {
         inner: tonic::client::Grpc<T>,
@@ -2693,14 +2712,11 @@ pub mod holon_observability_client {
             self.inner = self.inner.max_encoding_message_size(limit);
             self
         }
-        /// Logs streams log entries. If follow=true, the stream stays open
-        /// and emits new entries as they arrive. If follow=false, drains
-        /// the current ring buffer and ends.
         pub async fn logs(
             &mut self,
             request: impl tonic::IntoRequest<super::LogsRequest>,
         ) -> std::result::Result<
-            tonic::Response<tonic::codec::Streaming<super::LogEntry>>,
+            tonic::Response<tonic::codec::Streaming<super::LogRecord>>,
             tonic::Status,
         > {
             self.inner
@@ -2720,13 +2736,11 @@ pub mod holon_observability_client {
                 .insert(GrpcMethod::new("holons.v1.HolonObservability", "Logs"));
             self.inner.server_streaming(req, path, codec).await
         }
-        /// Metrics returns a point-in-time snapshot of all current metrics.
-        /// Unary, not streaming — scraping cadence is the caller's concern.
         pub async fn metrics(
             &mut self,
             request: impl tonic::IntoRequest<super::MetricsRequest>,
         ) -> std::result::Result<
-            tonic::Response<super::MetricsSnapshot>,
+            tonic::Response<tonic::codec::Streaming<super::Metric>>,
             tonic::Status,
         > {
             self.inner
@@ -2744,14 +2758,13 @@ pub mod holon_observability_client {
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("holons.v1.HolonObservability", "Metrics"));
-            self.inner.unary(req, path, codec).await
+            self.inner.server_streaming(req, path, codec).await
         }
-        /// Events streams lifecycle events. If follow=true, stays open.
         pub async fn events(
             &mut self,
             request: impl tonic::IntoRequest<super::EventsRequest>,
         ) -> std::result::Result<
-            tonic::Response<tonic::codec::Streaming<super::EventInfo>>,
+            tonic::Response<tonic::codec::Streaming<super::LogRecord>>,
             tonic::Status,
         > {
             self.inner
@@ -2788,38 +2801,47 @@ pub mod holon_observability_server {
     pub trait HolonObservability: std::marker::Send + std::marker::Sync + 'static {
         /// Server streaming response type for the Logs method.
         type LogsStream: tonic::codegen::tokio_stream::Stream<
-                Item = std::result::Result<super::LogEntry, tonic::Status>,
+                Item = std::result::Result<super::LogRecord, tonic::Status>,
             >
             + std::marker::Send
             + 'static;
-        /// Logs streams log entries. If follow=true, the stream stays open
-        /// and emits new entries as they arrive. If follow=false, drains
-        /// the current ring buffer and ends.
         async fn logs(
             &self,
             request: tonic::Request<super::LogsRequest>,
         ) -> std::result::Result<tonic::Response<Self::LogsStream>, tonic::Status>;
-        /// Metrics returns a point-in-time snapshot of all current metrics.
-        /// Unary, not streaming — scraping cadence is the caller's concern.
-        async fn metrics(
-            &self,
-            request: tonic::Request<super::MetricsRequest>,
-        ) -> std::result::Result<tonic::Response<super::MetricsSnapshot>, tonic::Status>;
-        /// Server streaming response type for the Events method.
-        type EventsStream: tonic::codegen::tokio_stream::Stream<
-                Item = std::result::Result<super::EventInfo, tonic::Status>,
+        /// Server streaming response type for the Metrics method.
+        type MetricsStream: tonic::codegen::tokio_stream::Stream<
+                Item = std::result::Result<super::Metric, tonic::Status>,
             >
             + std::marker::Send
             + 'static;
-        /// Events streams lifecycle events. If follow=true, stays open.
+        async fn metrics(
+            &self,
+            request: tonic::Request<super::MetricsRequest>,
+        ) -> std::result::Result<tonic::Response<Self::MetricsStream>, tonic::Status>;
+        /// Server streaming response type for the Events method.
+        type EventsStream: tonic::codegen::tokio_stream::Stream<
+                Item = std::result::Result<super::LogRecord, tonic::Status>,
+            >
+            + std::marker::Send
+            + 'static;
         async fn events(
             &self,
             request: tonic::Request<super::EventsRequest>,
         ) -> std::result::Result<tonic::Response<Self::EventsStream>, tonic::Status>;
     }
-    /// HolonObservability is auto-registered by the SDK's serve runner
-    /// when OP_OBS is set. Provides structured logs, metrics snapshots,
-    /// and lifecycle events. See OBSERVABILITY.md.
+    /// HolonObservability emits OTLP-shaped records through the SDK-managed
+    /// observability service. Events are LogRecord values with event_name set.
+    ///
+    /// Canonical event_name values for this wave:
+    ///   instance.spawned
+    ///   instance.ready
+    ///   instance.exited
+    ///   instance.crashed
+    ///   session.started
+    ///   session.ended
+    ///   handler.panic
+    ///   config.reloaded
     #[derive(Debug)]
     pub struct HolonObservabilityServer<T> {
         inner: Arc<T>,
@@ -2903,7 +2925,7 @@ pub mod holon_observability_server {
                         T: HolonObservability,
                     > tonic::server::ServerStreamingService<super::LogsRequest>
                     for LogsSvc<T> {
-                        type Response = super::LogEntry;
+                        type Response = super::LogRecord;
                         type ResponseStream = T::LogsStream;
                         type Future = BoxFuture<
                             tonic::Response<Self::ResponseStream>,
@@ -2947,11 +2969,12 @@ pub mod holon_observability_server {
                     struct MetricsSvc<T: HolonObservability>(pub Arc<T>);
                     impl<
                         T: HolonObservability,
-                    > tonic::server::UnaryService<super::MetricsRequest>
+                    > tonic::server::ServerStreamingService<super::MetricsRequest>
                     for MetricsSvc<T> {
-                        type Response = super::MetricsSnapshot;
+                        type Response = super::Metric;
+                        type ResponseStream = T::MetricsStream;
                         type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
+                            tonic::Response<Self::ResponseStream>,
                             tonic::Status,
                         >;
                         fn call(
@@ -2982,7 +3005,7 @@ pub mod holon_observability_server {
                                 max_decoding_message_size,
                                 max_encoding_message_size,
                             );
-                        let res = grpc.unary(method, req).await;
+                        let res = grpc.server_streaming(method, req).await;
                         Ok(res)
                     };
                     Box::pin(fut)
@@ -2994,7 +3017,7 @@ pub mod holon_observability_server {
                         T: HolonObservability,
                     > tonic::server::ServerStreamingService<super::EventsRequest>
                     for EventsSvc<T> {
-                        type Response = super::EventInfo;
+                        type Response = super::LogRecord;
                         type ResponseStream = T::EventsStream;
                         type Future = BoxFuture<
                             tonic::Response<Self::ResponseStream>,

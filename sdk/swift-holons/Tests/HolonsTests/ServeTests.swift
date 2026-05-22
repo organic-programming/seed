@@ -158,6 +158,24 @@ final class ServeTests: XCTestCase {
     XCTAssertTrue(services.contains("echo.v1.Echo"))
   }
 
+  func testCurrentTransportTracksServeLifecycle() throws {
+    XCTAssertEqual(CurrentTransport.value, "")
+    let root = try writeEchoHolon()
+    defer { try? FileManager.default.removeItem(at: root) }
+    try Describe.useStaticResponse(Describe.buildResponse(protoDir: root.path))
+    defer { Describe.useStaticResponse(nil) }
+
+    let running = try Serve.startWithOptions(
+      "stdio://",
+      serviceProviders: [],
+      options: Serve.Options(logger: { _ in })
+    )
+    XCTAssertEqual(CurrentTransport.value, "stdio")
+
+    running.stop()
+    XCTAssertEqual(CurrentTransport.value, "")
+  }
+
   func testStartWithOptionsFailsWithoutRegisteredIncodeDescription() throws {
     let root = try writeEchoHolon()
     defer { try? FileManager.default.removeItem(at: root) }

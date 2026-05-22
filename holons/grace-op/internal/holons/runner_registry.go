@@ -60,7 +60,8 @@ func manifestHasPrimaryArtifact(manifest *LoadedManifest) bool {
 	if manifest == nil {
 		return false
 	}
-	return strings.TrimSpace(manifest.Manifest.Artifacts.Primary) != ""
+	primary := strings.TrimSpace(manifest.Manifest.Artifacts.Primary)
+	return primary != "" && !isHolonPackagePath(primary)
 }
 
 func requireRunnerCommands(commands ...string) error {
@@ -90,6 +91,40 @@ func syncBinaryArtifact(manifest *LoadedManifest, src string) error {
 		return err
 	}
 	return copyFile(src, manifest.BinaryPath())
+}
+
+func injectShellLauncherEnv(path string, lines ...string) error {
+	if runtime.GOOS == "windows" || strings.TrimSpace(path) == "" || len(lines) == 0 {
+		return nil
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	text := string(b)
+	for _, line := range lines {
+		if !strings.Contains(text, line) {
+			goto inject
+		}
+	}
+	return nil
+
+inject:
+	insert := strings.Join(lines, "\n") + "\n"
+	if strings.HasPrefix(text, "#!") {
+		if idx := strings.IndexByte(text, '\n'); idx >= 0 {
+			text = text[:idx+1] + insert + text[idx+1:]
+		} else {
+			text += "\n" + insert
+		}
+	} else {
+		text = insert + text
+	}
+	return os.WriteFile(path, []byte(text), info.Mode().Perm())
 }
 
 func syncBinaryFromCandidates(manifest *LoadedManifest, candidates []string) error {
@@ -185,6 +220,8 @@ func writeDotnetLauncher(path string, dllName string) error {
 	}
 	script := fmt.Sprintf(`#!/bin/sh
 set -eu
+OP_HOLON_EXECUTABLE="${OP_HOLON_EXECUTABLE:-$0}"
+export OP_HOLON_EXECUTABLE
 %s
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
 DOTNET_BIN=$(command -v dotnet 2>/dev/null || true)
@@ -1103,8 +1140,14 @@ func (pythonRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Re
 	if strings.TrimSpace(pythonPath) == "" {
 		pythonPath = argsOrDefaultPythonPathForManifest(manifest)
 	}
+	pythonPathEntries := []string{isolatedDir, filepath.Join(isolatedDir, "gen", "python")}
+	if sdkRoot := pythonSDKRootForManifest(manifest); sdkRoot != "" {
+		pythonPathEntries = append(pythonPathEntries, sdkRoot)
+	}
 	wrapper := fmt.Sprintf(
-		"#!/bin/sh\nset -eu\nexec %q %q \"$@\"\n",
+		"#!/bin/sh\nset -eu\nOP_HOLON_EXECUTABLE=\"$0\"\nexport OP_HOLON_EXECUTABLE\nPYTHONPATH=%q${PYTHONPATH:+%s$PYTHONPATH}\nexport PYTHONPATH\nexec %q %q \"$@\"\n",
+		strings.Join(pythonPathEntries, string(os.PathListSeparator)),
+		string(os.PathListSeparator),
 		pythonPath,
 		filepath.Join(isolatedDir, filepath.FromSlash(entrypoint)),
 	)
@@ -1113,6 +1156,19 @@ func (pythonRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Re
 	}
 	report.Notes = append(report.Notes, fmt.Sprintf("python launcher prepared for %s", entrypoint))
 	return nil
+}
+
+func pythonSDKRootForManifest(manifest *LoadedManifest) string {
+	for dir := filepath.Clean(manifest.Dir); ; dir = filepath.Dir(dir) {
+		candidate := filepath.Join(dir, "sdk", "python-holons")
+		if dirExists(candidate) {
+			return candidate
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+	}
 }
 
 func argsOrDefaultPython() string {
@@ -1337,7 +1393,7 @@ func (rubyRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Repo
 	}
 	sourceEntrypoint := filepath.Join(manifest.Dir, filepath.FromSlash(entrypoint))
 	wrapper := fmt.Sprintf(
-		"#!/bin/sh\nset -eu\n%s\n%s\n_OP_BASE=%q\n_OP_SOURCE_ENTRYPOINT=%q\nexport BUNDLE_GEMFILE=\"$_OP_BASE/Gemfile\"\nexport BUNDLE_PATH=\"$_OP_BASE/.op/bundle\"\nexport BUNDLE_DISABLE_SHARED_GEMS=true\n%s%s\nexec %q exec %q \"$_OP_BASE/%s\" \"$@\"\n",
+		"#!/bin/sh\nset -eu\nOP_HOLON_EXECUTABLE=\"$0\"\nexport OP_HOLON_EXECUTABLE\n%s\n%s\n_OP_BASE=%q\n_OP_SOURCE_ENTRYPOINT=%q\nexport BUNDLE_GEMFILE=\"$_OP_BASE/Gemfile\"\nexport BUNDLE_PATH=\"$_OP_BASE/.op/bundle\"\nexport BUNDLE_DISABLE_SHARED_GEMS=true\n%s%s\nexec %q exec %q \"$_OP_BASE/%s\" \"$@\"\n",
 		launcherPATHExports(),
 		launcherUTF8LocaleExports(),
 		isolatedDir,
@@ -1731,7 +1787,7 @@ func (npmRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Repor
 		)
 	}
 	wrapper := fmt.Sprintf(
-		"#!/bin/sh\nset -eu\n_OP_BASE=%q\n%scd \"$_OP_BASE\"\nexec %q %q \"$@\"\n",
+		"#!/bin/sh\nset -eu\nOP_HOLON_EXECUTABLE=\"$0\"\nexport OP_HOLON_EXECUTABLE\n_OP_BASE=%q\n%scd \"$_OP_BASE\"\nexec %q %q \"$@\"\n",
 		isolatedDir,
 		descriptorSeed,
 		argsOrDefaultNodePath(),
@@ -1871,6 +1927,13 @@ func (gradleRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Re
 		return missingBinaryFromCandidates(manifest, gradleArtifactCandidates(manifest))
 	}
 	if err := syncBinaryArtifact(manifest, launcherPath); err != nil {
+		return err
+	}
+	if err := injectShellLauncherEnv(
+		manifest.BinaryPath(),
+		`OP_HOLON_EXECUTABLE="${OP_HOLON_EXECUTABLE:-$0}"`,
+		"export OP_HOLON_EXECUTABLE",
+	); err != nil {
 		return err
 	}
 	if err := syncGradleInstallDistSupport(manifest, launcherPath); err != nil {

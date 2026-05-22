@@ -150,7 +150,7 @@ func NewSandbox(t *testing.T) *Sandbox {
 	opbin := filepath.Join(oppath, "bin")
 	cacheDir := filepath.Join(oppath, "cache")
 	runDir := filepath.Join(oppath, "run")
-	tmpDir := filepath.Join(root, "tmp")
+	tmpDir := sandboxTMPDir(rt, root)
 	for _, dir := range []string{oppath, opbin, cacheDir, runDir, tmpDir} {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatalf("mkdir %s: %v", dir, err)
@@ -165,6 +165,25 @@ func NewSandbox(t *testing.T) *Sandbox {
 		CacheDir: cacheDir,
 		TMPDIR:   tmpDir,
 	}
+}
+
+func sandboxTMPDir(rt *runtimeState, sandboxRoot string) string {
+	root := sandboxRoot
+	base := filepath.Clean(strings.TrimSpace(rt.tempBaseRoot))
+	alias := filepath.Clean(strings.TrimSpace(rt.tempAliasRoot))
+	if base != "." && alias != "." {
+		if rel, err := filepath.Rel(base, filepath.Clean(sandboxRoot)); err == nil && isLocalRelPath(rel) {
+			root = filepath.Join(alias, rel)
+		}
+	}
+	return filepath.Join(root, "tmp")
+}
+
+func isLocalRelPath(path string) bool {
+	if filepath.IsAbs(path) {
+		return false
+	}
+	return path == "." || (path != ".." && !strings.HasPrefix(path, ".."+string(os.PathSeparator)))
 }
 
 func (s *Sandbox) RunOP(t *testing.T, args ...string) CmdResult {
@@ -348,7 +367,7 @@ func (p *ProcessHandle) Signal(t *testing.T, sig os.Signal) {
 
 func (p *ProcessHandle) WaitForListenAddress(t *testing.T, timeout time.Duration) string {
 	t.Helper()
-	pattern := regexp.MustCompile(`gRPC (?:server|bridge) listening on ((?:tcp|unix)://\S+)`)
+	pattern := regexp.MustCompile(`(?m)(?:gRPC (?:server|bridge) listening on |^)((?:tcp|unix)://\S+)`)
 	return p.waitForPattern(t, pattern, timeout)
 }
 
@@ -387,6 +406,15 @@ func (p *ProcessHandle) Stdout() string { return p.stdout.String() }
 func (p *ProcessHandle) Stderr() string { return p.stderr.String() }
 
 func (p *ProcessHandle) Combined() string { return p.combined.String() }
+
+// Pid returns the OS PID of the spawned process, or 0 if the process is
+// not (yet) running. Used by diagnostic instrumentation.
+func (p *ProcessHandle) Pid() int {
+	if p == nil || p.cmd == nil || p.cmd.Process == nil {
+		return 0
+	}
+	return p.cmd.Process.Pid
+}
 
 func (b *syncBuffer) Write(p []byte) (int, error) {
 	b.mu.Lock()
@@ -648,7 +676,7 @@ func prepareWorkspaceMirror(rt *runtimeState) (string, error) {
 	for _, spec := range []mirrorSpec{
 		{src: filepath.Join(rt.seedRoot, "examples"), dst: filepath.Join(root, "examples")},
 		{src: filepath.Join(rt.seedRoot, "dist"), dst: filepath.Join(root, "dist")},
-		{src: filepath.Join(rt.seedRoot, "examples", "_protos"), dst: filepath.Join(root, "_protos")},
+		{src: filepath.Join(rt.seedRoot, "examples", "hello-world", "_protos"), dst: filepath.Join(root, "_protos")},
 		{src: filepath.Join(rt.seedRoot, "holons", "grace-op", "_protos"), dst: filepath.Join(root, "_protos")},
 		{src: filepath.Join(rt.seedRoot, "organism_kits"), dst: filepath.Join(root, "organism_kits")},
 		{src: filepath.Join(rt.seedRoot, "protos"), dst: filepath.Join(root, "protos")},
@@ -768,8 +796,8 @@ func shouldSkipMirrorPath(rel string, info os.FileInfo) bool {
 			return true
 		}
 		// Example builds can leave recursive install trees under examples/**/bin/default.
-		// They are generated artifacts, not source inputs for mirrored integration workspaces.
-		if base == "bin" && len(parts) >= 2 && parts[0] == "examples" {
+		// Keep source-level bin directories such as Dart, Node, Python, and Ruby entrypoints.
+		if base == "default" && len(parts) >= 3 && parts[0] == "examples" && parts[len(parts)-2] == "bin" {
 			return true
 		}
 	}

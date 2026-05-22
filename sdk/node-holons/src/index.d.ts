@@ -1,0 +1,610 @@
+// TypeScript declarations for @organic-programming/holons
+
+import * as net from 'net';
+import * as grpc from '@grpc/grpc-js';
+import * as protobuf from 'protobufjs';
+import { EventEmitter } from 'events';
+import { ChildProcess } from 'child_process';
+
+// --- Transport ---
+
+export namespace transport {
+    const DEFAULT_URI: string;
+
+    function listen(uri: string, options?: ListenOptions): net.Server | StdioListener | WSListener;
+    function scheme(uri: string): string;
+    function parseURI(uri: string): ParsedURI;
+
+    interface ParsedTCPURI {
+        scheme: 'tcp';
+        uri: string;
+        host: string;
+        port: string;
+    }
+
+    interface ParsedUnixURI {
+        scheme: 'unix';
+        uri: string;
+        path: string;
+    }
+
+    interface ParsedStdioURI {
+        scheme: 'stdio';
+        uri: 'stdio://';
+    }
+
+    interface ParsedWSURI {
+        scheme: 'ws' | 'wss';
+        uri: string;
+        secure: boolean;
+        host: string;
+        port: string;
+        path: string;
+    }
+
+    type ParsedURI = ParsedTCPURI | ParsedUnixURI | ParsedStdioURI | ParsedWSURI;
+
+    interface ListenOptions {
+        tcp?: {
+            connectionListener?: (socket: net.Socket) => void;
+        };
+        unix?: {
+            connectionListener?: (socket: net.Socket) => void;
+        };
+        ws?: {
+            tls?: {
+                key?: string | Buffer;
+                cert?: string | Buffer;
+                keyFile?: string;
+                certFile?: string;
+            };
+        };
+    }
+
+    class StdioListener extends EventEmitter {
+        accept(): { readable: NodeJS.ReadStream; writable: NodeJS.WriteStream; close(): void };
+        close(): void;
+        readonly address: string;
+    }
+
+    class WSListener extends EventEmitter {
+        constructor(uri: string, options?: ListenOptions['ws']);
+        start(): Promise<void>;
+        ready(): Promise<void>;
+        accept(): Promise<Duplex>;
+        close(): void;
+        readonly address: string;
+        host: string;
+        port: number;
+        path: string;
+        scheme: 'ws' | 'wss';
+    }
+}
+
+// --- Serve ---
+
+export namespace serve {
+    type RegisterFunc = (server: grpc.Server) => void;
+
+    interface RunOptions {
+        reflect?: boolean;
+        reflectionPackageDefinition?: grpc.GrpcObject;
+        slug?: string;
+        memberEndpoints?: Array<{ slug: string; uid?: string; address: string }>;
+        ws?: {
+            tls?: {
+                key?: string | Buffer;
+                cert?: string | Buffer;
+                keyFile?: string;
+                certFile?: string;
+            };
+        };
+        logger?: {
+            error: (...args: any[]) => void;
+            warn?: (...args: any[]) => void;
+        };
+    }
+
+    interface HolonServer extends grpc.Server {
+        stopHolon?: () => Promise<void>;
+    }
+
+    interface ParsedFlags {
+        listenUri: string;
+        reflect: boolean;
+    }
+
+    interface ChildSpec {
+        slug: string;
+        binary: string;
+    }
+
+    function parseFlags(args: string[]): string;
+    function parseOptions(args: string[]): ParsedFlags;
+    function parseChildFlags(args: string[]): { children: ChildSpec[]; remaining: string[] };
+    function CurrentTransport(): string;
+    function run(listenUri: string, registerFn: RegisterFunc): Promise<HolonServer>;
+    function runWithOptions(
+        listenUri: string,
+        registerFn: RegisterFunc,
+        reflectOrOptions?: boolean | RunOptions,
+    ): Promise<HolonServer>;
+    const DEFAULT_URI: string;
+}
+
+export function CurrentTransport(): string;
+
+export namespace describe {
+    type DescribeResponseMessage = protobuf.Message<{}>;
+
+    const HOLON_META_SERVICE_NAME: string;
+    const NO_INCODE_DESCRIPTION_MESSAGE: string;
+    const holons: {
+        HOLON_META_SERVICE_DEF: grpc.ServiceDefinition;
+        FieldLabel: Record<string, number>;
+        DescribeRequest: any;
+        DescribeResponse: any;
+    };
+
+    function buildResponse(protoDir: string, manifestPath?: string): DescribeResponseMessage;
+
+    function useStaticResponse(response: DescribeResponseMessage | Record<string, any> | null): void;
+    function staticResponse(): DescribeResponseMessage | null;
+    function register(server: grpc.Server): void;
+}
+
+// --- Identity ---
+
+export namespace identity {
+    const PROTO_MANIFEST_FILE_NAME: string;
+
+    interface HolonIdentity {
+        uuid: string;
+        given_name: string;
+        family_name: string;
+        motto: string;
+        composer: string;
+        clade: string;
+        status: string;
+        born: string;
+        lang: string;
+        parents: string[];
+        reproduction: string;
+        generated_by: string;
+        proto_status: string;
+        aliases: string[];
+    }
+
+    function parseHolon(filePath: string): HolonIdentity;
+    function parseManifest(filePath: string): {
+        identity: HolonIdentity;
+        kind: string;
+        build_runner: string;
+        build_main: string;
+        artifact_binary: string;
+        artifact_primary: string;
+        source_path?: string;
+    };
+    function findHolonProto(root: string): string | null;
+    function resolveManifestPath(root: string): string;
+    function resolve(root: string): {
+        identity: HolonIdentity;
+        kind: string;
+        build_runner: string;
+        build_main: string;
+        artifact_binary: string;
+        artifact_primary: string;
+        source_path: string;
+    };
+    function resolveProtoFile(filePath: string): {
+        identity: HolonIdentity;
+        kind: string;
+        build_runner: string;
+        build_main: string;
+        artifact_binary: string;
+        artifact_primary: string;
+        source_path: string;
+    };
+    function slugForIdentity(identity: HolonIdentity): string;
+}
+
+// --- Discovery ---
+
+export const LOCAL: 0;
+export const PROXY: 1;
+export const DELEGATED: 2;
+
+export const SIBLINGS: 0x01;
+export const CWD: 0x02;
+export const SOURCE: 0x04;
+export const BUILT: 0x08;
+export const INSTALLED: 0x10;
+export const CACHED: 0x20;
+export const ALL: 0x3F;
+
+export const NO_LIMIT: 0;
+export const NO_TIMEOUT: 0;
+
+export interface IdentityInfo {
+    given_name: string;
+    family_name: string;
+    motto?: string;
+    aliases?: string[];
+}
+
+export interface HolonInfo {
+    slug: string;
+    uuid: string;
+    identity: IdentityInfo;
+    lang: string;
+    runner: string;
+    status: string;
+    kind: string;
+    transport: string;
+    entrypoint: string;
+    architectures: string[];
+    has_dist: boolean;
+    has_source: boolean;
+}
+
+export interface HolonRef {
+    url: string;
+    info: HolonInfo | null;
+    error: string | null;
+}
+
+export interface DiscoverResult {
+    found: HolonRef[];
+    error: string | null;
+}
+
+export interface ResolveResult {
+    ref: HolonRef | null;
+    error: string | null;
+}
+
+export interface ConnectResult {
+    channel: object | null;
+    uid: string;
+    origin: HolonRef | null;
+    error: string | null;
+}
+
+export function Discover(
+    scope: number,
+    expression: string | null,
+    root: string | null,
+    specifiers: number,
+    limit: number,
+    timeout: number,
+): Promise<DiscoverResult>;
+
+export function resolve(
+    scope: number,
+    expression: string | null,
+    root: string | null,
+    specifiers: number,
+    timeout: number,
+): Promise<ResolveResult>;
+
+export function connect(
+    scope: number,
+    expression: string | null,
+    root: string | null,
+    specifiers: number,
+    timeout: number,
+): Promise<ConnectResult>;
+
+export function disconnect(result: ConnectResult | null | undefined): void;
+
+export namespace discover {
+    const LOCAL: 0;
+    const PROXY: 1;
+    const DELEGATED: 2;
+    const SIBLINGS: 0x01;
+    const CWD: 0x02;
+    const SOURCE: 0x04;
+    const BUILT: 0x08;
+    const INSTALLED: 0x10;
+    const CACHED: 0x20;
+    const ALL: 0x3F;
+    const NO_LIMIT: 0;
+    const NO_TIMEOUT: 0;
+    function Discover(
+        scope: number,
+        expression: string | null,
+        root: string | null,
+        specifiers: number,
+        limit: number,
+        timeout: number,
+    ): Promise<DiscoverResult>;
+    function resolve(
+        scope: number,
+        expression: string | null,
+        root: string | null,
+        specifiers: number,
+        timeout: number,
+    ): Promise<ResolveResult>;
+}
+
+// --- gRPC Client ---
+
+export namespace grpcclient {
+    type ClientCtor<TClient> = new (
+        address: string,
+        credentials: grpc.ChannelCredentials,
+        options?: grpc.ChannelOptions,
+    ) => TClient;
+
+    interface DialOptions {
+        credentials?: grpc.ChannelCredentials;
+        channelOptions?: grpc.ChannelOptions;
+    }
+
+    interface DialURIOptions extends DialOptions {
+        command?: string;
+        args?: string[];
+        env?: NodeJS.ProcessEnv;
+        ws?: Record<string, unknown>;
+    }
+
+    function dial<TClient>(addressOrURI: string, ClientCtor: ClientCtor<TClient>, options?: DialOptions): TClient;
+    function dialWebSocket<TClient>(
+        uri: string,
+        ClientCtor: ClientCtor<TClient>,
+        options?: DialURIOptions,
+    ): Promise<{ client: TClient; close: () => Promise<void> }>;
+
+    function dialStdio<TClient>(
+        binaryPath: string,
+        ClientCtor: ClientCtor<TClient>,
+        options?: DialURIOptions,
+    ): Promise<{ client: TClient; target: string; process: ChildProcess; close: () => Promise<void> }>;
+
+    function dialURI<TClient>(
+        uri: string,
+        ClientCtor: ClientCtor<TClient>,
+        options?: DialURIOptions,
+    ): Promise<{ client: TClient; close: () => Promise<void> }>;
+}
+
+// --- Observability ---
+
+export namespace observability {
+    const Family: Readonly<{
+        LOGS: 'logs';
+        METRICS: 'metrics';
+        EVENTS: 'events';
+        PROM: 'prom';
+    }>;
+
+    const Level: Readonly<Record<string, number>>;
+    const EventName: Readonly<Record<string, string>>;
+    const Attr: Readonly<Record<string, string>>;
+
+    class LogRing {
+        constructor(capacity?: number);
+        push(entry: Record<string, unknown>): void;
+        drain(): Record<string, unknown>[];
+        subscribeWithSnapshot(fn: (entry: Record<string, unknown>) => void): {
+            snapshot: Record<string, unknown>[];
+            stop: () => void;
+        };
+    }
+
+    class EventBus {
+        constructor(capacity?: number);
+        emit(event: Record<string, unknown>): void;
+        drain(): Record<string, unknown>[];
+        subscribeWithSnapshot(fn: (event: Record<string, unknown>) => void): {
+            snapshot: Record<string, unknown>[];
+            stop: () => void;
+        };
+        close(): void;
+    }
+
+    class Logger {
+        setLevel(level: number): void;
+        enabled(level: number): boolean;
+        trace(message: string, fields?: Record<string, unknown>, options?: { private?: boolean }): void;
+        debug(message: string, fields?: Record<string, unknown>, options?: { private?: boolean }): void;
+        info(message: string, fields?: Record<string, unknown>, options?: { private?: boolean }): void;
+        warn(message: string, fields?: Record<string, unknown>, options?: { private?: boolean }): void;
+        error(message: string, fields?: Record<string, unknown>, options?: { private?: boolean }): void;
+        fatal(message: string, fields?: Record<string, unknown>, options?: { private?: boolean }): void;
+        private(): Logger;
+    }
+
+    class Observability {
+        cfg: Record<string, unknown>;
+        families: Set<string>;
+        logRing: LogRing | null;
+        eventBus: EventBus | null;
+        enabled(family: string): boolean;
+        logger(name: string): Logger;
+        counter(name: string, help?: string, labels?: Record<string, string>): { inc(amount?: number): void } | null;
+        gauge(name: string, help?: string, labels?: Record<string, string>): { set(value: number): void; add(delta: number): void } | null;
+        histogram(name: string, help?: string, labels?: Record<string, string>, bounds?: number[] | null): { observe(value: number): void; observeDuration(seconds: number): void } | null;
+        emit(eventName: string, payload?: Record<string, unknown>, options?: { private?: boolean }): void;
+        emitPrivate(eventName: string, payload?: Record<string, unknown>): void;
+        close(): void;
+    }
+
+    function Private(fields?: Record<string, unknown>): Record<string, unknown>;
+    function toAnyValue(value: unknown): Record<string, unknown>;
+    function stringAttribute(recordOrAttrs: Record<string, unknown> | Record<string, unknown>[], key: string): string;
+    function bodyString(record: Record<string, unknown>): string;
+    function configure(cfg?: Record<string, unknown>): Observability;
+    function fromEnv(base?: Record<string, unknown>): Observability;
+    function current(): Observability;
+    function reset(): void;
+    function registerService(server: grpc.Server, obs?: Observability): void;
+}
+
+// --- Composite ---
+
+export namespace composite {
+    interface MemberSpec {
+        slug: string;
+        binary: string;
+    }
+
+    interface SpawnOptions {
+        slug: string;
+        binaryPath?: string;
+        binary?: string;
+        transport?: 'stdio' | 'tcp' | 'unix' | string;
+        downstreamChain?: MemberSpec[];
+        extraEnv?: NodeJS.ProcessEnv;
+        dialOptions?: unknown[];
+    }
+
+    class SpawnedMember {
+        slug: string;
+        uid: string;
+        listenURI: string;
+        target: string;
+        clientTarget: string;
+        process: ChildProcess | null;
+        clientFor<TClient>(ClientCtor: grpcclient.ClientCtor<TClient>, options?: grpcclient.DialOptions): TClient;
+        stop(timeoutMs?: number): Promise<void>;
+    }
+
+    class Cascade {
+        Top: SpawnedMember;
+        top: SpawnedMember;
+        stop(timeoutMs?: number): Promise<void>;
+    }
+
+    const TransportCoverageSequence: readonly string[];
+    function SpawnMember(options: SpawnOptions): Promise<SpawnedMember>;
+    function BuildCascade(options: { members: MemberSpec[]; transport?: string; extraEnv?: NodeJS.ProcessEnv; dialOptions?: unknown[] }): Promise<Cascade>;
+    function Dial(address: string, ...options: unknown[]): Promise<{
+        target: string;
+        clientTarget: string;
+        describe: unknown;
+        clientFor<TClient>(ClientCtor: grpcclient.ClientCtor<TClient>, options?: grpcclient.DialOptions): TClient;
+        close(): Promise<void>;
+    }>;
+    function WithTransitiveObservability(value: boolean): { transitiveObservability: boolean };
+    function CheckRelayedLog(options: Record<string, unknown>): Promise<{ pass: boolean; evidence: string }>;
+    function CheckRelayedEvent(options: Record<string, unknown>): Promise<{ pass: boolean; evidence: string }>;
+    function member(id: string): string;
+    function memberFromExecutable(executable: string, id: string): string;
+}
+
+// --- Relay ---
+
+export namespace relay {
+    class RelayService {
+        constructor(options?: { downstream?: unknown; downstreamConn?: unknown });
+        tick(call: unknown, callback: (error: Error | null, response?: unknown) => void): Promise<void>;
+    }
+
+    function registerServer(server: grpc.Server, options?: { downstream?: unknown; downstreamConn?: unknown }): void;
+    const RegisterServer: typeof registerServer;
+    const relayPb: any;
+    const relayGrpc: any;
+}
+
+// --- Holon-RPC Client + Server ---
+
+export namespace holonrpc {
+    class HolonRPCError extends Error {
+        constructor(code: number, message: string, data?: unknown);
+        code: number;
+        data?: unknown;
+    }
+
+    interface HolonRPCConnection {
+        id: string;
+        protocol: 'holon-rpc';
+    }
+
+    interface HolonRPCServerOptions {
+        tls?: {
+            key?: string | Buffer;
+            cert?: string | Buffer;
+            keyFile?: string;
+            certFile?: string;
+        };
+    }
+
+    interface HolonRPCClientOptions {
+        connectTimeout?: number;
+        invokeTimeout?: number;
+        ws?: Record<string, unknown>;
+        http?: {
+            fetch?: typeof fetch;
+            headers?: Record<string, string>;
+        };
+    }
+
+    interface HolonRPCConnectOptions {
+        timeout?: number;
+        ws?: Record<string, unknown>;
+        http?: {
+            fetch?: typeof fetch;
+            headers?: Record<string, string>;
+        };
+    }
+
+    interface HolonRPCInvokeOptions {
+        timeout?: number;
+    }
+
+    interface HolonRPCSSEEvent {
+        event: string;
+        id: string;
+        result?: Record<string, unknown>;
+        error?: {
+            code: number;
+            message: string;
+            data?: unknown;
+        };
+    }
+
+    class HolonRPCClient extends EventEmitter {
+        constructor(options?: HolonRPCClientOptions);
+        register(method: string, handler: (params: Record<string, unknown>) => unknown): void;
+        unregister(method: string): void;
+        connected(): boolean;
+        connect(url: string, options?: HolonRPCConnectOptions): Promise<void>;
+        connectWithReconnect(url: string, options?: HolonRPCConnectOptions): Promise<void>;
+        close(): Promise<void>;
+        invoke(
+            method: string,
+            params?: Record<string, unknown>,
+            options?: HolonRPCInvokeOptions,
+        ): Promise<Record<string, unknown>>;
+        stream(
+            method: string,
+            params?: Record<string, unknown>,
+            options?: HolonRPCInvokeOptions,
+        ): Promise<HolonRPCSSEEvent[]>;
+        streamQuery(
+            method: string,
+            params?: Record<string, unknown>,
+            options?: HolonRPCInvokeOptions,
+        ): Promise<HolonRPCSSEEvent[]>;
+    }
+
+    class HolonRPCServer extends EventEmitter {
+        constructor(uri?: string, options?: HolonRPCServerOptions);
+        uri: string;
+        address: string;
+        register(method: string, handler: (params: Record<string, unknown>, client: HolonRPCConnection) => unknown): void;
+        unregister(method: string): void;
+        listClients(): HolonRPCConnection[];
+        start(): Promise<void>;
+        close(): Promise<void>;
+        invoke(
+            client: HolonRPCConnection | string,
+            method: string,
+            params?: Record<string, unknown>,
+            options?: { timeout?: number },
+        ): Promise<Record<string, unknown>>;
+    }
+
+    const DEFAULT_URI: string;
+}

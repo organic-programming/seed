@@ -201,8 +201,13 @@ func ExecuteLifecycle(op Operation, ref string, opts ...BuildOptions) (report Re
 			}
 		}
 
+		var compositeSession *compositeBuildSession
+		if ctx.composite != nil {
+			compositeSession = ctx.composite.session
+		}
 		if shouldPrebuildCompositeDependencies(target.Manifest, ctx) {
 			session, childReports, prepErr := prebuildCompositeDependencies(target.Manifest, ctx)
+			compositeSession = session
 			report.Children = append(report.Children, childReports...)
 			if prepErr != nil {
 				err = prepErr
@@ -286,6 +291,11 @@ func ExecuteLifecycle(op Operation, ref string, opts ...BuildOptions) (report Re
 		}
 		defer restoreFn()
 
+		if embedErr := embedCompositeMemberArtifacts(target.Manifest, ctx, compositeSession, &report); embedErr != nil {
+			err = embedErr
+			break
+		}
+
 		if hookErr := executePipelineHooks(target.Manifest, ctx, &report, target.Manifest.Manifest.Build.BeforeCommands); hookErr != nil {
 			err = fmt.Errorf("before commands: %w", hookErr)
 			break
@@ -293,6 +303,11 @@ func ExecuteLifecycle(op Operation, ref string, opts ...BuildOptions) (report Re
 
 		err = r.build(target.Manifest, ctx, &report)
 		if err != nil {
+			break
+		}
+
+		if embedErr := ensureCompositeMemberArtifacts(target.Manifest, ctx, compositeSession, &report); embedErr != nil {
+			err = embedErr
 			break
 		}
 
@@ -418,8 +433,20 @@ func shouldPrebuildCompositeDependencies(manifest *LoadedManifest, ctx BuildCont
 		return false
 	}
 	return manifest.Manifest.Kind == KindComposite &&
-		manifest.Manifest.Build.Runner == RunnerRecipe &&
+		hasCompositeHolonMembers(manifest) &&
 		!isAggregateBuildTarget(ctx.Target)
+}
+
+func hasCompositeHolonMembers(manifest *LoadedManifest) bool {
+	if manifest == nil {
+		return false
+	}
+	for _, member := range manifest.Manifest.Build.Members {
+		if member.Type == "holon" {
+			return true
+		}
+	}
+	return false
 }
 
 func prebuildCompositeDependencies(manifest *LoadedManifest, ctx BuildContext) (*compositeBuildSession, []Report, error) {
@@ -545,7 +572,7 @@ func compositeHolonMembers(manifest *LoadedManifest, ctx BuildContext, session *
 		}
 		memberDir, err := manifest.ResolveManifestPath(member.Path)
 		if err != nil {
-			return nil, fmt.Errorf("recipe member %q path: %w", member.ID, err)
+			return nil, fmt.Errorf("composite member %q path: %w", member.ID, err)
 		}
 		node, err := compositeNodeForDir(memberDir, ctx, session)
 		if err != nil {
@@ -680,6 +707,190 @@ func dependencyFreshReport(node *compositeDependencyNode, ctx BuildContext) Repo
 	report := baseReport(OperationBuild, target, ctx)
 	report.Notes = append(report.Notes, "fresh dependency — skipped rebuild")
 	return report
+}
+
+func embedCompositeMemberArtifacts(manifest *LoadedManifest, ctx BuildContext, session *compositeBuildSession, report *Report) error {
+	if manifest == nil || manifest.Manifest.Kind != KindComposite || !hasCompositeHolonMembers(manifest) || isAggregateBuildTarget(ctx.Target) {
+		return nil
+	}
+	if session == nil {
+		return fmt.Errorf("composite members phase unavailable for %s", manifestSlug(manifest))
+	}
+	if ctx.DryRun {
+		members, err := directCompositeHolonMemberNodes(manifest, ctx, session)
+		if err != nil {
+			return err
+		}
+		for _, member := range members {
+			report.Commands = append(report.Commands, "embed_member "+member.id)
+		}
+		return nil
+	}
+	if err := syncCompositeMemberArtifacts(manifest, ctx, session); err != nil {
+		return err
+	}
+	report.Notes = append(report.Notes, "embedded composite members")
+	return nil
+}
+
+func ensureCompositeMemberArtifacts(manifest *LoadedManifest, ctx BuildContext, session *compositeBuildSession, report *Report) error {
+	if manifest == nil || manifest.Manifest.Kind != KindComposite || !hasCompositeHolonMembers(manifest) || isAggregateBuildTarget(ctx.Target) || ctx.DryRun {
+		return nil
+	}
+	if session == nil {
+		return fmt.Errorf("composite members phase unavailable for %s", manifestSlug(manifest))
+	}
+	if compositeMemberArtifactsPresent(manifest, ctx, session) {
+		return nil
+	}
+	if err := syncCompositeMemberArtifacts(manifest, ctx, session); err != nil {
+		return err
+	}
+	report.Notes = append(report.Notes, "re-embedded composite members after runner output")
+	return nil
+}
+
+func compositeMemberArtifactsPresent(manifest *LoadedManifest, ctx BuildContext, session *compositeBuildSession) bool {
+	members, err := directCompositeHolonMemberNodes(manifest, ctx, session)
+	if err != nil || len(members) == 0 {
+		return false
+	}
+	for _, member := range members {
+		if _, err := os.Stat(filepath.Join(compositeHolonsEmbedRoot(manifest), member.id)); err != nil {
+			return false
+		}
+	}
+	return true
+}
+
+func syncCompositeMemberArtifacts(manifest *LoadedManifest, ctx BuildContext, session *compositeBuildSession) error {
+	members, err := directCompositeHolonMemberNodes(manifest, ctx, session)
+	if err != nil {
+		return err
+	}
+	if len(members) == 0 {
+		return nil
+	}
+
+	dstRoot := compositeHolonsEmbedRoot(manifest)
+	parentDir := filepath.Dir(dstRoot)
+	if err := os.MkdirAll(parentDir, 0o755); err != nil {
+		return fmt.Errorf("create composite member embed parent %s: %w", workspaceRelativePath(parentDir), err)
+	}
+
+	tmpRoot, err := os.MkdirTemp(parentDir, ".holons-*")
+	if err != nil {
+		return fmt.Errorf("stage composite members: %w", err)
+	}
+	defer os.RemoveAll(tmpRoot)
+
+	for _, member := range members {
+		if _, ok := session.completed[member.node.key]; !ok {
+			return fmt.Errorf("composite member %q has no prebuilt artifact", member.id)
+		}
+		srcDir := filepath.Join(availableHolonPackageDir(member.node.manifest), "bin", runtimeArchitecture())
+		if info, err := os.Stat(srcDir); err != nil || !info.IsDir() {
+			return fmt.Errorf("composite member %q artifact source missing: %s", member.id, workspaceRelativePath(srcDir))
+		}
+		if err := copyDir(srcDir, filepath.Join(tmpRoot, member.id)); err != nil {
+			return fmt.Errorf("embed composite member %q: %w", member.id, err)
+		}
+		if err := syncCompositeMemberSupport(member.node.manifest, filepath.Join(tmpRoot, member.id)); err != nil {
+			return fmt.Errorf("embed composite member %q support: %w", member.id, err)
+		}
+	}
+
+	if err := os.RemoveAll(dstRoot); err != nil {
+		return fmt.Errorf("clear composite member embed root %s: %w", workspaceRelativePath(dstRoot), err)
+	}
+	if err := os.Rename(tmpRoot, dstRoot); err != nil {
+		return fmt.Errorf("install composite member embed root %s: %w", workspaceRelativePath(dstRoot), err)
+	}
+	return nil
+}
+
+func syncCompositeMemberSupport(member *LoadedManifest, dstDir string) error {
+	if member == nil {
+		return nil
+	}
+	srcBin := filepath.Join(availableHolonPackageDir(member), "bin")
+	for _, name := range []string{"lib"} {
+		src := filepath.Join(srcBin, name)
+		if !dirExists(src) {
+			continue
+		}
+		if err := copyArtifact(src, filepath.Join(dstDir, name)); err != nil {
+			return err
+		}
+	}
+	if dirExists(filepath.Join(dstDir, "lib")) {
+		return rewriteEmbeddedGradleLaunchers(dstDir)
+	}
+	return nil
+}
+
+func rewriteEmbeddedGradleLaunchers(dstDir string) error {
+	entries, err := os.ReadDir(dstDir)
+	if err != nil {
+		return err
+	}
+	const oldLine = `APP_HOME=$( cd -P "${APP_HOME:-./}.." > /dev/null && printf '%s\n' "$PWD" ) || exit`
+	const newLine = `APP_HOME=$( cd -P "${APP_HOME:-./}" > /dev/null && printf '%s\n' "$PWD" ) || exit`
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		path := filepath.Join(dstDir, entry.Name())
+		b, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		text := string(b)
+		if !strings.Contains(text, "generated by Gradle") || !strings.Contains(text, oldLine) {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		text = strings.Replace(text, oldLine, newLine, 1)
+		if err := os.WriteFile(path, []byte(text), info.Mode().Perm()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func compositeHolonsEmbedRoot(manifest *LoadedManifest) string {
+	return filepath.Join(manifest.HolonPackageDir(), "bin", runtimeArchitecture(), "holons")
+}
+
+type directCompositeMemberNode struct {
+	id   string
+	node *compositeDependencyNode
+}
+
+func directCompositeHolonMemberNodes(manifest *LoadedManifest, ctx BuildContext, session *compositeBuildSession) ([]directCompositeMemberNode, error) {
+	nodes := make([]directCompositeMemberNode, 0)
+	excludedMembers := resolveHardenedExcludedMembers(manifest, ctx)
+	for _, member := range manifest.Manifest.Build.Members {
+		if member.Type != "holon" {
+			continue
+		}
+		if _, excluded := excludedMembers[member.ID]; excluded {
+			continue
+		}
+		memberDir, err := manifest.ResolveManifestPath(member.Path)
+		if err != nil {
+			return nil, fmt.Errorf("composite member %q path: %w", member.ID, err)
+		}
+		node, err := compositeNodeForDir(memberDir, ctx, session)
+		if err != nil {
+			return nil, fmt.Errorf("composite member %q manifest: %w", member.ID, err)
+		}
+		nodes = append(nodes, directCompositeMemberNode{id: member.ID, node: node})
+	}
+	return nodes, nil
 }
 
 func dependencyIsFresh(manifest *LoadedManifest, ctx BuildContext) bool {

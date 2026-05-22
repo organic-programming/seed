@@ -78,6 +78,8 @@ interlock like Lego bricks: one serves, the other dials.
 
 These ideas are not theoretical
 
+For cascade changes, run `./examples/observability-cascade/run-cascade.sh` before pushing to mirror the path-filtered regression gate. It builds the currently passing observability-cascade ports and invokes `RunDefault` once per language.
+
 ### Examples
 
 
@@ -130,7 +132,6 @@ which the ecosystem grows.
 | [OP](./holons/grace-op/README.md) |  Op is the CLI tool. |
 | [Ader](./ader/README.md) | How the seed defines `ader` catalogues, suites, bouquets, reports, and archives. |
 | [Protocol](./COMMUNICATION.md) | How do holons communicate? |
-| [OP worktrees](./holons/grace-op/OP_WORKTREE.md) | How core devs isolate `op`, `ader`, and SDK rebuilds across parallel worktrees. |
 
 
 © 2026 Benoit Pereira da Silva. All rights reserved.

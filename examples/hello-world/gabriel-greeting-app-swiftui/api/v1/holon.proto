@@ -15,7 +15,7 @@ option (holons.v1.manifest) = {
     composer: "B. ALTER"
     status: "draft"
     born: "2026-03-15"
-    version: "0.1.136"
+    version: "0.9.0"
   }
   description: "A standalone SwiftUI app that connects to all 13 Gabriel greeting holon written in 13 programming languages and presents a multilingual greeting UI."
   lang: "swift"
@@ -108,45 +108,6 @@ option (holons.v1.manifest) = {
     targets: {
       key: "macos"
       value: {
-        steps: {
-          build_member: "greeting-go"
-        }
-        steps: {
-          build_member: "greeting-swift"
-        }
-        steps: {
-          build_member: "greeting-rust"
-        }
-        steps: {
-          build_member: "greeting-zig"
-        }
-        steps: {
-          build_member: "greeting-python"
-        }
-        steps: {
-          build_member: "greeting-c"
-        }
-        steps: {
-          build_member: "greeting-cpp"
-        }
-        steps: {
-          build_member: "greeting-csharp"
-        }
-        steps: {
-          build_member: "greeting-dart"
-        }
-        steps: {
-          build_member: "greeting-java"
-        }
-        steps: {
-          build_member: "greeting-kotlin"
-        }
-        steps: {
-          build_member: "greeting-node"
-        }
-        steps: {
-          build_member: "greeting-ruby"
-        }
         steps: {
           exec: {
             cwd: "."

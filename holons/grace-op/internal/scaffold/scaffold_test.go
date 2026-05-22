@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -19,9 +20,21 @@ func TestListIncludesOnlyShippedTemplates(t *testing.T) {
 		got = append(got, entry.Name)
 	}
 
-	want := []string{"coax-flutter", "coax-swiftui"}
+	want := expectedTemplateNames()
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("List() = %v, want %v", got, want)
+	}
+}
+
+func TestListTemplateEntriesHaveDescriptions(t *testing.T) {
+	entries, err := List()
+	if err != nil {
+		t.Fatalf("List() failed: %v", err)
+	}
+	for _, entry := range entries {
+		if strings.TrimSpace(entry.Description) == "" {
+			t.Fatalf("template %q has no description", entry.Name)
+		}
 	}
 }
 
@@ -35,6 +48,16 @@ func TestGenerateUnknownTemplateFails(t *testing.T) {
 	if !strings.Contains(err.Error(), `unknown template "composite-go-web"`) {
 		t.Fatalf("Generate() error = %v, want unknown template", err)
 	}
+}
+
+func expectedTemplateNames() []string {
+	languages := []string{"c", "cpp", "csharp", "dart", "go", "java", "kotlin", "node", "python", "ruby", "rust", "swift", "zig"}
+	names := []string{"coax-flutter", "coax-swiftui"}
+	for _, language := range languages {
+		names = append(names, language, "composite-"+language)
+	}
+	sort.Strings(names)
+	return names
 }
 
 func TestGenerateCoaxFlutterTemplateRendersScaffold(t *testing.T) {

@@ -1,6 +1,7 @@
 import { HolonClient, HolonError } from "./client.mjs";
 import { LOCAL } from "./discovery_types.mjs";
 import { resolve as resolveRef } from "./discover.mjs";
+import { startTransitiveObservabilityRelay } from "./observability.mjs";
 
 const DEFAULT_HTTP_TIMEOUT_MS = 30000;
 const DEFAULT_RPC_PATH = "/api/v1/rpc";
@@ -13,6 +14,7 @@ export class HolonHTTPClient {
     #controllers = new Set();
     #nextID = 1;
     #defaultTimeoutMs;
+    #transitiveRelay = null;
 
     constructor(baseUrl, options = {}) {
         this.#baseUrl = normalizeBaseUrl(baseUrl);
@@ -24,6 +26,7 @@ export class HolonHTTPClient {
             options.defaultTimeout ?? DEFAULT_HTTP_TIMEOUT_MS,
             "defaultTimeout",
         );
+        this.#transitiveRelay = startTransitiveObservabilityRelay(this, options);
     }
 
     get baseUrl() {
@@ -54,7 +57,7 @@ export class HolonHTTPClient {
         this.#assertOpen();
         validateMethod(method);
 
-        const response = await this.#fetchWithTimeout(
+        const stream = await this.#fetchStreamWithTimeout(
             buildMethodURL(this.#baseUrl, method),
             {
                 method: "POST",
@@ -67,14 +70,18 @@ export class HolonHTTPClient {
             options,
         );
 
-        yield* decodeSSEStream(response);
+        try {
+            yield* decodeSSEStream(stream.response);
+        } finally {
+            stream.release();
+        }
     }
 
     async *streamQuery(method, params = {}, options = {}) {
         this.#assertOpen();
         validateMethod(method);
 
-        const response = await this.#fetchWithTimeout(
+        const stream = await this.#fetchStreamWithTimeout(
             buildQueryMethodURL(this.#baseUrl, method, params),
             {
                 method: "GET",
@@ -85,7 +92,11 @@ export class HolonHTTPClient {
             options,
         );
 
-        yield* decodeSSEStream(response);
+        try {
+            yield* decodeSSEStream(stream.response);
+        } finally {
+            stream.release();
+        }
     }
 
     close() {
@@ -93,6 +104,10 @@ export class HolonHTTPClient {
             return;
         }
         this.#closed = true;
+        if (this.#transitiveRelay) {
+            this.#transitiveRelay.stop();
+            this.#transitiveRelay = null;
+        }
         for (const controller of this.#controllers) {
             controller.abort();
         }
@@ -135,6 +150,50 @@ export class HolonHTTPClient {
             clearTimeout(timer);
             cleanup();
             this.#controllers.delete(controller);
+        }
+    }
+
+    async #fetchStreamWithTimeout(url, init, options = {}) {
+        const timeoutMs = positiveInt(options.timeout ?? this.#defaultTimeoutMs, "timeout");
+        const controller = new AbortController();
+        const cleanup = linkAbortSignal(options.signal, controller);
+        let timedOut = false;
+        let released = false;
+
+        const release = () => {
+            if (released) {
+                return;
+            }
+            released = true;
+            clearTimeout(timer);
+            cleanup();
+            this.#controllers.delete(controller);
+            controller.abort();
+        };
+
+        const timer = setTimeout(() => {
+            timedOut = true;
+            controller.abort();
+        }, timeoutMs);
+
+        this.#controllers.add(controller);
+
+        try {
+            const response = await this.#fetch(url, {
+                ...init,
+                signal: controller.signal,
+            });
+            clearTimeout(timer);
+            return { response, release };
+        } catch (err) {
+            release();
+            if (timedOut) {
+                throw new HolonError(4, `timeout after ${timeoutMs}ms`);
+            }
+            if (controller.signal.aborted) {
+                throw new HolonError(1, "request aborted");
+            }
+            throw err;
         }
     }
 }

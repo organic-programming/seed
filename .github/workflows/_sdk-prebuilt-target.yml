@@ -100,6 +100,14 @@ jobs:
           go-version: '1.26.1'
           cache: false
 
+      - name: Patch local seed-toolchain.yaml with target SDK version
+        if: inputs.sdk-version != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          go run .github/scripts/seed_release_bump.go set-file seed-toolchain.yaml "${{ inputs.sdk-version }}"
+          echo "Patched seed-toolchain.yaml seed_release to ${{ inputs.sdk-version }} for build."
+
       - name: Resolve Go cache paths
         id: go-cache-paths
         shell: bash
@@ -109,7 +117,15 @@ jobs:
             echo "gobuild=$(go env GOCACHE)"
           } >> "$GITHUB_OUTPUT"
 
+      # On self-hosted, load-mac-runner-env points GOMODCACHE/GOCACHE at the
+      # runner-managed persistent cache (e.g. /Users/popok/.ader-ci-cache/...).
+      # That directory survives between runs and Go marks module sources
+      # read-only by design, so actions/cache restore (which uses `tar -xf`)
+      # fails with "Can't unlink already-existing object: Permission denied".
+      # The runner-managed cache already provides persistence — we only need
+      # actions/cache on cloud runners, where the workspace is ephemeral.
       - name: Cache Go modules and build cache
+        if: runner.environment != 'self-hosted'
         uses: actions/cache@v4
         with:
           path: |
@@ -119,39 +135,47 @@ jobs:
           restore-keys: |
             go-${{ runner.os }}-${{ runner.arch }}-
 
-      - name: Checkout Zig vendored submodules
-        if: inputs.sdk == 'zig'
+      # zig, cpp and c SDKs all build the same vendored grpc + protobuf-c
+      # native deps. Mirror the pattern already used in pipeline.yml for
+      # ader-bouquet-full: init the two outer submodules non-recursively,
+      # then mark every grpc nested submodule we do NOT link against as
+      # update=none, and finally do a recursive init on grpc (the skipped
+      # entries are bypassed). This avoids fetching opentelemetry-cpp,
+      # bloaty, envoy-api, googleapis, opencensus-proto, opentelemetry,
+      # protoc-gen-validate, xds — none of which we use.
+      # On popok the workspace persists between runs, so a stale
+      # `.git/modules/.../index.lock` from a previously interrupted run
+      # can block the next checkout (observed for opentelemetry-cpp in
+      # run 26167799318). Wipe `.git/modules/…/{grpc,protobuf-c}` too.
+      - name: Checkout Zig/C++ vendored submodules
+        if: inputs.sdk == 'zig' || inputs.sdk == 'cpp' || inputs.sdk == 'c'
         run: |
           set -euo pipefail
           rm -rf sdk/zig-holons/third_party/grpc sdk/zig-holons/third_party/protobuf-c
-          git submodule sync --recursive sdk/zig-holons/third_party/grpc sdk/zig-holons/third_party/protobuf-c
-          git submodule update --init --force --recursive --depth 1 --jobs 8 \
-            sdk/zig-holons/third_party/grpc \
-            sdk/zig-holons/third_party/protobuf-c
-
-      - name: Checkout C++ native dependency submodules
-        if: inputs.sdk == 'cpp' || inputs.sdk == 'c'
-        run: |
-          set -euo pipefail
-          rm -rf sdk/zig-holons/third_party/grpc sdk/zig-holons/third_party/protobuf-c
-          git submodule sync --recursive sdk/zig-holons/third_party/grpc sdk/zig-holons/third_party/protobuf-c
+          rm -rf .git/modules/sdk/zig-holons/third_party/grpc \
+                 .git/modules/sdk/zig-holons/third_party/protobuf-c
+          git submodule sync sdk/zig-holons/third_party/grpc sdk/zig-holons/third_party/protobuf-c
           git submodule update --init --force --depth 1 --jobs 8 \
             sdk/zig-holons/third_party/grpc \
             sdk/zig-holons/third_party/protobuf-c
-          git -C sdk/zig-holons/third_party/grpc submodule sync --recursive \
-            third_party/abseil-cpp \
-            third_party/boringssl-with-bazel \
-            third_party/cares/cares \
-            third_party/protobuf \
-            third_party/re2 \
-            third_party/zlib
-          git -C sdk/zig-holons/third_party/grpc submodule update --init --force --depth 1 --jobs 8 \
-            third_party/abseil-cpp \
-            third_party/boringssl-with-bazel \
-            third_party/cares/cares \
-            third_party/protobuf \
-            third_party/re2 \
-            third_party/zlib
+          grpc=sdk/zig-holons/third_party/grpc
+          for skip in \
+            third_party/benchmark \
+            third_party/bloaty \
+            third_party/cel-spec \
+            third_party/envoy-api \
+            third_party/googleapis \
+            third_party/googletest \
+            third_party/opencensus-proto \
+            third_party/opentelemetry \
+            third_party/opentelemetry-cpp \
+            third_party/protoc-gen-validate \
+            third_party/xds \
+          ; do
+            git -C "$grpc" config submodule."$skip".update none
+          done
+          git -C "$grpc" submodule sync --recursive
+          git -C "$grpc" submodule update --init --force --recursive --depth 1 --jobs 8
 
       - name: Install Linux packages
         if: runner.os == 'Linux'
@@ -189,7 +213,7 @@ jobs:
           "$zig_dir/zig" version
 
       - name: Setup Ruby
-        if: inputs.sdk == 'ruby'
+        if: inputs.sdk == 'ruby' && runner.environment != 'self-hosted'
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.1'
@@ -215,9 +239,9 @@ jobs:
             sdk/ruby-holons/.ruby-prebuilt/${{ inputs.sdk-target }}
             sdk/${{ inputs.sdk }}-holons/.codegen-prebuilt/${{ inputs.sdk-target }}
             dist/sdk-prebuilts/${{ inputs.sdk }}/${{ inputs.sdk-target }}
-          key: sdk-prebuilt-${{ inputs.sdk }}-${{ inputs.sdk-target }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('seed-toolchain.yaml', '.github/scripts/build-prebuilt-*.sh', '.github/scripts/lib-codegen-prebuilt.sh', '.github/scripts/go.mod', '.github/scripts/go.sum', '.github/scripts/seed_toolchain.go', '.github/scripts/seed_toolchain/**', 'holons/grace-op/cmd/protoc-gen-op-adapter/**', 'holons/grace-op/cmd/protoc-gen-op-noop/**', 'sdk/zig-holons/build.zig', 'sdk/zig-holons/tools/cross_smoke.sh', 'sdk/cpp-holons/CMakeLists.txt', 'sdk/c-holons/Makefile', 'sdk/ruby-holons/Gemfile', 'sdk/ruby-holons/Gemfile.lock', '.gitmodules') }}
+          key: sdk-prebuilt-${{ inputs.sdk }}-${{ inputs.sdk-target }}-v${{ inputs.sdk-version || 'default' }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('seed-toolchain.yaml', '.github/scripts/build-prebuilt-*.sh', '.github/scripts/lib-codegen-prebuilt.sh', '.github/scripts/go.mod', '.github/scripts/go.sum', '.github/scripts/seed_toolchain.go', '.github/scripts/seed_toolchain/**', 'holons/grace-op/cmd/protoc-gen-op-adapter/**', 'holons/grace-op/cmd/protoc-gen-op-noop/**', 'sdk/zig-holons/build.zig', 'sdk/zig-holons/tools/cross_smoke.sh', 'sdk/cpp-holons/CMakeLists.txt', 'sdk/c-holons/Makefile', 'sdk/ruby-holons/Gemfile', 'sdk/ruby-holons/Gemfile.lock', '.gitmodules') }}
           restore-keys: |
-            sdk-prebuilt-${{ inputs.sdk }}-${{ inputs.sdk-target }}-${{ runner.os }}-${{ runner.arch }}-
+            sdk-prebuilt-${{ inputs.sdk }}-${{ inputs.sdk-target }}-v${{ inputs.sdk-version || 'default' }}-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Download cpp prefix artifact
         if: inputs.needs-cpp-prefix
@@ -285,4 +309,4 @@ jobs:
             sdk/ruby-holons/.ruby-prebuilt/${{ inputs.sdk-target }}
             sdk/${{ inputs.sdk }}-holons/.codegen-prebuilt/${{ inputs.sdk-target }}
             dist/sdk-prebuilts/${{ inputs.sdk }}/${{ inputs.sdk-target }}
-          key: sdk-prebuilt-${{ inputs.sdk }}-${{ inputs.sdk-target }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('seed-toolchain.yaml', '.github/scripts/build-prebuilt-*.sh', '.github/scripts/lib-codegen-prebuilt.sh', '.github/scripts/go.mod', '.github/scripts/go.sum', '.github/scripts/seed_toolchain.go', '.github/scripts/seed_toolchain/**', 'holons/grace-op/cmd/protoc-gen-op-adapter/**', 'holons/grace-op/cmd/protoc-gen-op-noop/**', 'sdk/zig-holons/build.zig', 'sdk/zig-holons/tools/cross_smoke.sh', 'sdk/cpp-holons/CMakeLists.txt', 'sdk/c-holons/Makefile', 'sdk/ruby-holons/Gemfile', 'sdk/ruby-holons/Gemfile.lock', '.gitmodules') }}
+          key: sdk-prebuilt-${{ inputs.sdk }}-${{ inputs.sdk-target }}-v${{ inputs.sdk-version || 'default' }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('seed-toolchain.yaml', '.github/scripts/build-prebuilt-*.sh', '.github/scripts/lib-codegen-prebuilt.sh', '.github/scripts/go.mod', '.github/scripts/go.sum', '.github/scripts/seed_toolchain.go', '.github/scripts/seed_toolchain/**', 'holons/grace-op/cmd/protoc-gen-op-adapter/**', 'holons/grace-op/cmd/protoc-gen-op-noop/**', 'sdk/zig-holons/build.zig', 'sdk/zig-holons/tools/cross_smoke.sh', 'sdk/cpp-holons/CMakeLists.txt', 'sdk/c-holons/Makefile', 'sdk/ruby-holons/Gemfile', 'sdk/ruby-holons/Gemfile.lock', '.gitmodules') }}

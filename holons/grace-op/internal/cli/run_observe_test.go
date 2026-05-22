@@ -1,9 +1,9 @@
 package cli
 
 import (
+	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -31,20 +31,102 @@ func TestInjectObservabilityEnvUsesRegistryRoot(t *testing.T) {
 	}
 }
 
-func TestApplyRunObservabilityRejectsOtelInV1(t *testing.T) {
-	for _, opts := range []runObserveOptions{
-		{OTel: "otel-collector:4317"},
-		{Observe: "logs,otel"},
+func TestApplyRunObservabilityActivationSources(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		opts       runObserveOptions
+		envSet     bool
+		envOPObs   string
+		wantActive bool
+		wantOPObs  string
+	}{
+		{
+			name:       "observe flag activates without env",
+			opts:       runObserveOptions{Observe: "logs,metrics"},
+			wantActive: true,
+			wantOPObs:  "logs,metrics",
+		},
+		{
+			name:       "OP_OBS env activates without observe flag",
+			envSet:     true,
+			envOPObs:   "logs,events",
+			wantActive: true,
+			wantOPObs:  "logs,events",
+		},
+		{
+			name:       "observe flag wins over OP_OBS env",
+			opts:       runObserveOptions{Observe: "logs"},
+			envSet:     true,
+			envOPObs:   "metrics,events",
+			wantActive: true,
+			wantOPObs:  "logs",
+		},
+		{
+			name: "no observe flag and no OP_OBS env is no-op",
+		},
+		{
+			name:     "empty OP_OBS env is no-op",
+			envSet:   true,
+			envOPObs: "",
+		},
 	} {
-		cmd := exec.Command("true")
-		_, _, err := applyRunObservability(cmd, "gabriel-greeting-go", opts)
-		if err == nil {
-			t.Fatalf("applyRunObservability(%+v) succeeded, want otel rejection", opts)
-		}
-		if !strings.Contains(err.Error(), "reserved for observability v2") {
-			t.Fatalf("error = %q, want v2 reservation", err.Error())
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			t.Setenv("OP_RUN_DIR", root)
+			setOptionalEnv(t, "OP_OBS", tc.envOPObs, tc.envSet)
+			cmd := exec.Command("true")
+
+			uid, runRoot, err := applyRunObservability(cmd, "gabriel-greeting-go", tc.opts)
+			if err != nil {
+				t.Fatalf("applyRunObservability: %v", err)
+			}
+
+			if !tc.wantActive {
+				if uid != "" || runRoot != "" {
+					t.Fatalf("uid/runRoot = %q/%q, want no activation", uid, runRoot)
+				}
+				if cmd.Env != nil {
+					t.Fatalf("cmd.Env = %#v, want no env injection", cmd.Env)
+				}
+				return
+			}
+
+			if uid == "" {
+				t.Fatal("uid is empty")
+			}
+			if runRoot != root {
+				t.Fatalf("runRoot = %q, want %q", runRoot, root)
+			}
+			if got := envValue(cmd.Env, "OP_INSTANCE_UID"); got != uid {
+				t.Fatalf("OP_INSTANCE_UID = %q, want %q", got, uid)
+			}
+			if got := envValue(cmd.Env, "OP_RUN_DIR"); got != root {
+				t.Fatalf("OP_RUN_DIR = %q, want %q", got, root)
+			}
+			if got := envValue(cmd.Env, "OP_OBS"); got != tc.wantOPObs {
+				t.Fatalf("OP_OBS = %q, want %q", got, tc.wantOPObs)
+			}
+		})
 	}
+}
+
+func setOptionalEnv(t *testing.T, key, value string, set bool) {
+	t.Helper()
+	oldValue, oldSet := os.LookupEnv(key)
+	if set {
+		if err := os.Setenv(key, value); err != nil {
+			t.Fatalf("setenv %s: %v", key, err)
+		}
+	} else if err := os.Unsetenv(key); err != nil {
+		t.Fatalf("unsetenv %s: %v", key, err)
+	}
+	t.Cleanup(func() {
+		if oldSet {
+			_ = os.Setenv(key, oldValue)
+		} else {
+			_ = os.Unsetenv(key)
+		}
+	})
 }
 
 func TestReadObservedInstanceWaitsForRequestedSlug(t *testing.T) {

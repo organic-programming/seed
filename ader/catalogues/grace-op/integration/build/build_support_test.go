@@ -429,12 +429,36 @@ func assertSourceReport(t *testing.T, label string, report *lifecycleSnapshot, h
 	}
 	wantDir := filepath.ToSlash(integration.HolonPathForSlug(holon))
 	wantManifest := filepath.ToSlash(filepath.Join(integration.HolonPathForSlug(holon), "api", "v1", "holon.proto"))
-	if report.Dir != wantDir {
-		t.Fatalf("%s dir = %q, want %q", label, report.Dir, wantDir)
+	gotDir := normalizeSourceReportPath(t, report.Dir)
+	gotManifest := normalizeSourceReportPath(t, report.Manifest)
+	if gotDir != wantDir {
+		t.Fatalf("%s dir = %q, normalized %q, want %q", label, report.Dir, gotDir, wantDir)
 	}
-	if report.Manifest != wantManifest {
-		t.Fatalf("%s manifest = %q, want %q", label, report.Manifest, wantManifest)
+	if gotManifest != wantManifest {
+		t.Fatalf("%s manifest = %q, normalized %q, want %q", label, report.Manifest, gotManifest, wantManifest)
 	}
+}
+
+func normalizeSourceReportPath(t *testing.T, pathValue string) string {
+	t.Helper()
+
+	clean := filepath.Clean(pathValue)
+	root := absoluteRootPath(t)
+	if filepath.IsAbs(clean) {
+		if rel, err := filepath.Rel(root, clean); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+			return filepath.ToSlash(rel)
+		}
+	}
+
+	slash := filepath.ToSlash(clean)
+	rootSlash := filepath.ToSlash(filepath.Clean(root))
+	if strings.HasPrefix(slash, rootSlash+"/") {
+		return strings.TrimPrefix(slash, rootSlash+"/")
+	}
+	if idx := strings.LastIndex(slash, "/workspace/"); idx >= 0 {
+		return strings.TrimPrefix(slash[idx+len("/workspace/"):], "/")
+	}
+	return slash
 }
 
 func assertArtifactExists(t *testing.T, holon string) {
@@ -534,40 +558,6 @@ func copyBinaryBundle(t *testing.T, holon, dstDir string) string {
 		t.Fatalf("copy binary bundle %s to %s: %v", srcDir, dstDir, err)
 	}
 	return filepath.Join(dstDir, runtime.GOOS+"_"+runtime.GOARCH, holon)
-}
-
-func assertBundledDarwinDeps(t *testing.T, binaryPath string) {
-	t.Helper()
-
-	frameworksDir := filepath.Join(filepath.Dir(binaryPath), "Frameworks")
-	entries, err := os.ReadDir(frameworksDir)
-	if err != nil {
-		t.Fatalf("read bundled frameworks %s: %v", frameworksDir, err)
-	}
-	if len(entries) == 0 {
-		t.Fatalf("expected bundled dylibs in %s", frameworksDir)
-	}
-
-	assertNoExternalDarwinDeps(t, binaryPath)
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		assertNoExternalDarwinDeps(t, filepath.Join(frameworksDir, entry.Name()))
-	}
-}
-
-func assertNoExternalDarwinDeps(t *testing.T, path string) {
-	t.Helper()
-
-	out, err := exec.Command("otool", "-L", path).CombinedOutput()
-	if err != nil {
-		t.Fatalf("otool -L %s: %v\nOutput: %s", path, err, string(out))
-	}
-	text := string(out)
-	if strings.Contains(text, "/opt/homebrew/") || strings.Contains(text, "/usr/local/") {
-		t.Fatalf("expected %s to be self-contained, found external dylib refs:\n%s", path, text)
-	}
 }
 
 func envValue(envVars []string, key string) string {

@@ -4,10 +4,9 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:grpc/grpc.dart';
 import 'package:holons/holons.dart' as holons;
+import 'package:holons/holons.dart' show AppPlatformCapabilities, SettingsStore;
 
 import 'coax_configuration.dart';
-import 'platform_capabilities.dart';
-import 'settings_store.dart';
 
 class CoaxManager extends ChangeNotifier {
   CoaxManager({

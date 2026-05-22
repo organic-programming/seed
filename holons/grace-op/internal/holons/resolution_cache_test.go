@@ -105,6 +105,30 @@ func TestGlobalCacheHitShortCircuitsWalk(t *testing.T) {
 	}
 }
 
+func TestGlobalCacheHonorsRequestedSpecifiers(t *testing.T) {
+	root := setupResolutionCacheTest(t)
+	installed := cacheTestRef(t, filepath.Join(os.Getenv("OPBIN"), "alpha.holon"), "alpha", "alpha-installed", "package")
+	source := cacheTestRef(t, filepath.Join(root, "alpha"), "alpha", "alpha-source", "source")
+	if err := writeResolutionGlobalEntry(installed); err != nil {
+		t.Fatal(err)
+	}
+	calls := installResolutionDiscoverHook(t, func(_ *string, _ *string, specifiers int, _ int, _ int) sdkdiscover.DiscoverResult {
+		if specifiers != sdkdiscover.SOURCE {
+			t.Fatalf("fresh walk specifiers = 0x%02X, want SOURCE", specifiers)
+		}
+		return sdkdiscover.DiscoverResult{Found: []sdkdiscover.HolonRef{source}}
+	})
+
+	expr := "alpha"
+	result := DiscoverRefs(&expr, &root, sdkdiscover.SOURCE, 1, sdkdiscover.NO_TIMEOUT)
+	if result.Error != "" || len(result.Found) != 1 || result.Found[0].Info.UUID != "alpha-source" {
+		t.Fatalf("DiscoverRefs SOURCE = %+v, want source ref", result)
+	}
+	if got := *calls; got != 1 {
+		t.Fatalf("walk calls = %d, want 1 because installed global entry must not satisfy SOURCE", got)
+	}
+}
+
 func TestGlobalCacheStatInvalidationDropsEntry(t *testing.T) {
 	root := setupResolutionCacheTest(t)
 	stale := cacheTestRef(t, filepath.Join(root, "stale"), "alpha", "alpha-stale", "source")
@@ -194,6 +218,66 @@ func TestResolutionCacheFullHitAvoidsWalk(t *testing.T) {
 	}
 	if stats := ResolutionCacheStatsSnapshot(); stats.Hits != 1 || stats.Misses != 1 {
 		t.Fatalf("stats = %+v, want one hit and one miss", stats)
+	}
+}
+
+func TestResolutionCacheHidesInternalCompositeMembersFromSourceDiscovery(t *testing.T) {
+	root := setupResolutionCacheTest(t)
+	parentDir := filepath.Join(root, "parent")
+	childDir := filepath.Join(parentDir, "holons", "node")
+	writeRootHolonManifestMarker(t, parentDir)
+
+	parentRef := cacheTestRef(t, parentDir, "parent", "parent-uuid", "source")
+	childRef := cacheTestRef(t, childDir, "internal-node", "internal-node-uuid", "source")
+	installResolutionDiscoverHook(t, func(_ *string, _ *string, _ int, _ int, _ int) sdkdiscover.DiscoverResult {
+		return sdkdiscover.DiscoverResult{Found: []sdkdiscover.HolonRef{parentRef, childRef}}
+	})
+
+	result := DiscoverRefs(nil, &root, sdkdiscover.SOURCE, sdkdiscover.NO_LIMIT, sdkdiscover.NO_TIMEOUT)
+	if result.Error != "" {
+		t.Fatalf("DiscoverRefs error = %q", result.Error)
+	}
+	if got := len(result.Found); got != 1 {
+		t.Fatalf("len(found) = %d, want 1: %+v", got, result.Found)
+	}
+	if result.Found[0].Info == nil || result.Found[0].Info.Slug != "parent" {
+		t.Fatalf("found = %+v, want only parent", result.Found)
+	}
+
+	expr := "internal-node"
+	result = DiscoverRefs(&expr, &root, sdkdiscover.SOURCE, sdkdiscover.NO_LIMIT, sdkdiscover.NO_TIMEOUT)
+	if result.Error != "" {
+		t.Fatalf("DiscoverRefs internal expression error = %q", result.Error)
+	}
+	if got := len(result.Found); got != 0 {
+		t.Fatalf("internal slug len(found) = %d, want 0: %+v", got, result.Found)
+	}
+}
+
+func TestResolutionCacheIgnoresStaleGlobalInternalMember(t *testing.T) {
+	root := setupResolutionCacheTest(t)
+	parentDir := filepath.Join(root, "parent")
+	childDir := filepath.Join(parentDir, "holons", "node")
+	writeRootHolonManifestMarker(t, parentDir)
+
+	childRef := cacheTestRef(t, childDir, "internal-node", "internal-node-uuid", "source")
+	if err := writeResolutionGlobalEntry(childRef); err != nil {
+		t.Fatal(err)
+	}
+	calls := installResolutionDiscoverHook(t, func(_ *string, _ *string, _ int, _ int, _ int) sdkdiscover.DiscoverResult {
+		return sdkdiscover.DiscoverResult{Found: []sdkdiscover.HolonRef{childRef}}
+	})
+
+	expr := "internal-node"
+	result := DiscoverRefs(&expr, &root, sdkdiscover.SOURCE, sdkdiscover.NO_LIMIT, sdkdiscover.NO_TIMEOUT)
+	if result.Error != "" {
+		t.Fatalf("DiscoverRefs error = %q", result.Error)
+	}
+	if got := len(result.Found); got != 0 {
+		t.Fatalf("len(found) = %d, want 0: %+v", got, result.Found)
+	}
+	if got := *calls; got != 1 {
+		t.Fatalf("walk calls = %d, want stale global entry bypassed and walk retried", got)
 	}
 }
 
@@ -548,5 +632,16 @@ func cacheTestRef(t *testing.T, dir string, slug string, uuid string, sourceKind
 				Aliases:    []string{slug + "-alias"},
 			},
 		},
+	}
+}
+
+func writeRootHolonManifestMarker(t *testing.T, dir string) {
+	t.Helper()
+	manifestDir := filepath.Join(dir, "api", "v1")
+	if err := os.MkdirAll(manifestDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(manifestDir, "holon.proto"), []byte("syntax = \"proto3\";\n"), 0o644); err != nil {
+		t.Fatal(err)
 	}
 }

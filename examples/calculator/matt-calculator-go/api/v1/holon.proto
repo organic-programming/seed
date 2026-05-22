@@ -86,7 +86,7 @@ option (holons.v1.manifest) = {
     composer: "B. ALTER"
     status: "draft"
     born: "2026-04-12"
-    version: "0.1.3"
+    version: "0.9.0"
   }
   description: "A Go gRPC daemon exposing an in-memory float64 accumulator. Designed to demonstrate op invoke multi-payload JSON Lines output. The accumulator is zero-initialized per process."
   lang: "go"

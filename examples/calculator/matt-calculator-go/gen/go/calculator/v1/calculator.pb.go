@@ -245,7 +245,7 @@ const file_v1_calculator_proto_rawDesc = "" +
 	"\x06Divide\x12\x1c.calculator.v1.MulDivRequest\x1a\x1b.calculator.v1.CalcResponseB\xbc\t\x82\xb5\x18\x81\t\n" +
 	"\xc1\x01\n" +
 	"\bholon/v1\x12$c7a2e1f3-9d4b-4e2a-b715-8f3c6a1d9e0b\x1a\x04Matt\"\rCalculator-Go*VA stateful in-memory accumulator — demonstrates sequential multi-payload invocation.2\bB. ALTERB\x05draftJ\n" +
-	"2026-04-12R\x050.1.3\x1a\xaf\x01A Go gRPC daemon exposing an in-memory float64 accumulator. Designed to demonstrate op invoke multi-payload JSON Lines output. The accumulator is zero-initialized per process.\"\x02go*\xa2\x03\n" +
+	"2026-04-12R\x050.9.0\x1a\xaf\x01A Go gRPC daemon exposing an in-memory float64 accumulator. Designed to demonstrate op invoke multi-payload JSON Lines output. The accumulator is zero-initialized per process.\"\x02go*\xa2\x03\n" +
 	"\x16accumulator-calculator\x12gApply a sequence of arithmetic operations to an in-memory accumulator and stream results as JSON Lines.\x1abThe user wants to compute a multi-step arithmetic expression and inspect each intermediate result.\"&Call Set to initialise the accumulator\"IChain Add, Subtract, Multiply, Divide calls in a single op invoke command\"HRead each JSON Lines response for the intermediate result and expression:\x06nativeR1\n" +
 	"\tgo-module\x12\x05./cmd2\x0eapi/version.goJ\r\n" +
 	"\x02go\n" +

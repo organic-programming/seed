@@ -31,18 +31,27 @@ func newSdkCmd() *cobra.Command {
 
 func newSdkBuildCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "build <lang|all>",
+		Use:   "build <lang|all> --version <v>",
 		Short: "Build a SDK prebuilt from local sources and install it",
 		Long: "build invokes the per-SDK script under .github/scripts/ to compile\n" +
 			"a SDK prebuilt from the gRPC + per-SDK sources in this checkout,\n" +
 			"then installs the resulting tarball into $OPPATH/sdk. Long-running\n" +
 			"(~30-60 min cold). Use install instead when a published release is\n" +
 			"available.\n\n" +
-			"Use `op sdk build all` to build every SDK sequentially in the fixed\n" +
-			"batch order. Batch logs are written under $OPPATH/logs/sdk-build/.",
+			"`--version <v>` is required for every invocation so the build never\n" +
+			"produces an indeterminate stamp. With `all`, the same version is\n" +
+			"applied to every SDK and they build sequentially in the fixed batch\n" +
+			"order; batch logs are written under $OPPATH/logs/sdk-build/.\n\n" +
+			"Example:\n" +
+			"  op sdk build all --version 1.0.0\n" +
+			"  op sdk build go --version 1.0.0",
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completeCompilableSdkLangs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			version, _ := cmd.Flags().GetString("version")
+			if strings.TrimSpace(version) == "" {
+				return fmt.Errorf("--version <v> is required; example: op sdk build %s --version 1.0.0", strings.TrimSpace(args[0]))
+			}
 			if strings.TrimSpace(args[0]) == sdkAllSentinel {
 				if _, err := runSdkBuildAll(cmd); err != nil {
 					var batchErr sdkAllFailedError
@@ -66,7 +75,7 @@ func newSdkBuildCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("target", "", "target triplet (defaults to host; with all, unsupported SDK-target pairs are skipped)")
-	cmd.Flags().String("version", "", "SDK prebuilt version")
+	cmd.Flags().String("version", "", "SDK prebuilt version (required, e.g. 1.0.0)")
 	cmd.Flags().Int("jobs", 0, "per-SDK compile parallelism (0 = sensible default; no inter-SDK parallelism)")
 	cmd.Flags().Bool("force", false, "rebuild even if a cached tarball exists")
 	cmd.Flags().Bool("no-install", false, "leave tarball in dist/ instead of installing")

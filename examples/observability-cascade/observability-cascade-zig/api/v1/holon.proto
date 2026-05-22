@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package observability.cascade.zig.v1;
+
+import "holons/v1/manifest.proto";
+import "observability_cascade/v1/service.proto";
+
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "64156f12-3985-4d72-b5b7-1b9b6da80f13"
+    given_name: "Observability"
+    family_name: "Cascade-Zig"
+    motto: "Validates Zig observability cascade observability."
+    composer: "B. ALTER"
+    status: "draft"
+    born: "2026-05-13"
+    version: "0.1.0"
+  }
+  description: "A Zig composite program that validates observability-cascade observability across three modes and patterns."
+  lang: "zig"
+  kind: "composite"
+  transport: "tcp"
+  contract: {
+    proto: "observability_cascade/v1/service.proto"
+    service: "observability_cascade.v1.ObservabilityCascadeService"
+    rpcs: ["RunDefault", "RunLiveStream", "RunMultiPattern"]
+  }
+  build: {
+    runner: "zig"
+    main: "./src/main.zig"
+    templates: ["src/main.zig"]
+    codegen: {
+      languages: ["zig"]
+    }
+    members: {
+      id: "zig-node"
+      path: "../observability-cascade-zig-node"
+      type: "holon"
+    }
+    members: {
+      id: "go-node"
+      path: "../observability-cascade-go-node"
+      type: "holon"
+    }
+  }
+  requires: {
+    commands: ["zig"]
+    files: ["build.zig", "src/main.zig"]
+    sdk_prebuilts: ["zig"]
+  }
+  artifacts: {
+    primary: ".op/build/observability-cascade-zig.holon"
+  }
+};

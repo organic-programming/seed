@@ -13,9 +13,23 @@ module Holons
   module Serve
     SIGNALS = %w[INT TERM].freeze
     DEFAULT_SIGNAL_WAIT_INTERVAL = 0.25
-    ParsedFlags = Struct.new(:listen_uri, :reflect, keyword_init: true)
+    ParsedFlags = Struct.new(:listen_uri, :reflect, :transport, keyword_init: true)
+    MemberRef = Struct.new(:slug, :address, :uid, keyword_init: true)
+    ChildSpec = Struct.new(:slug, :binary, keyword_init: true)
+    ServeOptions = Struct.new(:reflect, :member_endpoints, :slug, keyword_init: true) do
+      def initialize(**opts)
+        super
+        self.reflect = false if reflect.nil?
+        self.member_endpoints ||= []
+        self.slug ||= ""
+      end
+    end
 
     class << self
+      def current_transport
+        current_transport_mutex.synchronize { @current_transport.to_s }
+      end
+
       # Parse --listen or --port from args.
       def parse_flags(args)
         parse_options(args).listen_uri
@@ -31,7 +45,47 @@ module Holons
           reflect = true if arg == "--reflect"
         end
 
-        ParsedFlags.new(listen_uri: listen_uri, reflect: reflect)
+        ParsedFlags.new(listen_uri: listen_uri, reflect: reflect, transport: parse_transport(args))
+      end
+
+      def parse_transport(args)
+        Array(args).each_with_index do |arg, i|
+          return args[i + 1].to_s if arg == "--transport" && i + 1 < args.length
+          return Regexp.last_match(1).to_s if arg =~ /\A--transport=(.+)\z/
+        end
+        "stdio"
+      end
+
+      def parse_child_flags(args)
+        children = []
+        remaining = []
+        index = 0
+        while index < args.length
+          arg = args[index]
+          if arg == "--child"
+            index += 1
+            raise ArgumentError, "--child requires <slug>=<binary>" if index >= args.length
+
+            children << parse_child(args[index])
+          elsif arg =~ /\A--child=(.+)\z/
+            children << parse_child(Regexp.last_match(1))
+          else
+            remaining << arg
+          end
+          index += 1
+        end
+        [children, remaining]
+      end
+
+      def parse_child(raw)
+        slug, separator, binary = raw.to_s.partition("=")
+        raise ArgumentError, "--child requires <slug>=<binary>" if separator.empty?
+
+        slug = slug.strip
+        binary = binary.strip
+        raise ArgumentError, "--child requires non-empty slug and binary" if slug.empty? || binary.empty?
+
+        ChildSpec.new(slug: slug, binary: binary)
       end
 
       def run(listen_uri, register)
@@ -39,36 +93,74 @@ module Holons
       end
 
       def run_with_options(listen_uri, register, reflect = false, on_listen: nil, env: ENV)
+        run_with_serve_options(
+          listen_uri,
+          register,
+          ServeOptions.new(reflect: reflect),
+          on_listen: on_listen,
+          env: env
+        )
+      end
+
+      def run_with_serve_options(listen_uri, register, options = ServeOptions.new, on_listen: nil, env: ENV)
         ensure_grpc_runtime!
         raise ArgumentError, "register callback is required" unless register.respond_to?(:call)
 
+        options ||= ServeOptions.new
         parsed = Transport.parse_uri(listen_uri)
-        server = GRPC::RpcServer.new
-        register.call(server)
-        auto_register_describe(server)
-        observability = auto_register_observability(server, env)
-        reflection_enabled = maybe_register_reflection(server, reflect)
+        with_current_transport(parsed.scheme) do
+          server = GRPC::RpcServer.new
+          register.call(server)
+          auto_register_describe(server)
+          observability = auto_register_observability(server, env, options)
+          reflection_enabled = maybe_register_reflection(server, options.reflect)
 
-        actual_uri, cleanup, stdio_bridge = prepare_runtime(parsed, server)
-        mode = reflection_mode(reflection_enabled)
-        start_observability_runtime(observability, actual_uri, parsed.scheme)
+          actual_uri, cleanup, stdio_bridge = prepare_runtime(parsed, server)
+          mode = reflection_mode(reflection_enabled)
+          prom_server = start_prom_server(observability)
+          metrics_addr = prom_server&.start.to_s
+          start_observability_runtime(observability, actual_uri, parsed.scheme, metrics_addr)
+          started_relays = []
 
-        begin
-          with_signal_handlers(server) do
-            run_server(server) do
-              stdio_bridge&.connect_to_server
-              publish_listen_uri(actual_uri, on_listen) unless parsed.scheme == "stdio"
-              on_listen&.call(actual_uri) if parsed.scheme == "stdio"
-              warn("gRPC server listening on #{actual_uri} (#{mode})")
+          begin
+            with_signal_handlers(server) do
+              run_server(server) do
+                stdio_bridge&.connect_to_server
+                publish_listen_uri(actual_uri, on_listen) unless parsed.scheme == "stdio"
+                on_listen&.call(actual_uri) if parsed.scheme == "stdio"
+                warn("gRPC server listening on #{actual_uri} (#{mode})")
+                started_relays = start_member_relays(observability, options.member_endpoints)
+              end
             end
+          ensure
+            started_relays.each do |relay, channel|
+              relay.stop
+              Holons::DiscoverySupport.close_channel(channel) if defined?(Holons::DiscoverySupport)
+            end
+            prom_server&.close
+            stdio_bridge&.close
+            cleanup&.call
           end
-        ensure
-          stdio_bridge&.close
-          cleanup&.call
         end
       end
 
       private
+
+      def current_transport_mutex
+        @current_transport_mutex ||= Mutex.new
+      end
+
+      def set_current_transport(value)
+        current_transport_mutex.synchronize { @current_transport = value.to_s }
+      end
+
+      def with_current_transport(value)
+        previous = current_transport
+        set_current_transport(value)
+        yield
+      ensure
+        set_current_transport(previous)
+      end
 
       def ensure_grpc_runtime!
         require "grpc"
@@ -85,24 +177,33 @@ module Holons
         raise
       end
 
-      def auto_register_observability(server, env)
+      def auto_register_observability(server, env, options = ServeOptions.new)
         Observability.check_env(env)
         raw = (env["OP_OBS"] || "").strip
         return nil if raw.empty?
 
-        inst = Observability.from_env(Observability::Config.new, env: env)
+        inst = Observability.current
+        if inst.families.empty? || !env["OP_INSTANCE_UID"].to_s.empty? && inst.cfg.instance_uid != env["OP_INSTANCE_UID"].to_s
+          inst = Observability.from_env(Observability::Config.new(slug: options.slug.to_s), env: env)
+        end
         return nil if inst.families.empty?
 
         Observability.register_grpc_service(server, inst)
         inst
       end
 
-      def start_observability_runtime(inst, actual_uri, transport)
+      def start_observability_runtime(inst, actual_uri, transport, metrics_addr = "")
         return if inst.nil?
 
         run_dir = inst.cfg.run_dir.to_s
         Observability.enable_disk_writers(run_dir) unless run_dir.empty?
-        inst.emit(Observability::EVENT_TYPES[:instance_ready], "listener" => actual_uri) if inst.enabled?(:events)
+        if inst.enabled?(:events)
+          inst.emit(
+            Observability::EVENT_INSTANCE_READY,
+            "listener" => actual_uri,
+            "metrics_addr" => metrics_addr.to_s
+          )
+        end
         return if run_dir.empty?
 
         Observability.write_meta_json(
@@ -114,6 +215,7 @@ module Holons
             started_at: Time.now,
             transport: transport,
             address: actual_uri,
+            metrics_addr: metrics_addr,
             log_path: inst.enabled?(:logs) ? File.join(run_dir, "stdout.log") : "",
             organism_uid: inst.cfg.organism_uid,
             organism_slug: inst.cfg.organism_slug
@@ -121,6 +223,132 @@ module Holons
         )
       rescue StandardError
         nil
+      end
+
+      def start_prom_server(inst)
+        return nil if inst.nil? || !inst.enabled?(:prom)
+
+        server = Observability::PromServer.new(inst.cfg.prom_addr.to_s.empty? ? ":0" : inst.cfg.prom_addr)
+        server.start
+        server
+      rescue StandardError => e
+        warn("warning: prom HTTP bind failed: #{e.message}")
+        nil
+      end
+
+      def start_member_relays(inst, members)
+        return [] if inst.nil? || (!inst.enabled?(:logs) && !inst.enabled?(:events))
+
+        Observability.require_grpc_observability_support!
+        Array(members).each_with_object([]) do |raw, started|
+          member = normalize_member_ref(raw)
+          if member.slug.to_s.empty? || member.address.to_s.empty?
+            warn(%(warning: observability relay skipped incomplete member ref: slug="#{member.slug}" uid="#{member.uid}" address="#{member.address}"))
+            next
+          end
+
+          channel = nil
+          begin
+            target = normalize_relay_dial_target(member.address)
+            channel = Holons::DiscoverySupport.dial_ready(target, 5000)
+            member = resolve_relay_member_identity(channel, member)
+            if member.uid.to_s.empty?
+              warn("warning: observability relay uid unresolved for #{member.slug} at #{member.address}; chain hops will have empty uid")
+            end
+            stub = Holons::V1::HolonObservability::Stub.new(
+              "unused",
+              :this_channel_is_insecure,
+              channel_override: channel
+            )
+            relay = Observability::MemberRelay.new(
+              child_slug: member.slug,
+              child_uid: member.uid,
+              stub: stub,
+              observability: inst
+            )
+            relay.start
+            started << [relay, channel]
+            channel = nil
+          rescue StandardError => e
+            Holons::DiscoverySupport.close_channel(channel) unless channel.nil?
+            warn("warning: observability relay start #{member.slug}/#{member.uid}: #{e.message}")
+          end
+        end
+      end
+
+      def normalize_member_ref(raw)
+        if raw.respond_to?(:slug) && raw.respond_to?(:address)
+          return MemberRef.new(
+            slug: raw.slug.to_s.strip,
+            address: raw.address.to_s.strip,
+            uid: raw.respond_to?(:uid) ? raw.uid.to_s.strip : ""
+          )
+        end
+
+        MemberRef.new(slug: "", address: "", uid: "")
+      end
+
+      def resolve_relay_member_identity(channel, member)
+        return member unless member.uid.to_s.empty?
+
+        stub = Holons::V1::HolonObservability::Stub.new(
+          "unused",
+          :this_channel_is_insecure,
+          channel_override: channel,
+          timeout: 2
+        )
+        begin
+          request = Holons::V1::EventsRequest.new(event_names: [Observability::EVENT_INSTANCE_READY], follow: false)
+          stub.events(request).each do |event|
+            uid = Observability.record_instance_uid(event)
+            next if uid.empty? || !event.chain.empty?
+
+            return MemberRef.new(
+              slug: Observability.record_slug(event).empty? ? member.slug : Observability.record_slug(event),
+              uid: uid,
+              address: member.address
+            )
+          end
+        rescue StandardError
+          nil
+        end
+
+        begin
+          stub.metrics(Holons::V1::MetricsRequest.new).each do |metric|
+            attrs = first_metric_attributes(metric)
+            uid = Observability.attribute_string(attrs, Observability::ATTR_HOLONS_INSTANCE_UID)
+            next if uid.empty?
+
+            slug = Observability.attribute_string(attrs, Observability::ATTR_HOLONS_SLUG)
+            return MemberRef.new(
+              slug: slug.empty? ? member.slug : slug,
+              uid: uid,
+              address: member.address
+            )
+          end
+          member
+        rescue StandardError
+          member
+        end
+      end
+
+      def first_metric_attributes(metric)
+        case metric.data
+        when :sum
+          metric.sum.data_points.first&.attributes || []
+        when :gauge
+          metric.gauge.data_points.first&.attributes || []
+        when :histogram
+          metric.histogram.data_points.first&.attributes || []
+        else
+          []
+        end
+      end
+
+      def normalize_relay_dial_target(address)
+        Holons::DiscoverySupport.normalize_dial_target(address)
+      rescue StandardError
+        address.to_s
       end
 
 

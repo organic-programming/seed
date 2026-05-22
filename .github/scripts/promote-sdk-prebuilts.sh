@@ -6,6 +6,7 @@ repo="${GITHUB_REPOSITORY:-organic-programming/seed}"
 target_commit="${GITHUB_SHA:-master}"
 dry_run="${SDK_PREBUILTS_PROMOTE_DRY_RUN:-}"
 publish_sdks_json="${SDK_PREBUILTS_PROMOTE_SDKS_JSON:-}"
+expect_version="${SDK_PREBUILTS_EXPECT_VERSION:-}"
 
 if [[ ! -d "$artifact_root" ]]; then
   echo "artifact root not found: ${artifact_root}" >&2
@@ -54,6 +55,7 @@ sdk_selected() {
   jq -e --arg sdk "$sdk" 'index($sdk) != null' <<<"$publish_sdks_json" >/dev/null
 }
 
+matched_expected=0
 while IFS= read -r -d '' archive; do
   name="$(basename "$archive")"
   [[ "$name" == *-debug.tar.gz ]] && continue
@@ -61,8 +63,20 @@ while IFS= read -r -d '' archive; do
   sdk="${BASH_REMATCH[1]}"
   sdk_selected "$sdk" || continue
   version="${BASH_REMATCH[2]}"
+  if [[ -n "$expect_version" ]]; then
+    if [[ "$version" != "$expect_version" ]]; then
+      echo "::error::Selected artifact ${name} version ${version} does not match expected ${expect_version}" >&2
+      exit 1
+    fi
+    matched_expected=1
+  fi
   printf '%s|%s\n' "$sdk" "$version" >>"$groups_file"
 done < <(find "$artifact_root" -type f -name '*-holons-v*.tar.gz' -print0)
+
+if [[ -n "$expect_version" && "$matched_expected" -eq 0 ]]; then
+  echo "::error::No selected SDK artifacts match expected version ${expect_version} under ${artifact_root}" >&2
+  exit 1
+fi
 
 if [[ ! -s "$groups_file" ]]; then
   echo "no SDK prebuilt archives selected under ${artifact_root}; nothing to promote"

@@ -28,15 +28,9 @@
 #include "google/protobuf/message_lite.h"
 #include "google/protobuf/repeated_field.h"  // IWYU pragma: export
 #include "google/protobuf/extension_set.h"  // IWYU pragma: export
-#include "google/protobuf/map.h"  // IWYU pragma: export
-#include "google/protobuf/map_type_handler.h"  // IWYU pragma: export
-#include "google/protobuf/map_entry.h"
-#include "google/protobuf/map_field.h"
 #include "google/protobuf/generated_enum_reflection.h"
 #include "google/protobuf/unknown_field_set.h"
-#include "google/protobuf/timestamp.pb.h"
 #include "google/protobuf/duration.pb.h"
-#include "holons/v1/session.pb.h"
 // @@protoc_insertion_point(includes)
 
 // Must be included last.
@@ -62,159 +56,148 @@ extern const ::google::protobuf::internal::DescriptorTable descriptor_table_holo
 }  // extern "C"
 namespace holons {
 namespace v1 {
-enum EventType : int;
-extern const uint32_t EventType_internal_data_[];
-enum LogLevel : int;
-extern const uint32_t LogLevel_internal_data_[];
-class Bucket;
-struct BucketDefaultTypeInternal;
-extern BucketDefaultTypeInternal _Bucket_default_instance_;
-extern const ::google::protobuf::internal::ClassDataFull Bucket_class_data_;
-class ChainHop;
-struct ChainHopDefaultTypeInternal;
-extern ChainHopDefaultTypeInternal _ChainHop_default_instance_;
-extern const ::google::protobuf::internal::ClassDataFull ChainHop_class_data_;
-class EventInfo;
-struct EventInfoDefaultTypeInternal;
-extern EventInfoDefaultTypeInternal _EventInfo_default_instance_;
-extern const ::google::protobuf::internal::ClassDataFull EventInfo_class_data_;
-class EventInfo_PayloadEntry_DoNotUse;
-struct EventInfo_PayloadEntry_DoNotUseDefaultTypeInternal;
-extern EventInfo_PayloadEntry_DoNotUseDefaultTypeInternal _EventInfo_PayloadEntry_DoNotUse_default_instance_;
-extern const ::google::protobuf::internal::ClassDataFull EventInfo_PayloadEntry_DoNotUse_class_data_;
+enum AggregationTemporality : int;
+extern const uint32_t AggregationTemporality_internal_data_[];
+enum SeverityNumber : int;
+extern const uint32_t SeverityNumber_internal_data_[];
+class AnyValue;
+struct AnyValueDefaultTypeInternal;
+extern AnyValueDefaultTypeInternal _AnyValue_default_instance_;
+extern const ::google::protobuf::internal::ClassDataFull AnyValue_class_data_;
 class EventsRequest;
 struct EventsRequestDefaultTypeInternal;
 extern EventsRequestDefaultTypeInternal _EventsRequest_default_instance_;
 extern const ::google::protobuf::internal::ClassDataFull EventsRequest_class_data_;
-class HistogramSample;
-struct HistogramSampleDefaultTypeInternal;
-extern HistogramSampleDefaultTypeInternal _HistogramSample_default_instance_;
-extern const ::google::protobuf::internal::ClassDataFull HistogramSample_class_data_;
-class LogEntry;
-struct LogEntryDefaultTypeInternal;
-extern LogEntryDefaultTypeInternal _LogEntry_default_instance_;
-extern const ::google::protobuf::internal::ClassDataFull LogEntry_class_data_;
-class LogEntry_FieldsEntry_DoNotUse;
-struct LogEntry_FieldsEntry_DoNotUseDefaultTypeInternal;
-extern LogEntry_FieldsEntry_DoNotUseDefaultTypeInternal _LogEntry_FieldsEntry_DoNotUse_default_instance_;
-extern const ::google::protobuf::internal::ClassDataFull LogEntry_FieldsEntry_DoNotUse_class_data_;
+class Gauge;
+struct GaugeDefaultTypeInternal;
+extern GaugeDefaultTypeInternal _Gauge_default_instance_;
+extern const ::google::protobuf::internal::ClassDataFull Gauge_class_data_;
+class Histogram;
+struct HistogramDefaultTypeInternal;
+extern HistogramDefaultTypeInternal _Histogram_default_instance_;
+extern const ::google::protobuf::internal::ClassDataFull Histogram_class_data_;
+class HistogramDataPoint;
+struct HistogramDataPointDefaultTypeInternal;
+extern HistogramDataPointDefaultTypeInternal _HistogramDataPoint_default_instance_;
+extern const ::google::protobuf::internal::ClassDataFull HistogramDataPoint_class_data_;
+class KeyValue;
+struct KeyValueDefaultTypeInternal;
+extern KeyValueDefaultTypeInternal _KeyValue_default_instance_;
+extern const ::google::protobuf::internal::ClassDataFull KeyValue_class_data_;
+class LogRecord;
+struct LogRecordDefaultTypeInternal;
+extern LogRecordDefaultTypeInternal _LogRecord_default_instance_;
+extern const ::google::protobuf::internal::ClassDataFull LogRecord_class_data_;
 class LogsRequest;
 struct LogsRequestDefaultTypeInternal;
 extern LogsRequestDefaultTypeInternal _LogsRequest_default_instance_;
 extern const ::google::protobuf::internal::ClassDataFull LogsRequest_class_data_;
-class MetricSample;
-struct MetricSampleDefaultTypeInternal;
-extern MetricSampleDefaultTypeInternal _MetricSample_default_instance_;
-extern const ::google::protobuf::internal::ClassDataFull MetricSample_class_data_;
-class MetricSample_LabelsEntry_DoNotUse;
-struct MetricSample_LabelsEntry_DoNotUseDefaultTypeInternal;
-extern MetricSample_LabelsEntry_DoNotUseDefaultTypeInternal _MetricSample_LabelsEntry_DoNotUse_default_instance_;
-extern const ::google::protobuf::internal::ClassDataFull MetricSample_LabelsEntry_DoNotUse_class_data_;
+class Metric;
+struct MetricDefaultTypeInternal;
+extern MetricDefaultTypeInternal _Metric_default_instance_;
+extern const ::google::protobuf::internal::ClassDataFull Metric_class_data_;
 class MetricsRequest;
 struct MetricsRequestDefaultTypeInternal;
 extern MetricsRequestDefaultTypeInternal _MetricsRequest_default_instance_;
 extern const ::google::protobuf::internal::ClassDataFull MetricsRequest_class_data_;
-class MetricsSnapshot;
-struct MetricsSnapshotDefaultTypeInternal;
-extern MetricsSnapshotDefaultTypeInternal _MetricsSnapshot_default_instance_;
-extern const ::google::protobuf::internal::ClassDataFull MetricsSnapshot_class_data_;
+class NumberDataPoint;
+struct NumberDataPointDefaultTypeInternal;
+extern NumberDataPointDefaultTypeInternal _NumberDataPoint_default_instance_;
+extern const ::google::protobuf::internal::ClassDataFull NumberDataPoint_class_data_;
+class Resource;
+struct ResourceDefaultTypeInternal;
+extern ResourceDefaultTypeInternal _Resource_default_instance_;
+extern const ::google::protobuf::internal::ClassDataFull Resource_class_data_;
+class Sum;
+struct SumDefaultTypeInternal;
+extern SumDefaultTypeInternal _Sum_default_instance_;
+extern const ::google::protobuf::internal::ClassDataFull Sum_class_data_;
 }  // namespace v1
 }  // namespace holons
 namespace google {
 namespace protobuf {
 template <>
-internal::EnumTraitsT<::holons::v1::EventType_internal_data_>
-    internal::EnumTraitsImpl::value<::holons::v1::EventType>;
+internal::EnumTraitsT<::holons::v1::AggregationTemporality_internal_data_>
+    internal::EnumTraitsImpl::value<::holons::v1::AggregationTemporality>;
 template <>
-internal::EnumTraitsT<::holons::v1::LogLevel_internal_data_>
-    internal::EnumTraitsImpl::value<::holons::v1::LogLevel>;
+internal::EnumTraitsT<::holons::v1::SeverityNumber_internal_data_>
+    internal::EnumTraitsImpl::value<::holons::v1::SeverityNumber>;
 }  // namespace protobuf
 }  // namespace google
 
 namespace holons {
 namespace v1 {
-enum LogLevel : int {
-  LOG_LEVEL_UNSPECIFIED = 0,
-  TRACE = 1,
-  DEBUG = 2,
-  INFO = 3,
-  WARN = 4,
-  ERROR = 5,
-  FATAL = 6,
-  LogLevel_INT_MIN_SENTINEL_DO_NOT_USE_ =
+enum SeverityNumber : int {
+  SEVERITY_NUMBER_UNSPECIFIED = 0,
+  SEVERITY_NUMBER_TRACE = 1,
+  SEVERITY_NUMBER_DEBUG = 5,
+  SEVERITY_NUMBER_INFO = 9,
+  SEVERITY_NUMBER_WARN = 13,
+  SEVERITY_NUMBER_ERROR = 17,
+  SEVERITY_NUMBER_FATAL = 21,
+  SeverityNumber_INT_MIN_SENTINEL_DO_NOT_USE_ =
       ::std::numeric_limits<::int32_t>::min(),
-  LogLevel_INT_MAX_SENTINEL_DO_NOT_USE_ =
+  SeverityNumber_INT_MAX_SENTINEL_DO_NOT_USE_ =
       ::std::numeric_limits<::int32_t>::max(),
 };
 
-extern const uint32_t LogLevel_internal_data_[];
-inline constexpr LogLevel LogLevel_MIN =
-    static_cast<LogLevel>(0);
-inline constexpr LogLevel LogLevel_MAX =
-    static_cast<LogLevel>(6);
-inline bool LogLevel_IsValid(int value) {
-  return 0 <= value && value <= 6;
+extern const uint32_t SeverityNumber_internal_data_[];
+inline constexpr SeverityNumber SeverityNumber_MIN =
+    static_cast<SeverityNumber>(0);
+inline constexpr SeverityNumber SeverityNumber_MAX =
+    static_cast<SeverityNumber>(21);
+inline bool SeverityNumber_IsValid(int value) {
+  return 0 <= value && value <= 21 && ((2236963u >> value) & 1) != 0;
 }
-inline constexpr int LogLevel_ARRAYSIZE = 6 + 1;
-const ::google::protobuf::EnumDescriptor* PROTOBUF_NONNULL LogLevel_descriptor();
+inline constexpr int SeverityNumber_ARRAYSIZE = 21 + 1;
+const ::google::protobuf::EnumDescriptor* PROTOBUF_NONNULL SeverityNumber_descriptor();
 template <typename T>
-const ::std::string& LogLevel_Name(T value) {
-  static_assert(::std::is_same<T, LogLevel>::value ||
+const ::std::string& SeverityNumber_Name(T value) {
+  static_assert(::std::is_same<T, SeverityNumber>::value ||
                     ::std::is_integral<T>::value,
-                "Incorrect type passed to LogLevel_Name().");
-  return LogLevel_Name(static_cast<LogLevel>(value));
+                "Incorrect type passed to SeverityNumber_Name().");
+  return ::google::protobuf::internal::NameOfEnum(SeverityNumber_descriptor(), value);
 }
-template <>
-inline const ::std::string& LogLevel_Name(LogLevel value) {
-  return ::google::protobuf::internal::NameOfDenseEnum<LogLevel_descriptor, 0, 6>(
-      static_cast<int>(value));
-}
-inline bool LogLevel_Parse(
-    ::absl::string_view name, LogLevel* PROTOBUF_NONNULL value) {
-  return ::google::protobuf::internal::ParseNamedEnum<LogLevel>(LogLevel_descriptor(), name,
+inline bool SeverityNumber_Parse(
+    ::absl::string_view name, SeverityNumber* PROTOBUF_NONNULL value) {
+  return ::google::protobuf::internal::ParseNamedEnum<SeverityNumber>(SeverityNumber_descriptor(), name,
                                            value);
 }
-enum EventType : int {
-  EVENT_TYPE_UNSPECIFIED = 0,
-  INSTANCE_SPAWNED = 1,
-  INSTANCE_READY = 2,
-  INSTANCE_EXITED = 3,
-  INSTANCE_CRASHED = 4,
-  SESSION_STARTED = 5,
-  SESSION_ENDED = 6,
-  HANDLER_PANIC = 7,
-  CONFIG_RELOADED = 8,
-  EventType_INT_MIN_SENTINEL_DO_NOT_USE_ =
+enum AggregationTemporality : int {
+  AGGREGATION_TEMPORALITY_UNSPECIFIED = 0,
+  AGGREGATION_TEMPORALITY_DELTA = 1,
+  AGGREGATION_TEMPORALITY_CUMULATIVE = 2,
+  AggregationTemporality_INT_MIN_SENTINEL_DO_NOT_USE_ =
       ::std::numeric_limits<::int32_t>::min(),
-  EventType_INT_MAX_SENTINEL_DO_NOT_USE_ =
+  AggregationTemporality_INT_MAX_SENTINEL_DO_NOT_USE_ =
       ::std::numeric_limits<::int32_t>::max(),
 };
 
-extern const uint32_t EventType_internal_data_[];
-inline constexpr EventType EventType_MIN =
-    static_cast<EventType>(0);
-inline constexpr EventType EventType_MAX =
-    static_cast<EventType>(8);
-inline bool EventType_IsValid(int value) {
-  return 0 <= value && value <= 8;
+extern const uint32_t AggregationTemporality_internal_data_[];
+inline constexpr AggregationTemporality AggregationTemporality_MIN =
+    static_cast<AggregationTemporality>(0);
+inline constexpr AggregationTemporality AggregationTemporality_MAX =
+    static_cast<AggregationTemporality>(2);
+inline bool AggregationTemporality_IsValid(int value) {
+  return 0 <= value && value <= 2;
 }
-inline constexpr int EventType_ARRAYSIZE = 8 + 1;
-const ::google::protobuf::EnumDescriptor* PROTOBUF_NONNULL EventType_descriptor();
+inline constexpr int AggregationTemporality_ARRAYSIZE = 2 + 1;
+const ::google::protobuf::EnumDescriptor* PROTOBUF_NONNULL AggregationTemporality_descriptor();
 template <typename T>
-const ::std::string& EventType_Name(T value) {
-  static_assert(::std::is_same<T, EventType>::value ||
+const ::std::string& AggregationTemporality_Name(T value) {
+  static_assert(::std::is_same<T, AggregationTemporality>::value ||
                     ::std::is_integral<T>::value,
-                "Incorrect type passed to EventType_Name().");
-  return EventType_Name(static_cast<EventType>(value));
+                "Incorrect type passed to AggregationTemporality_Name().");
+  return AggregationTemporality_Name(static_cast<AggregationTemporality>(value));
 }
 template <>
-inline const ::std::string& EventType_Name(EventType value) {
-  return ::google::protobuf::internal::NameOfDenseEnum<EventType_descriptor, 0, 8>(
+inline const ::std::string& AggregationTemporality_Name(AggregationTemporality value) {
+  return ::google::protobuf::internal::NameOfDenseEnum<AggregationTemporality_descriptor, 0, 2>(
       static_cast<int>(value));
 }
-inline bool EventType_Parse(
-    ::absl::string_view name, EventType* PROTOBUF_NONNULL value) {
-  return ::google::protobuf::internal::ParseNamedEnum<EventType>(EventType_descriptor(), name,
+inline bool AggregationTemporality_Parse(
+    ::absl::string_view name, AggregationTemporality* PROTOBUF_NONNULL value) {
+  return ::google::protobuf::internal::ParseNamedEnum<AggregationTemporality>(AggregationTemporality_descriptor(), name,
                                            value);
 }
 
@@ -278,7 +261,7 @@ class MetricsRequest final : public ::google::protobuf::Message
     return *reinterpret_cast<const MetricsRequest*>(
         &_MetricsRequest_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 4;
+  static constexpr int kIndexInFileMessages = 1;
   friend void swap(MetricsRequest& a, MetricsRequest& b) { a.Swap(&b); }
   inline void Swap(MetricsRequest* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -367,7 +350,6 @@ class MetricsRequest final : public ::google::protobuf::Message
   // accessors -------------------------------------------------------
   enum : int {
     kNamePrefixesFieldNumber = 1,
-    kIncludeSessionRollupFieldNumber = 2,
   };
   // repeated string name_prefixes = 1;
   int name_prefixes_size() const;
@@ -391,21 +373,11 @@ class MetricsRequest final : public ::google::protobuf::Message
   ::google::protobuf::RepeatedPtrField<::std::string>* PROTOBUF_NONNULL _internal_mutable_name_prefixes();
 
   public:
-  // bool include_session_rollup = 2;
-  void clear_include_session_rollup() ;
-  bool include_session_rollup() const;
-  void set_include_session_rollup(bool value);
-
-  private:
-  bool _internal_include_session_rollup() const;
-  void _internal_set_include_session_rollup(bool value);
-
-  public:
   // @@protoc_insertion_point(class_scope:holons.v1.MetricsRequest)
  private:
   class _Internal;
   friend class ::google::protobuf::internal::TcParser;
-  static const ::google::protobuf::internal::TcParseTable<1, 2,
+  static const ::google::protobuf::internal::TcParseTable<0, 1,
                                    0, 46,
                                    2>
       _table_;
@@ -425,10 +397,8 @@ class MetricsRequest final : public ::google::protobuf::Message
         ::google::protobuf::internal::InternalVisibility visibility,
         ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
         const MetricsRequest& from_msg);
-    ::google::protobuf::internal::HasBits<1> _has_bits_;
-    ::google::protobuf::internal::CachedSize _cached_size_;
     ::google::protobuf::RepeatedPtrField<::std::string> name_prefixes_;
-    bool include_session_rollup_;
+    ::google::protobuf::internal::CachedSize _cached_size_;
     PROTOBUF_TSAN_DECLARE_MEMBER
   };
   union { Impl_ _impl_; };
@@ -438,147 +408,30 @@ class MetricsRequest final : public ::google::protobuf::Message
 extern const ::google::protobuf::internal::ClassDataFull MetricsRequest_class_data_;
 // -------------------------------------------------------------------
 
-class MetricSample_LabelsEntry_DoNotUse final
-    : public ::google::protobuf::internal::MapEntry<::std::string, ::std::string,
-                             ::google::protobuf::internal::WireFormatLite::TYPE_STRING,
-                             ::google::protobuf::internal::WireFormatLite::TYPE_STRING> {
+class AnyValue final : public ::google::protobuf::Message
+/* @@protoc_insertion_point(class_definition:holons.v1.AnyValue) */ {
  public:
-  using SuperType =
-      ::google::protobuf::internal::MapEntry<::std::string, ::std::string,
-                      ::google::protobuf::internal::WireFormatLite::TYPE_STRING,
-                      ::google::protobuf::internal::WireFormatLite::TYPE_STRING>;
-  MetricSample_LabelsEntry_DoNotUse();
-  template <typename = void>
-  explicit PROTOBUF_CONSTEXPR MetricSample_LabelsEntry_DoNotUse(::google::protobuf::internal::ConstantInitialized);
-  explicit MetricSample_LabelsEntry_DoNotUse(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
-  static constexpr const void* PROTOBUF_NONNULL internal_default_instance() {
-    return &_MetricSample_LabelsEntry_DoNotUse_default_instance_;
-  }
-
-
-  static constexpr auto InternalGenerateClassData_();
-
- private:
-  friend class ::google::protobuf::MessageLite;
-  friend struct ::TableStruct_holons_2fv1_2fobservability_2eproto;
-
-  friend class ::google::protobuf::internal::TcParser;
-  static const ::google::protobuf::internal::TcParseTable<1, 2,
-                                   0, 51,
-                                   2>
-      _table_;
-
-  const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
-  static void* PROTOBUF_NONNULL PlacementNew_(
-      const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
-      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
-  static constexpr auto InternalNewImpl_();
-};
-extern const ::google::protobuf::internal::ClassDataFull MetricSample_LabelsEntry_DoNotUse_class_data_;
-// -------------------------------------------------------------------
-
-class LogEntry_FieldsEntry_DoNotUse final
-    : public ::google::protobuf::internal::MapEntry<::std::string, ::std::string,
-                             ::google::protobuf::internal::WireFormatLite::TYPE_STRING,
-                             ::google::protobuf::internal::WireFormatLite::TYPE_STRING> {
- public:
-  using SuperType =
-      ::google::protobuf::internal::MapEntry<::std::string, ::std::string,
-                      ::google::protobuf::internal::WireFormatLite::TYPE_STRING,
-                      ::google::protobuf::internal::WireFormatLite::TYPE_STRING>;
-  LogEntry_FieldsEntry_DoNotUse();
-  template <typename = void>
-  explicit PROTOBUF_CONSTEXPR LogEntry_FieldsEntry_DoNotUse(::google::protobuf::internal::ConstantInitialized);
-  explicit LogEntry_FieldsEntry_DoNotUse(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
-  static constexpr const void* PROTOBUF_NONNULL internal_default_instance() {
-    return &_LogEntry_FieldsEntry_DoNotUse_default_instance_;
-  }
-
-
-  static constexpr auto InternalGenerateClassData_();
-
- private:
-  friend class ::google::protobuf::MessageLite;
-  friend struct ::TableStruct_holons_2fv1_2fobservability_2eproto;
-
-  friend class ::google::protobuf::internal::TcParser;
-  static const ::google::protobuf::internal::TcParseTable<1, 2,
-                                   0, 47,
-                                   2>
-      _table_;
-
-  const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
-  static void* PROTOBUF_NONNULL PlacementNew_(
-      const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
-      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
-  static constexpr auto InternalNewImpl_();
-};
-extern const ::google::protobuf::internal::ClassDataFull LogEntry_FieldsEntry_DoNotUse_class_data_;
-// -------------------------------------------------------------------
-
-class EventInfo_PayloadEntry_DoNotUse final
-    : public ::google::protobuf::internal::MapEntry<::std::string, ::std::string,
-                             ::google::protobuf::internal::WireFormatLite::TYPE_STRING,
-                             ::google::protobuf::internal::WireFormatLite::TYPE_STRING> {
- public:
-  using SuperType =
-      ::google::protobuf::internal::MapEntry<::std::string, ::std::string,
-                      ::google::protobuf::internal::WireFormatLite::TYPE_STRING,
-                      ::google::protobuf::internal::WireFormatLite::TYPE_STRING>;
-  EventInfo_PayloadEntry_DoNotUse();
-  template <typename = void>
-  explicit PROTOBUF_CONSTEXPR EventInfo_PayloadEntry_DoNotUse(::google::protobuf::internal::ConstantInitialized);
-  explicit EventInfo_PayloadEntry_DoNotUse(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
-  static constexpr const void* PROTOBUF_NONNULL internal_default_instance() {
-    return &_EventInfo_PayloadEntry_DoNotUse_default_instance_;
-  }
-
-
-  static constexpr auto InternalGenerateClassData_();
-
- private:
-  friend class ::google::protobuf::MessageLite;
-  friend struct ::TableStruct_holons_2fv1_2fobservability_2eproto;
-
-  friend class ::google::protobuf::internal::TcParser;
-  static const ::google::protobuf::internal::TcParseTable<1, 2,
-                                   0, 49,
-                                   2>
-      _table_;
-
-  const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
-  static void* PROTOBUF_NONNULL PlacementNew_(
-      const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
-      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
-  static constexpr auto InternalNewImpl_();
-};
-extern const ::google::protobuf::internal::ClassDataFull EventInfo_PayloadEntry_DoNotUse_class_data_;
-// -------------------------------------------------------------------
-
-class ChainHop final : public ::google::protobuf::Message
-/* @@protoc_insertion_point(class_definition:holons.v1.ChainHop) */ {
- public:
-  inline ChainHop() : ChainHop(nullptr) {}
-  ~ChainHop() PROTOBUF_FINAL;
+  inline AnyValue() : AnyValue(nullptr) {}
+  ~AnyValue() PROTOBUF_FINAL;
 
 #if defined(PROTOBUF_CUSTOM_VTABLE)
-  void operator delete(ChainHop* PROTOBUF_NONNULL msg, ::std::destroying_delete_t) {
+  void operator delete(AnyValue* PROTOBUF_NONNULL msg, ::std::destroying_delete_t) {
     SharedDtor(*msg);
-    ::google::protobuf::internal::SizedDelete(msg, sizeof(ChainHop));
+    ::google::protobuf::internal::SizedDelete(msg, sizeof(AnyValue));
   }
 #endif
 
   template <typename = void>
-  explicit PROTOBUF_CONSTEXPR ChainHop(::google::protobuf::internal::ConstantInitialized);
+  explicit PROTOBUF_CONSTEXPR AnyValue(::google::protobuf::internal::ConstantInitialized);
 
-  inline ChainHop(const ChainHop& from) : ChainHop(nullptr, from) {}
-  inline ChainHop(ChainHop&& from) noexcept
-      : ChainHop(nullptr, ::std::move(from)) {}
-  inline ChainHop& operator=(const ChainHop& from) {
+  inline AnyValue(const AnyValue& from) : AnyValue(nullptr, from) {}
+  inline AnyValue(AnyValue&& from) noexcept
+      : AnyValue(nullptr, ::std::move(from)) {}
+  inline AnyValue& operator=(const AnyValue& from) {
     CopyFrom(from);
     return *this;
   }
-  inline ChainHop& operator=(ChainHop&& from) noexcept {
+  inline AnyValue& operator=(AnyValue&& from) noexcept {
     if (this == &from) return *this;
     if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
       InternalSwap(&from);
@@ -606,13 +459,20 @@ class ChainHop final : public ::google::protobuf::Message
   static const ::google::protobuf::Reflection* PROTOBUF_NONNULL GetReflection() {
     return default_instance().GetMetadata().reflection;
   }
-  static const ChainHop& default_instance() {
-    return *reinterpret_cast<const ChainHop*>(
-        &_ChainHop_default_instance_);
+  static const AnyValue& default_instance() {
+    return *reinterpret_cast<const AnyValue*>(
+        &_AnyValue_default_instance_);
   }
+  enum ValueCase {
+    kStringValue = 1,
+    kBoolValue = 2,
+    kIntValue = 3,
+    kDoubleValue = 4,
+    VALUE_NOT_SET = 0,
+  };
   static constexpr int kIndexInFileMessages = 3;
-  friend void swap(ChainHop& a, ChainHop& b) { a.Swap(&b); }
-  inline void Swap(ChainHop* PROTOBUF_NONNULL other) {
+  friend void swap(AnyValue& a, AnyValue& b) { a.Swap(&b); }
+  inline void Swap(AnyValue* PROTOBUF_NONNULL other) {
     if (other == this) return;
     if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
       InternalSwap(other);
@@ -620,7 +480,7 @@ class ChainHop final : public ::google::protobuf::Message
       ::google::protobuf::internal::GenericSwap(this, other);
     }
   }
-  void UnsafeArenaSwap(ChainHop* PROTOBUF_NONNULL other) {
+  void UnsafeArenaSwap(AnyValue* PROTOBUF_NONNULL other) {
     if (other == this) return;
     ABSL_DCHECK(GetArena() == other->GetArena());
     InternalSwap(other);
@@ -628,13 +488,13 @@ class ChainHop final : public ::google::protobuf::Message
 
   // implements Message ----------------------------------------------
 
-  ChainHop* PROTOBUF_NONNULL New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
-    return ::google::protobuf::Message::DefaultConstruct<ChainHop>(arena);
+  AnyValue* PROTOBUF_NONNULL New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
+    return ::google::protobuf::Message::DefaultConstruct<AnyValue>(arena);
   }
   using ::google::protobuf::Message::CopyFrom;
-  void CopyFrom(const ChainHop& from);
+  void CopyFrom(const AnyValue& from);
   using ::google::protobuf::Message::MergeFrom;
-  void MergeFrom(const ChainHop& from) { ChainHop::MergeImpl(*this, from); }
+  void MergeFrom(const AnyValue& from) { AnyValue::MergeImpl(*this, from); }
 
   private:
   static void MergeImpl(::google::protobuf::MessageLite& to_msg,
@@ -670,18 +530,18 @@ class ChainHop final : public ::google::protobuf::Message
   private:
   void SharedCtor(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
   static void SharedDtor(MessageLite& self);
-  void InternalSwap(ChainHop* PROTOBUF_NONNULL other);
+  void InternalSwap(AnyValue* PROTOBUF_NONNULL other);
  private:
   template <typename T>
   friend ::absl::string_view(::google::protobuf::internal::GetAnyMessageName)();
-  static ::absl::string_view FullMessageName() { return "holons.v1.ChainHop"; }
+  static ::absl::string_view FullMessageName() { return "holons.v1.AnyValue"; }
 
  protected:
-  explicit ChainHop(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
-  ChainHop(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const ChainHop& from);
-  ChainHop(
-      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, ChainHop&& from) noexcept
-      : ChainHop(arena) {
+  explicit AnyValue(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  AnyValue(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const AnyValue& from);
+  AnyValue(
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, AnyValue&& from) noexcept
+      : AnyValue(arena) {
     *this = ::std::move(from);
   }
   const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
@@ -698,45 +558,74 @@ class ChainHop final : public ::google::protobuf::Message
 
   // accessors -------------------------------------------------------
   enum : int {
-    kSlugFieldNumber = 1,
-    kInstanceUidFieldNumber = 2,
+    kStringValueFieldNumber = 1,
+    kBoolValueFieldNumber = 2,
+    kIntValueFieldNumber = 3,
+    kDoubleValueFieldNumber = 4,
   };
-  // string slug = 1;
-  void clear_slug() ;
-  const ::std::string& slug() const;
+  // string string_value = 1;
+  bool has_string_value() const;
+  void clear_string_value() ;
+  const ::std::string& string_value() const;
   template <typename Arg_ = const ::std::string&, typename... Args_>
-  void set_slug(Arg_&& arg, Args_... args);
-  ::std::string* PROTOBUF_NONNULL mutable_slug();
-  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_slug();
-  void set_allocated_slug(::std::string* PROTOBUF_NULLABLE value);
+  void set_string_value(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_string_value();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_string_value();
+  void set_allocated_string_value(::std::string* PROTOBUF_NULLABLE value);
 
   private:
-  const ::std::string& _internal_slug() const;
-  PROTOBUF_ALWAYS_INLINE void _internal_set_slug(const ::std::string& value);
-  ::std::string* PROTOBUF_NONNULL _internal_mutable_slug();
+  const ::std::string& _internal_string_value() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_string_value(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_string_value();
 
   public:
-  // string instance_uid = 2;
-  void clear_instance_uid() ;
-  const ::std::string& instance_uid() const;
-  template <typename Arg_ = const ::std::string&, typename... Args_>
-  void set_instance_uid(Arg_&& arg, Args_... args);
-  ::std::string* PROTOBUF_NONNULL mutable_instance_uid();
-  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_instance_uid();
-  void set_allocated_instance_uid(::std::string* PROTOBUF_NULLABLE value);
+  // bool bool_value = 2;
+  bool has_bool_value() const;
+  void clear_bool_value() ;
+  bool bool_value() const;
+  void set_bool_value(bool value);
 
   private:
-  const ::std::string& _internal_instance_uid() const;
-  PROTOBUF_ALWAYS_INLINE void _internal_set_instance_uid(const ::std::string& value);
-  ::std::string* PROTOBUF_NONNULL _internal_mutable_instance_uid();
+  bool _internal_bool_value() const;
+  void _internal_set_bool_value(bool value);
 
   public:
-  // @@protoc_insertion_point(class_scope:holons.v1.ChainHop)
+  // int64 int_value = 3;
+  bool has_int_value() const;
+  void clear_int_value() ;
+  ::int64_t int_value() const;
+  void set_int_value(::int64_t value);
+
+  private:
+  ::int64_t _internal_int_value() const;
+  void _internal_set_int_value(::int64_t value);
+
+  public:
+  // double double_value = 4;
+  bool has_double_value() const;
+  void clear_double_value() ;
+  double double_value() const;
+  void set_double_value(double value);
+
+  private:
+  double _internal_double_value() const;
+  void _internal_set_double_value(double value);
+
+  public:
+  void clear_value();
+  ValueCase value_case() const;
+  // @@protoc_insertion_point(class_scope:holons.v1.AnyValue)
  private:
   class _Internal;
+  void set_has_string_value();
+  void set_has_bool_value();
+  void set_has_int_value();
+  void set_has_double_value();
+  inline bool has_value() const;
+  inline void clear_has_value();
   friend class ::google::protobuf::internal::TcParser;
-  static const ::google::protobuf::internal::TcParseTable<1, 2,
-                                   0, 43,
+  static const ::google::protobuf::internal::TcParseTable<0, 4,
+                                   0, 39,
                                    2>
       _table_;
 
@@ -754,221 +643,24 @@ class ChainHop final : public ::google::protobuf::Message
     inline explicit Impl_(
         ::google::protobuf::internal::InternalVisibility visibility,
         ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
-        const ChainHop& from_msg);
-    ::google::protobuf::internal::HasBits<1> _has_bits_;
+        const AnyValue& from_msg);
+    union ValueUnion {
+      constexpr ValueUnion() : _constinit_{} {}
+      ::google::protobuf::internal::ConstantInitialized _constinit_;
+      ::google::protobuf::internal::ArenaStringPtr string_value_;
+      bool bool_value_;
+      ::int64_t int_value_;
+      double double_value_;
+    } value_;
     ::google::protobuf::internal::CachedSize _cached_size_;
-    ::google::protobuf::internal::ArenaStringPtr slug_;
-    ::google::protobuf::internal::ArenaStringPtr instance_uid_;
+    ::uint32_t _oneof_case_[1];
     PROTOBUF_TSAN_DECLARE_MEMBER
   };
   union { Impl_ _impl_; };
   friend struct ::TableStruct_holons_2fv1_2fobservability_2eproto;
 };
 
-extern const ::google::protobuf::internal::ClassDataFull ChainHop_class_data_;
-// -------------------------------------------------------------------
-
-class Bucket final : public ::google::protobuf::Message
-/* @@protoc_insertion_point(class_definition:holons.v1.Bucket) */ {
- public:
-  inline Bucket() : Bucket(nullptr) {}
-  ~Bucket() PROTOBUF_FINAL;
-
-#if defined(PROTOBUF_CUSTOM_VTABLE)
-  void operator delete(Bucket* PROTOBUF_NONNULL msg, ::std::destroying_delete_t) {
-    SharedDtor(*msg);
-    ::google::protobuf::internal::SizedDelete(msg, sizeof(Bucket));
-  }
-#endif
-
-  template <typename = void>
-  explicit PROTOBUF_CONSTEXPR Bucket(::google::protobuf::internal::ConstantInitialized);
-
-  inline Bucket(const Bucket& from) : Bucket(nullptr, from) {}
-  inline Bucket(Bucket&& from) noexcept
-      : Bucket(nullptr, ::std::move(from)) {}
-  inline Bucket& operator=(const Bucket& from) {
-    CopyFrom(from);
-    return *this;
-  }
-  inline Bucket& operator=(Bucket&& from) noexcept {
-    if (this == &from) return *this;
-    if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
-      InternalSwap(&from);
-    } else {
-      CopyFrom(from);
-    }
-    return *this;
-  }
-
-  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const
-      ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return _internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance);
-  }
-  inline ::google::protobuf::UnknownFieldSet* PROTOBUF_NONNULL mutable_unknown_fields()
-      ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return _internal_metadata_.mutable_unknown_fields<::google::protobuf::UnknownFieldSet>();
-  }
-
-  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL descriptor() {
-    return GetDescriptor();
-  }
-  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL GetDescriptor() {
-    return default_instance().GetMetadata().descriptor;
-  }
-  static const ::google::protobuf::Reflection* PROTOBUF_NONNULL GetReflection() {
-    return default_instance().GetMetadata().reflection;
-  }
-  static const Bucket& default_instance() {
-    return *reinterpret_cast<const Bucket*>(
-        &_Bucket_default_instance_);
-  }
-  static constexpr int kIndexInFileMessages = 9;
-  friend void swap(Bucket& a, Bucket& b) { a.Swap(&b); }
-  inline void Swap(Bucket* PROTOBUF_NONNULL other) {
-    if (other == this) return;
-    if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
-      InternalSwap(other);
-    } else {
-      ::google::protobuf::internal::GenericSwap(this, other);
-    }
-  }
-  void UnsafeArenaSwap(Bucket* PROTOBUF_NONNULL other) {
-    if (other == this) return;
-    ABSL_DCHECK(GetArena() == other->GetArena());
-    InternalSwap(other);
-  }
-
-  // implements Message ----------------------------------------------
-
-  Bucket* PROTOBUF_NONNULL New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
-    return ::google::protobuf::Message::DefaultConstruct<Bucket>(arena);
-  }
-  using ::google::protobuf::Message::CopyFrom;
-  void CopyFrom(const Bucket& from);
-  using ::google::protobuf::Message::MergeFrom;
-  void MergeFrom(const Bucket& from) { Bucket::MergeImpl(*this, from); }
-
-  private:
-  static void MergeImpl(::google::protobuf::MessageLite& to_msg,
-                        const ::google::protobuf::MessageLite& from_msg);
-
-  public:
-  bool IsInitialized() const {
-    return true;
-  }
-  ABSL_ATTRIBUTE_REINITIALIZES void Clear() PROTOBUF_FINAL;
-  #if defined(PROTOBUF_CUSTOM_VTABLE)
-  private:
-  static ::size_t ByteSizeLong(const ::google::protobuf::MessageLite& msg);
-  static ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
-      const ::google::protobuf::MessageLite& msg, ::uint8_t* PROTOBUF_NONNULL target,
-      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream);
-
-  public:
-  ::size_t ByteSizeLong() const { return ByteSizeLong(*this); }
-  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
-      ::uint8_t* PROTOBUF_NONNULL target,
-      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
-    return _InternalSerialize(*this, target, stream);
-  }
-  #else   // PROTOBUF_CUSTOM_VTABLE
-  ::size_t ByteSizeLong() const final;
-  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
-      ::uint8_t* PROTOBUF_NONNULL target,
-      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const final;
-  #endif  // PROTOBUF_CUSTOM_VTABLE
-  int GetCachedSize() const { return _impl_._cached_size_.Get(); }
-
-  private:
-  void SharedCtor(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
-  static void SharedDtor(MessageLite& self);
-  void InternalSwap(Bucket* PROTOBUF_NONNULL other);
- private:
-  template <typename T>
-  friend ::absl::string_view(::google::protobuf::internal::GetAnyMessageName)();
-  static ::absl::string_view FullMessageName() { return "holons.v1.Bucket"; }
-
- protected:
-  explicit Bucket(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
-  Bucket(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Bucket& from);
-  Bucket(
-      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, Bucket&& from) noexcept
-      : Bucket(arena) {
-    *this = ::std::move(from);
-  }
-  const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
-  static void* PROTOBUF_NONNULL PlacementNew_(
-      const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
-      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
-  static constexpr auto InternalNewImpl_();
-
- public:
-  static constexpr auto InternalGenerateClassData_();
-
-  ::google::protobuf::Metadata GetMetadata() const;
-  // nested types ----------------------------------------------------
-
-  // accessors -------------------------------------------------------
-  enum : int {
-    kUpperBoundFieldNumber = 1,
-    kCountFieldNumber = 2,
-  };
-  // double upper_bound = 1;
-  void clear_upper_bound() ;
-  double upper_bound() const;
-  void set_upper_bound(double value);
-
-  private:
-  double _internal_upper_bound() const;
-  void _internal_set_upper_bound(double value);
-
-  public:
-  // int64 count = 2;
-  void clear_count() ;
-  ::int64_t count() const;
-  void set_count(::int64_t value);
-
-  private:
-  ::int64_t _internal_count() const;
-  void _internal_set_count(::int64_t value);
-
-  public:
-  // @@protoc_insertion_point(class_scope:holons.v1.Bucket)
- private:
-  class _Internal;
-  friend class ::google::protobuf::internal::TcParser;
-  static const ::google::protobuf::internal::TcParseTable<1, 2,
-                                   0, 0,
-                                   2>
-      _table_;
-
-  friend class ::google::protobuf::MessageLite;
-  friend class ::google::protobuf::Arena;
-  template <typename T>
-  friend class ::google::protobuf::Arena::InternalHelper;
-  using InternalArenaConstructable_ = void;
-  using DestructorSkippable_ = void;
-  struct Impl_ {
-    inline explicit constexpr Impl_(::google::protobuf::internal::ConstantInitialized) noexcept;
-    inline explicit Impl_(
-        ::google::protobuf::internal::InternalVisibility visibility,
-        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
-    inline explicit Impl_(
-        ::google::protobuf::internal::InternalVisibility visibility,
-        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
-        const Bucket& from_msg);
-    ::google::protobuf::internal::HasBits<1> _has_bits_;
-    ::google::protobuf::internal::CachedSize _cached_size_;
-    double upper_bound_;
-    ::int64_t count_;
-    PROTOBUF_TSAN_DECLARE_MEMBER
-  };
-  union { Impl_ _impl_; };
-  friend struct ::TableStruct_holons_2fv1_2fobservability_2eproto;
-};
-
-extern const ::google::protobuf::internal::ClassDataFull Bucket_class_data_;
+extern const ::google::protobuf::internal::ClassDataFull AnyValue_class_data_;
 // -------------------------------------------------------------------
 
 class LogsRequest final : public ::google::protobuf::Message
@@ -1117,7 +809,7 @@ class LogsRequest final : public ::google::protobuf::Message
     kSessionIdsFieldNumber = 2,
     kRpcMethodsFieldNumber = 3,
     kSinceFieldNumber = 4,
-    kMinLevelFieldNumber = 1,
+    kMinSeverityNumberFieldNumber = 1,
     kFollowFieldNumber = 5,
   };
   // repeated string session_ids = 2;
@@ -1179,14 +871,14 @@ class LogsRequest final : public ::google::protobuf::Message
   ::google::protobuf::Duration* PROTOBUF_NONNULL _internal_mutable_since();
 
   public:
-  // .holons.v1.LogLevel min_level = 1;
-  void clear_min_level() ;
-  ::holons::v1::LogLevel min_level() const;
-  void set_min_level(::holons::v1::LogLevel value);
+  // .holons.v1.SeverityNumber min_severity_number = 1;
+  void clear_min_severity_number() ;
+  ::holons::v1::SeverityNumber min_severity_number() const;
+  void set_min_severity_number(::holons::v1::SeverityNumber value);
 
   private:
-  ::holons::v1::LogLevel _internal_min_level() const;
-  void _internal_set_min_level(::holons::v1::LogLevel value);
+  ::holons::v1::SeverityNumber _internal_min_severity_number() const;
+  void _internal_set_min_severity_number(::holons::v1::SeverityNumber value);
 
   public:
   // bool follow = 5;
@@ -1228,7 +920,7 @@ class LogsRequest final : public ::google::protobuf::Message
     ::google::protobuf::RepeatedPtrField<::std::string> session_ids_;
     ::google::protobuf::RepeatedPtrField<::std::string> rpc_methods_;
     ::google::protobuf::Duration* PROTOBUF_NULLABLE since_;
-    int min_level_;
+    int min_severity_number_;
     bool follow_;
     PROTOBUF_TSAN_DECLARE_MEMBER
   };
@@ -1239,30 +931,30 @@ class LogsRequest final : public ::google::protobuf::Message
 extern const ::google::protobuf::internal::ClassDataFull LogsRequest_class_data_;
 // -------------------------------------------------------------------
 
-class LogEntry final : public ::google::protobuf::Message
-/* @@protoc_insertion_point(class_definition:holons.v1.LogEntry) */ {
+class KeyValue final : public ::google::protobuf::Message
+/* @@protoc_insertion_point(class_definition:holons.v1.KeyValue) */ {
  public:
-  inline LogEntry() : LogEntry(nullptr) {}
-  ~LogEntry() PROTOBUF_FINAL;
+  inline KeyValue() : KeyValue(nullptr) {}
+  ~KeyValue() PROTOBUF_FINAL;
 
 #if defined(PROTOBUF_CUSTOM_VTABLE)
-  void operator delete(LogEntry* PROTOBUF_NONNULL msg, ::std::destroying_delete_t) {
+  void operator delete(KeyValue* PROTOBUF_NONNULL msg, ::std::destroying_delete_t) {
     SharedDtor(*msg);
-    ::google::protobuf::internal::SizedDelete(msg, sizeof(LogEntry));
+    ::google::protobuf::internal::SizedDelete(msg, sizeof(KeyValue));
   }
 #endif
 
   template <typename = void>
-  explicit PROTOBUF_CONSTEXPR LogEntry(::google::protobuf::internal::ConstantInitialized);
+  explicit PROTOBUF_CONSTEXPR KeyValue(::google::protobuf::internal::ConstantInitialized);
 
-  inline LogEntry(const LogEntry& from) : LogEntry(nullptr, from) {}
-  inline LogEntry(LogEntry&& from) noexcept
-      : LogEntry(nullptr, ::std::move(from)) {}
-  inline LogEntry& operator=(const LogEntry& from) {
+  inline KeyValue(const KeyValue& from) : KeyValue(nullptr, from) {}
+  inline KeyValue(KeyValue&& from) noexcept
+      : KeyValue(nullptr, ::std::move(from)) {}
+  inline KeyValue& operator=(const KeyValue& from) {
     CopyFrom(from);
     return *this;
   }
-  inline LogEntry& operator=(LogEntry&& from) noexcept {
+  inline KeyValue& operator=(KeyValue&& from) noexcept {
     if (this == &from) return *this;
     if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
       InternalSwap(&from);
@@ -1290,13 +982,13 @@ class LogEntry final : public ::google::protobuf::Message
   static const ::google::protobuf::Reflection* PROTOBUF_NONNULL GetReflection() {
     return default_instance().GetMetadata().reflection;
   }
-  static const LogEntry& default_instance() {
-    return *reinterpret_cast<const LogEntry*>(
-        &_LogEntry_default_instance_);
+  static const KeyValue& default_instance() {
+    return *reinterpret_cast<const KeyValue*>(
+        &_KeyValue_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 2;
-  friend void swap(LogEntry& a, LogEntry& b) { a.Swap(&b); }
-  inline void Swap(LogEntry* PROTOBUF_NONNULL other) {
+  static constexpr int kIndexInFileMessages = 4;
+  friend void swap(KeyValue& a, KeyValue& b) { a.Swap(&b); }
+  inline void Swap(KeyValue* PROTOBUF_NONNULL other) {
     if (other == this) return;
     if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
       InternalSwap(other);
@@ -1304,7 +996,7 @@ class LogEntry final : public ::google::protobuf::Message
       ::google::protobuf::internal::GenericSwap(this, other);
     }
   }
-  void UnsafeArenaSwap(LogEntry* PROTOBUF_NONNULL other) {
+  void UnsafeArenaSwap(KeyValue* PROTOBUF_NONNULL other) {
     if (other == this) return;
     ABSL_DCHECK(GetArena() == other->GetArena());
     InternalSwap(other);
@@ -1312,13 +1004,13 @@ class LogEntry final : public ::google::protobuf::Message
 
   // implements Message ----------------------------------------------
 
-  LogEntry* PROTOBUF_NONNULL New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
-    return ::google::protobuf::Message::DefaultConstruct<LogEntry>(arena);
+  KeyValue* PROTOBUF_NONNULL New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
+    return ::google::protobuf::Message::DefaultConstruct<KeyValue>(arena);
   }
   using ::google::protobuf::Message::CopyFrom;
-  void CopyFrom(const LogEntry& from);
+  void CopyFrom(const KeyValue& from);
   using ::google::protobuf::Message::MergeFrom;
-  void MergeFrom(const LogEntry& from) { LogEntry::MergeImpl(*this, from); }
+  void MergeFrom(const KeyValue& from) { KeyValue::MergeImpl(*this, from); }
 
   private:
   static void MergeImpl(::google::protobuf::MessageLite& to_msg,
@@ -1354,18 +1046,18 @@ class LogEntry final : public ::google::protobuf::Message
   private:
   void SharedCtor(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
   static void SharedDtor(MessageLite& self);
-  void InternalSwap(LogEntry* PROTOBUF_NONNULL other);
+  void InternalSwap(KeyValue* PROTOBUF_NONNULL other);
  private:
   template <typename T>
   friend ::absl::string_view(::google::protobuf::internal::GetAnyMessageName)();
-  static ::absl::string_view FullMessageName() { return "holons.v1.LogEntry"; }
+  static ::absl::string_view FullMessageName() { return "holons.v1.KeyValue"; }
 
  protected:
-  explicit LogEntry(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
-  LogEntry(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const LogEntry& from);
-  LogEntry(
-      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, LogEntry&& from) noexcept
-      : LogEntry(arena) {
+  explicit KeyValue(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  KeyValue(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const KeyValue& from);
+  KeyValue(
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, KeyValue&& from) noexcept
+      : KeyValue(arena) {
     *this = ::std::move(from);
   }
   const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
@@ -1382,170 +1074,45 @@ class LogEntry final : public ::google::protobuf::Message
 
   // accessors -------------------------------------------------------
   enum : int {
-    kFieldsFieldNumber = 8,
-    kChainFieldNumber = 10,
-    kSlugFieldNumber = 3,
-    kInstanceUidFieldNumber = 4,
-    kSessionIdFieldNumber = 5,
-    kRpcMethodFieldNumber = 6,
-    kMessageFieldNumber = 7,
-    kCallerFieldNumber = 9,
-    kTsFieldNumber = 1,
-    kLevelFieldNumber = 2,
+    kKeyFieldNumber = 1,
+    kValueFieldNumber = 2,
   };
-  // map<string, string> fields = 8;
-  int fields_size() const;
-  private:
-  int _internal_fields_size() const;
-
-  public:
-  void clear_fields() ;
-  const ::google::protobuf::Map<::std::string, ::std::string>& fields() const;
-  ::google::protobuf::Map<::std::string, ::std::string>* PROTOBUF_NONNULL mutable_fields();
-
-  private:
-  const ::google::protobuf::Map<::std::string, ::std::string>& _internal_fields() const;
-  ::google::protobuf::Map<::std::string, ::std::string>* PROTOBUF_NONNULL _internal_mutable_fields();
-
-  public:
-  // repeated .holons.v1.ChainHop chain = 10;
-  int chain_size() const;
-  private:
-  int _internal_chain_size() const;
-
-  public:
-  void clear_chain() ;
-  ::holons::v1::ChainHop* PROTOBUF_NONNULL mutable_chain(int index);
-  ::google::protobuf::RepeatedPtrField<::holons::v1::ChainHop>* PROTOBUF_NONNULL mutable_chain();
-
-  private:
-  const ::google::protobuf::RepeatedPtrField<::holons::v1::ChainHop>& _internal_chain() const;
-  ::google::protobuf::RepeatedPtrField<::holons::v1::ChainHop>* PROTOBUF_NONNULL _internal_mutable_chain();
-  public:
-  const ::holons::v1::ChainHop& chain(int index) const;
-  ::holons::v1::ChainHop* PROTOBUF_NONNULL add_chain();
-  const ::google::protobuf::RepeatedPtrField<::holons::v1::ChainHop>& chain() const;
-  // string slug = 3;
-  void clear_slug() ;
-  const ::std::string& slug() const;
+  // string key = 1;
+  void clear_key() ;
+  const ::std::string& key() const;
   template <typename Arg_ = const ::std::string&, typename... Args_>
-  void set_slug(Arg_&& arg, Args_... args);
-  ::std::string* PROTOBUF_NONNULL mutable_slug();
-  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_slug();
-  void set_allocated_slug(::std::string* PROTOBUF_NULLABLE value);
+  void set_key(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_key();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_key();
+  void set_allocated_key(::std::string* PROTOBUF_NULLABLE value);
 
   private:
-  const ::std::string& _internal_slug() const;
-  PROTOBUF_ALWAYS_INLINE void _internal_set_slug(const ::std::string& value);
-  ::std::string* PROTOBUF_NONNULL _internal_mutable_slug();
+  const ::std::string& _internal_key() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_key(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_key();
 
   public:
-  // string instance_uid = 4;
-  void clear_instance_uid() ;
-  const ::std::string& instance_uid() const;
-  template <typename Arg_ = const ::std::string&, typename... Args_>
-  void set_instance_uid(Arg_&& arg, Args_... args);
-  ::std::string* PROTOBUF_NONNULL mutable_instance_uid();
-  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_instance_uid();
-  void set_allocated_instance_uid(::std::string* PROTOBUF_NULLABLE value);
+  // .holons.v1.AnyValue value = 2;
+  bool has_value() const;
+  void clear_value() ;
+  const ::holons::v1::AnyValue& value() const;
+  [[nodiscard]] ::holons::v1::AnyValue* PROTOBUF_NULLABLE release_value();
+  ::holons::v1::AnyValue* PROTOBUF_NONNULL mutable_value();
+  void set_allocated_value(::holons::v1::AnyValue* PROTOBUF_NULLABLE value);
+  void unsafe_arena_set_allocated_value(::holons::v1::AnyValue* PROTOBUF_NULLABLE value);
+  ::holons::v1::AnyValue* PROTOBUF_NULLABLE unsafe_arena_release_value();
 
   private:
-  const ::std::string& _internal_instance_uid() const;
-  PROTOBUF_ALWAYS_INLINE void _internal_set_instance_uid(const ::std::string& value);
-  ::std::string* PROTOBUF_NONNULL _internal_mutable_instance_uid();
+  const ::holons::v1::AnyValue& _internal_value() const;
+  ::holons::v1::AnyValue* PROTOBUF_NONNULL _internal_mutable_value();
 
   public:
-  // string session_id = 5;
-  void clear_session_id() ;
-  const ::std::string& session_id() const;
-  template <typename Arg_ = const ::std::string&, typename... Args_>
-  void set_session_id(Arg_&& arg, Args_... args);
-  ::std::string* PROTOBUF_NONNULL mutable_session_id();
-  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_session_id();
-  void set_allocated_session_id(::std::string* PROTOBUF_NULLABLE value);
-
-  private:
-  const ::std::string& _internal_session_id() const;
-  PROTOBUF_ALWAYS_INLINE void _internal_set_session_id(const ::std::string& value);
-  ::std::string* PROTOBUF_NONNULL _internal_mutable_session_id();
-
-  public:
-  // string rpc_method = 6;
-  void clear_rpc_method() ;
-  const ::std::string& rpc_method() const;
-  template <typename Arg_ = const ::std::string&, typename... Args_>
-  void set_rpc_method(Arg_&& arg, Args_... args);
-  ::std::string* PROTOBUF_NONNULL mutable_rpc_method();
-  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_rpc_method();
-  void set_allocated_rpc_method(::std::string* PROTOBUF_NULLABLE value);
-
-  private:
-  const ::std::string& _internal_rpc_method() const;
-  PROTOBUF_ALWAYS_INLINE void _internal_set_rpc_method(const ::std::string& value);
-  ::std::string* PROTOBUF_NONNULL _internal_mutable_rpc_method();
-
-  public:
-  // string message = 7;
-  void clear_message() ;
-  const ::std::string& message() const;
-  template <typename Arg_ = const ::std::string&, typename... Args_>
-  void set_message(Arg_&& arg, Args_... args);
-  ::std::string* PROTOBUF_NONNULL mutable_message();
-  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_message();
-  void set_allocated_message(::std::string* PROTOBUF_NULLABLE value);
-
-  private:
-  const ::std::string& _internal_message() const;
-  PROTOBUF_ALWAYS_INLINE void _internal_set_message(const ::std::string& value);
-  ::std::string* PROTOBUF_NONNULL _internal_mutable_message();
-
-  public:
-  // string caller = 9;
-  void clear_caller() ;
-  const ::std::string& caller() const;
-  template <typename Arg_ = const ::std::string&, typename... Args_>
-  void set_caller(Arg_&& arg, Args_... args);
-  ::std::string* PROTOBUF_NONNULL mutable_caller();
-  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_caller();
-  void set_allocated_caller(::std::string* PROTOBUF_NULLABLE value);
-
-  private:
-  const ::std::string& _internal_caller() const;
-  PROTOBUF_ALWAYS_INLINE void _internal_set_caller(const ::std::string& value);
-  ::std::string* PROTOBUF_NONNULL _internal_mutable_caller();
-
-  public:
-  // .google.protobuf.Timestamp ts = 1;
-  bool has_ts() const;
-  void clear_ts() ;
-  const ::google::protobuf::Timestamp& ts() const;
-  [[nodiscard]] ::google::protobuf::Timestamp* PROTOBUF_NULLABLE release_ts();
-  ::google::protobuf::Timestamp* PROTOBUF_NONNULL mutable_ts();
-  void set_allocated_ts(::google::protobuf::Timestamp* PROTOBUF_NULLABLE value);
-  void unsafe_arena_set_allocated_ts(::google::protobuf::Timestamp* PROTOBUF_NULLABLE value);
-  ::google::protobuf::Timestamp* PROTOBUF_NULLABLE unsafe_arena_release_ts();
-
-  private:
-  const ::google::protobuf::Timestamp& _internal_ts() const;
-  ::google::protobuf::Timestamp* PROTOBUF_NONNULL _internal_mutable_ts();
-
-  public:
-  // .holons.v1.LogLevel level = 2;
-  void clear_level() ;
-  ::holons::v1::LogLevel level() const;
-  void set_level(::holons::v1::LogLevel value);
-
-  private:
-  ::holons::v1::LogLevel _internal_level() const;
-  void _internal_set_level(::holons::v1::LogLevel value);
-
-  public:
-  // @@protoc_insertion_point(class_scope:holons.v1.LogEntry)
+  // @@protoc_insertion_point(class_scope:holons.v1.KeyValue)
  private:
   class _Internal;
   friend class ::google::protobuf::internal::TcParser;
-  static const ::google::protobuf::internal::TcParseTable<4, 10,
-                                   3, 90,
+  static const ::google::protobuf::internal::TcParseTable<1, 2,
+                                   1, 30,
                                    2>
       _table_;
 
@@ -1563,251 +1130,18 @@ class LogEntry final : public ::google::protobuf::Message
     inline explicit Impl_(
         ::google::protobuf::internal::InternalVisibility visibility,
         ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
-        const LogEntry& from_msg);
+        const KeyValue& from_msg);
     ::google::protobuf::internal::HasBits<1> _has_bits_;
     ::google::protobuf::internal::CachedSize _cached_size_;
-    ::google::protobuf::internal::MapField<LogEntry_FieldsEntry_DoNotUse, ::std::string, ::std::string,
-                      ::google::protobuf::internal::WireFormatLite::TYPE_STRING,
-                      ::google::protobuf::internal::WireFormatLite::TYPE_STRING>
-        fields_;
-    ::google::protobuf::RepeatedPtrField< ::holons::v1::ChainHop > chain_;
-    ::google::protobuf::internal::ArenaStringPtr slug_;
-    ::google::protobuf::internal::ArenaStringPtr instance_uid_;
-    ::google::protobuf::internal::ArenaStringPtr session_id_;
-    ::google::protobuf::internal::ArenaStringPtr rpc_method_;
-    ::google::protobuf::internal::ArenaStringPtr message_;
-    ::google::protobuf::internal::ArenaStringPtr caller_;
-    ::google::protobuf::Timestamp* PROTOBUF_NULLABLE ts_;
-    int level_;
+    ::google::protobuf::internal::ArenaStringPtr key_;
+    ::holons::v1::AnyValue* PROTOBUF_NULLABLE value_;
     PROTOBUF_TSAN_DECLARE_MEMBER
   };
   union { Impl_ _impl_; };
   friend struct ::TableStruct_holons_2fv1_2fobservability_2eproto;
 };
 
-extern const ::google::protobuf::internal::ClassDataFull LogEntry_class_data_;
-// -------------------------------------------------------------------
-
-class HistogramSample final : public ::google::protobuf::Message
-/* @@protoc_insertion_point(class_definition:holons.v1.HistogramSample) */ {
- public:
-  inline HistogramSample() : HistogramSample(nullptr) {}
-  ~HistogramSample() PROTOBUF_FINAL;
-
-#if defined(PROTOBUF_CUSTOM_VTABLE)
-  void operator delete(HistogramSample* PROTOBUF_NONNULL msg, ::std::destroying_delete_t) {
-    SharedDtor(*msg);
-    ::google::protobuf::internal::SizedDelete(msg, sizeof(HistogramSample));
-  }
-#endif
-
-  template <typename = void>
-  explicit PROTOBUF_CONSTEXPR HistogramSample(::google::protobuf::internal::ConstantInitialized);
-
-  inline HistogramSample(const HistogramSample& from) : HistogramSample(nullptr, from) {}
-  inline HistogramSample(HistogramSample&& from) noexcept
-      : HistogramSample(nullptr, ::std::move(from)) {}
-  inline HistogramSample& operator=(const HistogramSample& from) {
-    CopyFrom(from);
-    return *this;
-  }
-  inline HistogramSample& operator=(HistogramSample&& from) noexcept {
-    if (this == &from) return *this;
-    if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
-      InternalSwap(&from);
-    } else {
-      CopyFrom(from);
-    }
-    return *this;
-  }
-
-  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const
-      ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return _internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance);
-  }
-  inline ::google::protobuf::UnknownFieldSet* PROTOBUF_NONNULL mutable_unknown_fields()
-      ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return _internal_metadata_.mutable_unknown_fields<::google::protobuf::UnknownFieldSet>();
-  }
-
-  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL descriptor() {
-    return GetDescriptor();
-  }
-  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL GetDescriptor() {
-    return default_instance().GetMetadata().descriptor;
-  }
-  static const ::google::protobuf::Reflection* PROTOBUF_NONNULL GetReflection() {
-    return default_instance().GetMetadata().reflection;
-  }
-  static const HistogramSample& default_instance() {
-    return *reinterpret_cast<const HistogramSample*>(
-        &_HistogramSample_default_instance_);
-  }
-  static constexpr int kIndexInFileMessages = 8;
-  friend void swap(HistogramSample& a, HistogramSample& b) { a.Swap(&b); }
-  inline void Swap(HistogramSample* PROTOBUF_NONNULL other) {
-    if (other == this) return;
-    if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
-      InternalSwap(other);
-    } else {
-      ::google::protobuf::internal::GenericSwap(this, other);
-    }
-  }
-  void UnsafeArenaSwap(HistogramSample* PROTOBUF_NONNULL other) {
-    if (other == this) return;
-    ABSL_DCHECK(GetArena() == other->GetArena());
-    InternalSwap(other);
-  }
-
-  // implements Message ----------------------------------------------
-
-  HistogramSample* PROTOBUF_NONNULL New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
-    return ::google::protobuf::Message::DefaultConstruct<HistogramSample>(arena);
-  }
-  using ::google::protobuf::Message::CopyFrom;
-  void CopyFrom(const HistogramSample& from);
-  using ::google::protobuf::Message::MergeFrom;
-  void MergeFrom(const HistogramSample& from) { HistogramSample::MergeImpl(*this, from); }
-
-  private:
-  static void MergeImpl(::google::protobuf::MessageLite& to_msg,
-                        const ::google::protobuf::MessageLite& from_msg);
-
-  public:
-  bool IsInitialized() const {
-    return true;
-  }
-  ABSL_ATTRIBUTE_REINITIALIZES void Clear() PROTOBUF_FINAL;
-  #if defined(PROTOBUF_CUSTOM_VTABLE)
-  private:
-  static ::size_t ByteSizeLong(const ::google::protobuf::MessageLite& msg);
-  static ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
-      const ::google::protobuf::MessageLite& msg, ::uint8_t* PROTOBUF_NONNULL target,
-      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream);
-
-  public:
-  ::size_t ByteSizeLong() const { return ByteSizeLong(*this); }
-  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
-      ::uint8_t* PROTOBUF_NONNULL target,
-      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
-    return _InternalSerialize(*this, target, stream);
-  }
-  #else   // PROTOBUF_CUSTOM_VTABLE
-  ::size_t ByteSizeLong() const final;
-  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
-      ::uint8_t* PROTOBUF_NONNULL target,
-      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const final;
-  #endif  // PROTOBUF_CUSTOM_VTABLE
-  int GetCachedSize() const { return _impl_._cached_size_.Get(); }
-
-  private:
-  void SharedCtor(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
-  static void SharedDtor(MessageLite& self);
-  void InternalSwap(HistogramSample* PROTOBUF_NONNULL other);
- private:
-  template <typename T>
-  friend ::absl::string_view(::google::protobuf::internal::GetAnyMessageName)();
-  static ::absl::string_view FullMessageName() { return "holons.v1.HistogramSample"; }
-
- protected:
-  explicit HistogramSample(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
-  HistogramSample(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const HistogramSample& from);
-  HistogramSample(
-      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, HistogramSample&& from) noexcept
-      : HistogramSample(arena) {
-    *this = ::std::move(from);
-  }
-  const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
-  static void* PROTOBUF_NONNULL PlacementNew_(
-      const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
-      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
-  static constexpr auto InternalNewImpl_();
-
- public:
-  static constexpr auto InternalGenerateClassData_();
-
-  ::google::protobuf::Metadata GetMetadata() const;
-  // nested types ----------------------------------------------------
-
-  // accessors -------------------------------------------------------
-  enum : int {
-    kBucketsFieldNumber = 1,
-    kCountFieldNumber = 2,
-    kSumFieldNumber = 3,
-  };
-  // repeated .holons.v1.Bucket buckets = 1;
-  int buckets_size() const;
-  private:
-  int _internal_buckets_size() const;
-
-  public:
-  void clear_buckets() ;
-  ::holons::v1::Bucket* PROTOBUF_NONNULL mutable_buckets(int index);
-  ::google::protobuf::RepeatedPtrField<::holons::v1::Bucket>* PROTOBUF_NONNULL mutable_buckets();
-
-  private:
-  const ::google::protobuf::RepeatedPtrField<::holons::v1::Bucket>& _internal_buckets() const;
-  ::google::protobuf::RepeatedPtrField<::holons::v1::Bucket>* PROTOBUF_NONNULL _internal_mutable_buckets();
-  public:
-  const ::holons::v1::Bucket& buckets(int index) const;
-  ::holons::v1::Bucket* PROTOBUF_NONNULL add_buckets();
-  const ::google::protobuf::RepeatedPtrField<::holons::v1::Bucket>& buckets() const;
-  // int64 count = 2;
-  void clear_count() ;
-  ::int64_t count() const;
-  void set_count(::int64_t value);
-
-  private:
-  ::int64_t _internal_count() const;
-  void _internal_set_count(::int64_t value);
-
-  public:
-  // double sum = 3;
-  void clear_sum() ;
-  double sum() const;
-  void set_sum(double value);
-
-  private:
-  double _internal_sum() const;
-  void _internal_set_sum(double value);
-
-  public:
-  // @@protoc_insertion_point(class_scope:holons.v1.HistogramSample)
- private:
-  class _Internal;
-  friend class ::google::protobuf::internal::TcParser;
-  static const ::google::protobuf::internal::TcParseTable<2, 3,
-                                   1, 0,
-                                   2>
-      _table_;
-
-  friend class ::google::protobuf::MessageLite;
-  friend class ::google::protobuf::Arena;
-  template <typename T>
-  friend class ::google::protobuf::Arena::InternalHelper;
-  using InternalArenaConstructable_ = void;
-  using DestructorSkippable_ = void;
-  struct Impl_ {
-    inline explicit constexpr Impl_(::google::protobuf::internal::ConstantInitialized) noexcept;
-    inline explicit Impl_(
-        ::google::protobuf::internal::InternalVisibility visibility,
-        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
-    inline explicit Impl_(
-        ::google::protobuf::internal::InternalVisibility visibility,
-        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
-        const HistogramSample& from_msg);
-    ::google::protobuf::internal::HasBits<1> _has_bits_;
-    ::google::protobuf::internal::CachedSize _cached_size_;
-    ::google::protobuf::RepeatedPtrField< ::holons::v1::Bucket > buckets_;
-    ::int64_t count_;
-    double sum_;
-    PROTOBUF_TSAN_DECLARE_MEMBER
-  };
-  union { Impl_ _impl_; };
-  friend struct ::TableStruct_holons_2fv1_2fobservability_2eproto;
-};
-
-extern const ::google::protobuf::internal::ClassDataFull HistogramSample_class_data_;
+extern const ::google::protobuf::internal::ClassDataFull KeyValue_class_data_;
 // -------------------------------------------------------------------
 
 class EventsRequest final : public ::google::protobuf::Message
@@ -1865,7 +1199,7 @@ class EventsRequest final : public ::google::protobuf::Message
     return *reinterpret_cast<const EventsRequest*>(
         &_EventsRequest_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 10;
+  static constexpr int kIndexInFileMessages = 2;
   friend void swap(EventsRequest& a, EventsRequest& b) { a.Swap(&b); }
   inline void Swap(EventsRequest* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -1953,27 +1287,30 @@ class EventsRequest final : public ::google::protobuf::Message
 
   // accessors -------------------------------------------------------
   enum : int {
-    kTypesFieldNumber = 1,
+    kEventNamesFieldNumber = 1,
     kSinceFieldNumber = 2,
     kFollowFieldNumber = 3,
   };
-  // repeated .holons.v1.EventType types = 1;
-  int types_size() const;
+  // repeated string event_names = 1;
+  int event_names_size() const;
   private:
-  int _internal_types_size() const;
+  int _internal_event_names_size() const;
 
   public:
-  void clear_types() ;
-  public:
-  ::holons::v1::EventType types(int index) const;
-  void set_types(int index, ::holons::v1::EventType value);
-  void add_types(::holons::v1::EventType value);
-  const ::google::protobuf::RepeatedField<int>& types() const;
-  ::google::protobuf::RepeatedField<int>* PROTOBUF_NONNULL mutable_types();
+  void clear_event_names() ;
+  const ::std::string& event_names(int index) const;
+  ::std::string* PROTOBUF_NONNULL mutable_event_names(int index);
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_event_names(int index, Arg_&& value, Args_... args);
+  ::std::string* PROTOBUF_NONNULL add_event_names();
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void add_event_names(Arg_&& value, Args_... args);
+  const ::google::protobuf::RepeatedPtrField<::std::string>& event_names() const;
+  ::google::protobuf::RepeatedPtrField<::std::string>* PROTOBUF_NONNULL mutable_event_names();
 
   private:
-  const ::google::protobuf::RepeatedField<int>& _internal_types() const;
-  ::google::protobuf::RepeatedField<int>* PROTOBUF_NONNULL _internal_mutable_types();
+  const ::google::protobuf::RepeatedPtrField<::std::string>& _internal_event_names() const;
+  ::google::protobuf::RepeatedPtrField<::std::string>* PROTOBUF_NONNULL _internal_mutable_event_names();
 
   public:
   // .google.protobuf.Duration since = 2;
@@ -2006,7 +1343,7 @@ class EventsRequest final : public ::google::protobuf::Message
   class _Internal;
   friend class ::google::protobuf::internal::TcParser;
   static const ::google::protobuf::internal::TcParseTable<2, 3,
-                                   1, 0,
+                                   1, 43,
                                    2>
       _table_;
 
@@ -2027,8 +1364,7 @@ class EventsRequest final : public ::google::protobuf::Message
         const EventsRequest& from_msg);
     ::google::protobuf::internal::HasBits<1> _has_bits_;
     ::google::protobuf::internal::CachedSize _cached_size_;
-    ::google::protobuf::RepeatedField<int> types_;
-    ::google::protobuf::internal::CachedSize _types_cached_byte_size_;
+    ::google::protobuf::RepeatedPtrField<::std::string> event_names_;
     ::google::protobuf::Duration* PROTOBUF_NULLABLE since_;
     bool follow_;
     PROTOBUF_TSAN_DECLARE_MEMBER
@@ -2040,30 +1376,30 @@ class EventsRequest final : public ::google::protobuf::Message
 extern const ::google::protobuf::internal::ClassDataFull EventsRequest_class_data_;
 // -------------------------------------------------------------------
 
-class EventInfo final : public ::google::protobuf::Message
-/* @@protoc_insertion_point(class_definition:holons.v1.EventInfo) */ {
+class Resource final : public ::google::protobuf::Message
+/* @@protoc_insertion_point(class_definition:holons.v1.Resource) */ {
  public:
-  inline EventInfo() : EventInfo(nullptr) {}
-  ~EventInfo() PROTOBUF_FINAL;
+  inline Resource() : Resource(nullptr) {}
+  ~Resource() PROTOBUF_FINAL;
 
 #if defined(PROTOBUF_CUSTOM_VTABLE)
-  void operator delete(EventInfo* PROTOBUF_NONNULL msg, ::std::destroying_delete_t) {
+  void operator delete(Resource* PROTOBUF_NONNULL msg, ::std::destroying_delete_t) {
     SharedDtor(*msg);
-    ::google::protobuf::internal::SizedDelete(msg, sizeof(EventInfo));
+    ::google::protobuf::internal::SizedDelete(msg, sizeof(Resource));
   }
 #endif
 
   template <typename = void>
-  explicit PROTOBUF_CONSTEXPR EventInfo(::google::protobuf::internal::ConstantInitialized);
+  explicit PROTOBUF_CONSTEXPR Resource(::google::protobuf::internal::ConstantInitialized);
 
-  inline EventInfo(const EventInfo& from) : EventInfo(nullptr, from) {}
-  inline EventInfo(EventInfo&& from) noexcept
-      : EventInfo(nullptr, ::std::move(from)) {}
-  inline EventInfo& operator=(const EventInfo& from) {
+  inline Resource(const Resource& from) : Resource(nullptr, from) {}
+  inline Resource(Resource&& from) noexcept
+      : Resource(nullptr, ::std::move(from)) {}
+  inline Resource& operator=(const Resource& from) {
     CopyFrom(from);
     return *this;
   }
-  inline EventInfo& operator=(EventInfo&& from) noexcept {
+  inline Resource& operator=(Resource&& from) noexcept {
     if (this == &from) return *this;
     if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
       InternalSwap(&from);
@@ -2091,13 +1427,13 @@ class EventInfo final : public ::google::protobuf::Message
   static const ::google::protobuf::Reflection* PROTOBUF_NONNULL GetReflection() {
     return default_instance().GetMetadata().reflection;
   }
-  static const EventInfo& default_instance() {
-    return *reinterpret_cast<const EventInfo*>(
-        &_EventInfo_default_instance_);
+  static const Resource& default_instance() {
+    return *reinterpret_cast<const Resource*>(
+        &_Resource_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 12;
-  friend void swap(EventInfo& a, EventInfo& b) { a.Swap(&b); }
-  inline void Swap(EventInfo* PROTOBUF_NONNULL other) {
+  static constexpr int kIndexInFileMessages = 5;
+  friend void swap(Resource& a, Resource& b) { a.Swap(&b); }
+  inline void Swap(Resource* PROTOBUF_NONNULL other) {
     if (other == this) return;
     if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
       InternalSwap(other);
@@ -2105,7 +1441,7 @@ class EventInfo final : public ::google::protobuf::Message
       ::google::protobuf::internal::GenericSwap(this, other);
     }
   }
-  void UnsafeArenaSwap(EventInfo* PROTOBUF_NONNULL other) {
+  void UnsafeArenaSwap(Resource* PROTOBUF_NONNULL other) {
     if (other == this) return;
     ABSL_DCHECK(GetArena() == other->GetArena());
     InternalSwap(other);
@@ -2113,13 +1449,13 @@ class EventInfo final : public ::google::protobuf::Message
 
   // implements Message ----------------------------------------------
 
-  EventInfo* PROTOBUF_NONNULL New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
-    return ::google::protobuf::Message::DefaultConstruct<EventInfo>(arena);
+  Resource* PROTOBUF_NONNULL New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
+    return ::google::protobuf::Message::DefaultConstruct<Resource>(arena);
   }
   using ::google::protobuf::Message::CopyFrom;
-  void CopyFrom(const EventInfo& from);
+  void CopyFrom(const Resource& from);
   using ::google::protobuf::Message::MergeFrom;
-  void MergeFrom(const EventInfo& from) { EventInfo::MergeImpl(*this, from); }
+  void MergeFrom(const Resource& from) { Resource::MergeImpl(*this, from); }
 
   private:
   static void MergeImpl(::google::protobuf::MessageLite& to_msg,
@@ -2155,18 +1491,18 @@ class EventInfo final : public ::google::protobuf::Message
   private:
   void SharedCtor(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
   static void SharedDtor(MessageLite& self);
-  void InternalSwap(EventInfo* PROTOBUF_NONNULL other);
+  void InternalSwap(Resource* PROTOBUF_NONNULL other);
  private:
   template <typename T>
   friend ::absl::string_view(::google::protobuf::internal::GetAnyMessageName)();
-  static ::absl::string_view FullMessageName() { return "holons.v1.EventInfo"; }
+  static ::absl::string_view FullMessageName() { return "holons.v1.Resource"; }
 
  protected:
-  explicit EventInfo(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
-  EventInfo(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const EventInfo& from);
-  EventInfo(
-      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, EventInfo&& from) noexcept
-      : EventInfo(arena) {
+  explicit Resource(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  Resource(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Resource& from);
+  Resource(
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, Resource&& from) noexcept
+      : Resource(arena) {
     *this = ::std::move(from);
   }
   const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
@@ -2183,122 +1519,42 @@ class EventInfo final : public ::google::protobuf::Message
 
   // accessors -------------------------------------------------------
   enum : int {
-    kPayloadFieldNumber = 6,
-    kChainFieldNumber = 7,
-    kSlugFieldNumber = 3,
-    kInstanceUidFieldNumber = 4,
-    kSessionIdFieldNumber = 5,
-    kTsFieldNumber = 1,
-    kTypeFieldNumber = 2,
+    kAttributesFieldNumber = 1,
+    kDroppedAttributesCountFieldNumber = 2,
   };
-  // map<string, string> payload = 6;
-  int payload_size() const;
+  // repeated .holons.v1.KeyValue attributes = 1;
+  int attributes_size() const;
   private:
-  int _internal_payload_size() const;
+  int _internal_attributes_size() const;
 
   public:
-  void clear_payload() ;
-  const ::google::protobuf::Map<::std::string, ::std::string>& payload() const;
-  ::google::protobuf::Map<::std::string, ::std::string>* PROTOBUF_NONNULL mutable_payload();
+  void clear_attributes() ;
+  ::holons::v1::KeyValue* PROTOBUF_NONNULL mutable_attributes(int index);
+  ::google::protobuf::RepeatedPtrField<::holons::v1::KeyValue>* PROTOBUF_NONNULL mutable_attributes();
 
   private:
-  const ::google::protobuf::Map<::std::string, ::std::string>& _internal_payload() const;
-  ::google::protobuf::Map<::std::string, ::std::string>* PROTOBUF_NONNULL _internal_mutable_payload();
-
+  const ::google::protobuf::RepeatedPtrField<::holons::v1::KeyValue>& _internal_attributes() const;
+  ::google::protobuf::RepeatedPtrField<::holons::v1::KeyValue>* PROTOBUF_NONNULL _internal_mutable_attributes();
   public:
-  // repeated .holons.v1.ChainHop chain = 7;
-  int chain_size() const;
-  private:
-  int _internal_chain_size() const;
-
-  public:
-  void clear_chain() ;
-  ::holons::v1::ChainHop* PROTOBUF_NONNULL mutable_chain(int index);
-  ::google::protobuf::RepeatedPtrField<::holons::v1::ChainHop>* PROTOBUF_NONNULL mutable_chain();
+  const ::holons::v1::KeyValue& attributes(int index) const;
+  ::holons::v1::KeyValue* PROTOBUF_NONNULL add_attributes();
+  const ::google::protobuf::RepeatedPtrField<::holons::v1::KeyValue>& attributes() const;
+  // uint32 dropped_attributes_count = 2;
+  void clear_dropped_attributes_count() ;
+  ::uint32_t dropped_attributes_count() const;
+  void set_dropped_attributes_count(::uint32_t value);
 
   private:
-  const ::google::protobuf::RepeatedPtrField<::holons::v1::ChainHop>& _internal_chain() const;
-  ::google::protobuf::RepeatedPtrField<::holons::v1::ChainHop>* PROTOBUF_NONNULL _internal_mutable_chain();
-  public:
-  const ::holons::v1::ChainHop& chain(int index) const;
-  ::holons::v1::ChainHop* PROTOBUF_NONNULL add_chain();
-  const ::google::protobuf::RepeatedPtrField<::holons::v1::ChainHop>& chain() const;
-  // string slug = 3;
-  void clear_slug() ;
-  const ::std::string& slug() const;
-  template <typename Arg_ = const ::std::string&, typename... Args_>
-  void set_slug(Arg_&& arg, Args_... args);
-  ::std::string* PROTOBUF_NONNULL mutable_slug();
-  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_slug();
-  void set_allocated_slug(::std::string* PROTOBUF_NULLABLE value);
-
-  private:
-  const ::std::string& _internal_slug() const;
-  PROTOBUF_ALWAYS_INLINE void _internal_set_slug(const ::std::string& value);
-  ::std::string* PROTOBUF_NONNULL _internal_mutable_slug();
+  ::uint32_t _internal_dropped_attributes_count() const;
+  void _internal_set_dropped_attributes_count(::uint32_t value);
 
   public:
-  // string instance_uid = 4;
-  void clear_instance_uid() ;
-  const ::std::string& instance_uid() const;
-  template <typename Arg_ = const ::std::string&, typename... Args_>
-  void set_instance_uid(Arg_&& arg, Args_... args);
-  ::std::string* PROTOBUF_NONNULL mutable_instance_uid();
-  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_instance_uid();
-  void set_allocated_instance_uid(::std::string* PROTOBUF_NULLABLE value);
-
-  private:
-  const ::std::string& _internal_instance_uid() const;
-  PROTOBUF_ALWAYS_INLINE void _internal_set_instance_uid(const ::std::string& value);
-  ::std::string* PROTOBUF_NONNULL _internal_mutable_instance_uid();
-
-  public:
-  // string session_id = 5;
-  void clear_session_id() ;
-  const ::std::string& session_id() const;
-  template <typename Arg_ = const ::std::string&, typename... Args_>
-  void set_session_id(Arg_&& arg, Args_... args);
-  ::std::string* PROTOBUF_NONNULL mutable_session_id();
-  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_session_id();
-  void set_allocated_session_id(::std::string* PROTOBUF_NULLABLE value);
-
-  private:
-  const ::std::string& _internal_session_id() const;
-  PROTOBUF_ALWAYS_INLINE void _internal_set_session_id(const ::std::string& value);
-  ::std::string* PROTOBUF_NONNULL _internal_mutable_session_id();
-
-  public:
-  // .google.protobuf.Timestamp ts = 1;
-  bool has_ts() const;
-  void clear_ts() ;
-  const ::google::protobuf::Timestamp& ts() const;
-  [[nodiscard]] ::google::protobuf::Timestamp* PROTOBUF_NULLABLE release_ts();
-  ::google::protobuf::Timestamp* PROTOBUF_NONNULL mutable_ts();
-  void set_allocated_ts(::google::protobuf::Timestamp* PROTOBUF_NULLABLE value);
-  void unsafe_arena_set_allocated_ts(::google::protobuf::Timestamp* PROTOBUF_NULLABLE value);
-  ::google::protobuf::Timestamp* PROTOBUF_NULLABLE unsafe_arena_release_ts();
-
-  private:
-  const ::google::protobuf::Timestamp& _internal_ts() const;
-  ::google::protobuf::Timestamp* PROTOBUF_NONNULL _internal_mutable_ts();
-
-  public:
-  // .holons.v1.EventType type = 2;
-  void clear_type() ;
-  ::holons::v1::EventType type() const;
-  void set_type(::holons::v1::EventType value);
-
-  private:
-  ::holons::v1::EventType _internal_type() const;
-  void _internal_set_type(::holons::v1::EventType value);
-
-  public:
-  // @@protoc_insertion_point(class_scope:holons.v1.EventInfo)
+  // @@protoc_insertion_point(class_scope:holons.v1.Resource)
  private:
   class _Internal;
   friend class ::google::protobuf::internal::TcParser;
-  static const ::google::protobuf::internal::TcParseTable<3, 7,
-                                   3, 61,
+  static const ::google::protobuf::internal::TcParseTable<1, 2,
+                                   1, 0,
                                    2>
       _table_;
 
@@ -2316,52 +1572,44 @@ class EventInfo final : public ::google::protobuf::Message
     inline explicit Impl_(
         ::google::protobuf::internal::InternalVisibility visibility,
         ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
-        const EventInfo& from_msg);
+        const Resource& from_msg);
     ::google::protobuf::internal::HasBits<1> _has_bits_;
     ::google::protobuf::internal::CachedSize _cached_size_;
-    ::google::protobuf::internal::MapField<EventInfo_PayloadEntry_DoNotUse, ::std::string, ::std::string,
-                      ::google::protobuf::internal::WireFormatLite::TYPE_STRING,
-                      ::google::protobuf::internal::WireFormatLite::TYPE_STRING>
-        payload_;
-    ::google::protobuf::RepeatedPtrField< ::holons::v1::ChainHop > chain_;
-    ::google::protobuf::internal::ArenaStringPtr slug_;
-    ::google::protobuf::internal::ArenaStringPtr instance_uid_;
-    ::google::protobuf::internal::ArenaStringPtr session_id_;
-    ::google::protobuf::Timestamp* PROTOBUF_NULLABLE ts_;
-    int type_;
+    ::google::protobuf::RepeatedPtrField< ::holons::v1::KeyValue > attributes_;
+    ::uint32_t dropped_attributes_count_;
     PROTOBUF_TSAN_DECLARE_MEMBER
   };
   union { Impl_ _impl_; };
   friend struct ::TableStruct_holons_2fv1_2fobservability_2eproto;
 };
 
-extern const ::google::protobuf::internal::ClassDataFull EventInfo_class_data_;
+extern const ::google::protobuf::internal::ClassDataFull Resource_class_data_;
 // -------------------------------------------------------------------
 
-class MetricSample final : public ::google::protobuf::Message
-/* @@protoc_insertion_point(class_definition:holons.v1.MetricSample) */ {
+class NumberDataPoint final : public ::google::protobuf::Message
+/* @@protoc_insertion_point(class_definition:holons.v1.NumberDataPoint) */ {
  public:
-  inline MetricSample() : MetricSample(nullptr) {}
-  ~MetricSample() PROTOBUF_FINAL;
+  inline NumberDataPoint() : NumberDataPoint(nullptr) {}
+  ~NumberDataPoint() PROTOBUF_FINAL;
 
 #if defined(PROTOBUF_CUSTOM_VTABLE)
-  void operator delete(MetricSample* PROTOBUF_NONNULL msg, ::std::destroying_delete_t) {
+  void operator delete(NumberDataPoint* PROTOBUF_NONNULL msg, ::std::destroying_delete_t) {
     SharedDtor(*msg);
-    ::google::protobuf::internal::SizedDelete(msg, sizeof(MetricSample));
+    ::google::protobuf::internal::SizedDelete(msg, sizeof(NumberDataPoint));
   }
 #endif
 
   template <typename = void>
-  explicit PROTOBUF_CONSTEXPR MetricSample(::google::protobuf::internal::ConstantInitialized);
+  explicit PROTOBUF_CONSTEXPR NumberDataPoint(::google::protobuf::internal::ConstantInitialized);
 
-  inline MetricSample(const MetricSample& from) : MetricSample(nullptr, from) {}
-  inline MetricSample(MetricSample&& from) noexcept
-      : MetricSample(nullptr, ::std::move(from)) {}
-  inline MetricSample& operator=(const MetricSample& from) {
+  inline NumberDataPoint(const NumberDataPoint& from) : NumberDataPoint(nullptr, from) {}
+  inline NumberDataPoint(NumberDataPoint&& from) noexcept
+      : NumberDataPoint(nullptr, ::std::move(from)) {}
+  inline NumberDataPoint& operator=(const NumberDataPoint& from) {
     CopyFrom(from);
     return *this;
   }
-  inline MetricSample& operator=(MetricSample&& from) noexcept {
+  inline NumberDataPoint& operator=(NumberDataPoint&& from) noexcept {
     if (this == &from) return *this;
     if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
       InternalSwap(&from);
@@ -2389,19 +1637,18 @@ class MetricSample final : public ::google::protobuf::Message
   static const ::google::protobuf::Reflection* PROTOBUF_NONNULL GetReflection() {
     return default_instance().GetMetadata().reflection;
   }
-  static const MetricSample& default_instance() {
-    return *reinterpret_cast<const MetricSample*>(
-        &_MetricSample_default_instance_);
+  static const NumberDataPoint& default_instance() {
+    return *reinterpret_cast<const NumberDataPoint*>(
+        &_NumberDataPoint_default_instance_);
   }
   enum ValueCase {
-    kCounter = 3,
-    kGauge = 4,
-    kHistogram = 5,
+    kAsDouble = 4,
+    kAsInt = 6,
     VALUE_NOT_SET = 0,
   };
-  static constexpr int kIndexInFileMessages = 7;
-  friend void swap(MetricSample& a, MetricSample& b) { a.Swap(&b); }
-  inline void Swap(MetricSample* PROTOBUF_NONNULL other) {
+  static constexpr int kIndexInFileMessages = 11;
+  friend void swap(NumberDataPoint& a, NumberDataPoint& b) { a.Swap(&b); }
+  inline void Swap(NumberDataPoint* PROTOBUF_NONNULL other) {
     if (other == this) return;
     if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
       InternalSwap(other);
@@ -2409,7 +1656,7 @@ class MetricSample final : public ::google::protobuf::Message
       ::google::protobuf::internal::GenericSwap(this, other);
     }
   }
-  void UnsafeArenaSwap(MetricSample* PROTOBUF_NONNULL other) {
+  void UnsafeArenaSwap(NumberDataPoint* PROTOBUF_NONNULL other) {
     if (other == this) return;
     ABSL_DCHECK(GetArena() == other->GetArena());
     InternalSwap(other);
@@ -2417,13 +1664,13 @@ class MetricSample final : public ::google::protobuf::Message
 
   // implements Message ----------------------------------------------
 
-  MetricSample* PROTOBUF_NONNULL New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
-    return ::google::protobuf::Message::DefaultConstruct<MetricSample>(arena);
+  NumberDataPoint* PROTOBUF_NONNULL New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
+    return ::google::protobuf::Message::DefaultConstruct<NumberDataPoint>(arena);
   }
   using ::google::protobuf::Message::CopyFrom;
-  void CopyFrom(const MetricSample& from);
+  void CopyFrom(const NumberDataPoint& from);
   using ::google::protobuf::Message::MergeFrom;
-  void MergeFrom(const MetricSample& from) { MetricSample::MergeImpl(*this, from); }
+  void MergeFrom(const NumberDataPoint& from) { NumberDataPoint::MergeImpl(*this, from); }
 
   private:
   static void MergeImpl(::google::protobuf::MessageLite& to_msg,
@@ -2459,18 +1706,18 @@ class MetricSample final : public ::google::protobuf::Message
   private:
   void SharedCtor(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
   static void SharedDtor(MessageLite& self);
-  void InternalSwap(MetricSample* PROTOBUF_NONNULL other);
+  void InternalSwap(NumberDataPoint* PROTOBUF_NONNULL other);
  private:
   template <typename T>
   friend ::absl::string_view(::google::protobuf::internal::GetAnyMessageName)();
-  static ::absl::string_view FullMessageName() { return "holons.v1.MetricSample"; }
+  static ::absl::string_view FullMessageName() { return "holons.v1.NumberDataPoint"; }
 
  protected:
-  explicit MetricSample(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
-  MetricSample(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const MetricSample& from);
-  MetricSample(
-      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, MetricSample&& from) noexcept
-      : MetricSample(arena) {
+  explicit NumberDataPoint(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  NumberDataPoint(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const NumberDataPoint& from);
+  NumberDataPoint(
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, NumberDataPoint&& from) noexcept
+      : NumberDataPoint(arena) {
     *this = ::std::move(from);
   }
   const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
@@ -2487,46 +1734,1585 @@ class MetricSample final : public ::google::protobuf::Message
 
   // accessors -------------------------------------------------------
   enum : int {
-    kLabelsFieldNumber = 2,
-    kChainFieldNumber = 7,
-    kNameFieldNumber = 1,
-    kHelpFieldNumber = 6,
-    kCounterFieldNumber = 3,
-    kGaugeFieldNumber = 4,
-    kHistogramFieldNumber = 5,
+    kAttributesFieldNumber = 7,
+    kStartTimeUnixNanoFieldNumber = 2,
+    kTimeUnixNanoFieldNumber = 3,
+    kAsDoubleFieldNumber = 4,
+    kAsIntFieldNumber = 6,
   };
-  // map<string, string> labels = 2;
-  int labels_size() const;
+  // repeated .holons.v1.KeyValue attributes = 7;
+  int attributes_size() const;
   private:
-  int _internal_labels_size() const;
+  int _internal_attributes_size() const;
 
   public:
-  void clear_labels() ;
-  const ::google::protobuf::Map<::std::string, ::std::string>& labels() const;
-  ::google::protobuf::Map<::std::string, ::std::string>* PROTOBUF_NONNULL mutable_labels();
+  void clear_attributes() ;
+  ::holons::v1::KeyValue* PROTOBUF_NONNULL mutable_attributes(int index);
+  ::google::protobuf::RepeatedPtrField<::holons::v1::KeyValue>* PROTOBUF_NONNULL mutable_attributes();
 
   private:
-  const ::google::protobuf::Map<::std::string, ::std::string>& _internal_labels() const;
-  ::google::protobuf::Map<::std::string, ::std::string>* PROTOBUF_NONNULL _internal_mutable_labels();
+  const ::google::protobuf::RepeatedPtrField<::holons::v1::KeyValue>& _internal_attributes() const;
+  ::google::protobuf::RepeatedPtrField<::holons::v1::KeyValue>* PROTOBUF_NONNULL _internal_mutable_attributes();
+  public:
+  const ::holons::v1::KeyValue& attributes(int index) const;
+  ::holons::v1::KeyValue* PROTOBUF_NONNULL add_attributes();
+  const ::google::protobuf::RepeatedPtrField<::holons::v1::KeyValue>& attributes() const;
+  // fixed64 start_time_unix_nano = 2;
+  void clear_start_time_unix_nano() ;
+  ::uint64_t start_time_unix_nano() const;
+  void set_start_time_unix_nano(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_start_time_unix_nano() const;
+  void _internal_set_start_time_unix_nano(::uint64_t value);
 
   public:
-  // repeated .holons.v1.ChainHop chain = 7;
+  // fixed64 time_unix_nano = 3;
+  void clear_time_unix_nano() ;
+  ::uint64_t time_unix_nano() const;
+  void set_time_unix_nano(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_time_unix_nano() const;
+  void _internal_set_time_unix_nano(::uint64_t value);
+
+  public:
+  // double as_double = 4;
+  bool has_as_double() const;
+  void clear_as_double() ;
+  double as_double() const;
+  void set_as_double(double value);
+
+  private:
+  double _internal_as_double() const;
+  void _internal_set_as_double(double value);
+
+  public:
+  // int64 as_int = 6;
+  bool has_as_int() const;
+  void clear_as_int() ;
+  ::int64_t as_int() const;
+  void set_as_int(::int64_t value);
+
+  private:
+  ::int64_t _internal_as_int() const;
+  void _internal_set_as_int(::int64_t value);
+
+  public:
+  void clear_value();
+  ValueCase value_case() const;
+  // @@protoc_insertion_point(class_scope:holons.v1.NumberDataPoint)
+ private:
+  class _Internal;
+  void set_has_as_double();
+  void set_has_as_int();
+  inline bool has_value() const;
+  inline void clear_has_value();
+  friend class ::google::protobuf::internal::TcParser;
+  static const ::google::protobuf::internal::TcParseTable<3, 5,
+                                   1, 0,
+                                   2>
+      _table_;
+
+  friend class ::google::protobuf::MessageLite;
+  friend class ::google::protobuf::Arena;
+  template <typename T>
+  friend class ::google::protobuf::Arena::InternalHelper;
+  using InternalArenaConstructable_ = void;
+  using DestructorSkippable_ = void;
+  struct Impl_ {
+    inline explicit constexpr Impl_(::google::protobuf::internal::ConstantInitialized) noexcept;
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+        const NumberDataPoint& from_msg);
+    ::google::protobuf::internal::HasBits<1> _has_bits_;
+    ::google::protobuf::internal::CachedSize _cached_size_;
+    ::google::protobuf::RepeatedPtrField< ::holons::v1::KeyValue > attributes_;
+    ::uint64_t start_time_unix_nano_;
+    ::uint64_t time_unix_nano_;
+    union ValueUnion {
+      constexpr ValueUnion() : _constinit_{} {}
+      ::google::protobuf::internal::ConstantInitialized _constinit_;
+      double as_double_;
+      ::int64_t as_int_;
+    } value_;
+    ::uint32_t _oneof_case_[1];
+    PROTOBUF_TSAN_DECLARE_MEMBER
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_holons_2fv1_2fobservability_2eproto;
+};
+
+extern const ::google::protobuf::internal::ClassDataFull NumberDataPoint_class_data_;
+// -------------------------------------------------------------------
+
+class LogRecord final : public ::google::protobuf::Message
+/* @@protoc_insertion_point(class_definition:holons.v1.LogRecord) */ {
+ public:
+  inline LogRecord() : LogRecord(nullptr) {}
+  ~LogRecord() PROTOBUF_FINAL;
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+  void operator delete(LogRecord* PROTOBUF_NONNULL msg, ::std::destroying_delete_t) {
+    SharedDtor(*msg);
+    ::google::protobuf::internal::SizedDelete(msg, sizeof(LogRecord));
+  }
+#endif
+
+  template <typename = void>
+  explicit PROTOBUF_CONSTEXPR LogRecord(::google::protobuf::internal::ConstantInitialized);
+
+  inline LogRecord(const LogRecord& from) : LogRecord(nullptr, from) {}
+  inline LogRecord(LogRecord&& from) noexcept
+      : LogRecord(nullptr, ::std::move(from)) {}
+  inline LogRecord& operator=(const LogRecord& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline LogRecord& operator=(LogRecord&& from) noexcept {
+    if (this == &from) return *this;
+    if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance);
+  }
+  inline ::google::protobuf::UnknownFieldSet* PROTOBUF_NONNULL mutable_unknown_fields()
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.mutable_unknown_fields<::google::protobuf::UnknownFieldSet>();
+  }
+
+  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL descriptor() {
+    return GetDescriptor();
+  }
+  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::google::protobuf::Reflection* PROTOBUF_NONNULL GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const LogRecord& default_instance() {
+    return *reinterpret_cast<const LogRecord*>(
+        &_LogRecord_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages = 6;
+  friend void swap(LogRecord& a, LogRecord& b) { a.Swap(&b); }
+  inline void Swap(LogRecord* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
+      InternalSwap(other);
+    } else {
+      ::google::protobuf::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(LogRecord* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetArena() == other->GetArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  LogRecord* PROTOBUF_NONNULL New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
+    return ::google::protobuf::Message::DefaultConstruct<LogRecord>(arena);
+  }
+  using ::google::protobuf::Message::CopyFrom;
+  void CopyFrom(const LogRecord& from);
+  using ::google::protobuf::Message::MergeFrom;
+  void MergeFrom(const LogRecord& from) { LogRecord::MergeImpl(*this, from); }
+
+  private:
+  static void MergeImpl(::google::protobuf::MessageLite& to_msg,
+                        const ::google::protobuf::MessageLite& from_msg);
+
+  public:
+  bool IsInitialized() const {
+    return true;
+  }
+  ABSL_ATTRIBUTE_REINITIALIZES void Clear() PROTOBUF_FINAL;
+  #if defined(PROTOBUF_CUSTOM_VTABLE)
+  private:
+  static ::size_t ByteSizeLong(const ::google::protobuf::MessageLite& msg);
+  static ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      const ::google::protobuf::MessageLite& msg, ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream);
+
+  public:
+  ::size_t ByteSizeLong() const { return ByteSizeLong(*this); }
+  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+    return _InternalSerialize(*this, target, stream);
+  }
+  #else   // PROTOBUF_CUSTOM_VTABLE
+  ::size_t ByteSizeLong() const final;
+  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const final;
+  #endif  // PROTOBUF_CUSTOM_VTABLE
+  int GetCachedSize() const { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static void SharedDtor(MessageLite& self);
+  void InternalSwap(LogRecord* PROTOBUF_NONNULL other);
+ private:
+  template <typename T>
+  friend ::absl::string_view(::google::protobuf::internal::GetAnyMessageName)();
+  static ::absl::string_view FullMessageName() { return "holons.v1.LogRecord"; }
+
+ protected:
+  explicit LogRecord(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  LogRecord(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const LogRecord& from);
+  LogRecord(
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, LogRecord&& from) noexcept
+      : LogRecord(arena) {
+    *this = ::std::move(from);
+  }
+  const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
+  static void* PROTOBUF_NONNULL PlacementNew_(
+      const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static constexpr auto InternalNewImpl_();
+
+ public:
+  static constexpr auto InternalGenerateClassData_();
+
+  ::google::protobuf::Metadata GetMetadata() const;
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+  enum : int {
+    kAttributesFieldNumber = 6,
+    kChainFieldNumber = 21,
+    kSeverityTextFieldNumber = 3,
+    kTraceIdFieldNumber = 9,
+    kSpanIdFieldNumber = 10,
+    kEventNameFieldNumber = 20,
+    kBodyFieldNumber = 5,
+    kTimeUnixNanoFieldNumber = 1,
+    kSeverityNumberFieldNumber = 2,
+    kDroppedAttributesCountFieldNumber = 7,
+    kObservedTimeUnixNanoFieldNumber = 11,
+    kFlagsFieldNumber = 8,
+  };
+  // repeated .holons.v1.KeyValue attributes = 6;
+  int attributes_size() const;
+  private:
+  int _internal_attributes_size() const;
+
+  public:
+  void clear_attributes() ;
+  ::holons::v1::KeyValue* PROTOBUF_NONNULL mutable_attributes(int index);
+  ::google::protobuf::RepeatedPtrField<::holons::v1::KeyValue>* PROTOBUF_NONNULL mutable_attributes();
+
+  private:
+  const ::google::protobuf::RepeatedPtrField<::holons::v1::KeyValue>& _internal_attributes() const;
+  ::google::protobuf::RepeatedPtrField<::holons::v1::KeyValue>* PROTOBUF_NONNULL _internal_mutable_attributes();
+  public:
+  const ::holons::v1::KeyValue& attributes(int index) const;
+  ::holons::v1::KeyValue* PROTOBUF_NONNULL add_attributes();
+  const ::google::protobuf::RepeatedPtrField<::holons::v1::KeyValue>& attributes() const;
+  // repeated string chain = 21;
   int chain_size() const;
   private:
   int _internal_chain_size() const;
 
   public:
   void clear_chain() ;
-  ::holons::v1::ChainHop* PROTOBUF_NONNULL mutable_chain(int index);
-  ::google::protobuf::RepeatedPtrField<::holons::v1::ChainHop>* PROTOBUF_NONNULL mutable_chain();
+  const ::std::string& chain(int index) const;
+  ::std::string* PROTOBUF_NONNULL mutable_chain(int index);
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_chain(int index, Arg_&& value, Args_... args);
+  ::std::string* PROTOBUF_NONNULL add_chain();
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void add_chain(Arg_&& value, Args_... args);
+  const ::google::protobuf::RepeatedPtrField<::std::string>& chain() const;
+  ::google::protobuf::RepeatedPtrField<::std::string>* PROTOBUF_NONNULL mutable_chain();
 
   private:
-  const ::google::protobuf::RepeatedPtrField<::holons::v1::ChainHop>& _internal_chain() const;
-  ::google::protobuf::RepeatedPtrField<::holons::v1::ChainHop>* PROTOBUF_NONNULL _internal_mutable_chain();
+  const ::google::protobuf::RepeatedPtrField<::std::string>& _internal_chain() const;
+  ::google::protobuf::RepeatedPtrField<::std::string>* PROTOBUF_NONNULL _internal_mutable_chain();
+
   public:
-  const ::holons::v1::ChainHop& chain(int index) const;
-  ::holons::v1::ChainHop* PROTOBUF_NONNULL add_chain();
-  const ::google::protobuf::RepeatedPtrField<::holons::v1::ChainHop>& chain() const;
+  // string severity_text = 3;
+  void clear_severity_text() ;
+  const ::std::string& severity_text() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_severity_text(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_severity_text();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_severity_text();
+  void set_allocated_severity_text(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_severity_text() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_severity_text(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_severity_text();
+
+  public:
+  // bytes trace_id = 9;
+  void clear_trace_id() ;
+  const ::std::string& trace_id() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_trace_id(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_trace_id();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_trace_id();
+  void set_allocated_trace_id(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_trace_id() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_trace_id(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_trace_id();
+
+  public:
+  // bytes span_id = 10;
+  void clear_span_id() ;
+  const ::std::string& span_id() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_span_id(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_span_id();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_span_id();
+  void set_allocated_span_id(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_span_id() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_span_id(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_span_id();
+
+  public:
+  // string event_name = 20;
+  void clear_event_name() ;
+  const ::std::string& event_name() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_event_name(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_event_name();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_event_name();
+  void set_allocated_event_name(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_event_name() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_event_name(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_event_name();
+
+  public:
+  // .holons.v1.AnyValue body = 5;
+  bool has_body() const;
+  void clear_body() ;
+  const ::holons::v1::AnyValue& body() const;
+  [[nodiscard]] ::holons::v1::AnyValue* PROTOBUF_NULLABLE release_body();
+  ::holons::v1::AnyValue* PROTOBUF_NONNULL mutable_body();
+  void set_allocated_body(::holons::v1::AnyValue* PROTOBUF_NULLABLE value);
+  void unsafe_arena_set_allocated_body(::holons::v1::AnyValue* PROTOBUF_NULLABLE value);
+  ::holons::v1::AnyValue* PROTOBUF_NULLABLE unsafe_arena_release_body();
+
+  private:
+  const ::holons::v1::AnyValue& _internal_body() const;
+  ::holons::v1::AnyValue* PROTOBUF_NONNULL _internal_mutable_body();
+
+  public:
+  // fixed64 time_unix_nano = 1;
+  void clear_time_unix_nano() ;
+  ::uint64_t time_unix_nano() const;
+  void set_time_unix_nano(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_time_unix_nano() const;
+  void _internal_set_time_unix_nano(::uint64_t value);
+
+  public:
+  // .holons.v1.SeverityNumber severity_number = 2;
+  void clear_severity_number() ;
+  ::holons::v1::SeverityNumber severity_number() const;
+  void set_severity_number(::holons::v1::SeverityNumber value);
+
+  private:
+  ::holons::v1::SeverityNumber _internal_severity_number() const;
+  void _internal_set_severity_number(::holons::v1::SeverityNumber value);
+
+  public:
+  // uint32 dropped_attributes_count = 7;
+  void clear_dropped_attributes_count() ;
+  ::uint32_t dropped_attributes_count() const;
+  void set_dropped_attributes_count(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_dropped_attributes_count() const;
+  void _internal_set_dropped_attributes_count(::uint32_t value);
+
+  public:
+  // fixed64 observed_time_unix_nano = 11;
+  void clear_observed_time_unix_nano() ;
+  ::uint64_t observed_time_unix_nano() const;
+  void set_observed_time_unix_nano(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_observed_time_unix_nano() const;
+  void _internal_set_observed_time_unix_nano(::uint64_t value);
+
+  public:
+  // uint32 flags = 8;
+  void clear_flags() ;
+  ::uint32_t flags() const;
+  void set_flags(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_flags() const;
+  void _internal_set_flags(::uint32_t value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:holons.v1.LogRecord)
+ private:
+  class _Internal;
+  friend class ::google::protobuf::internal::TcParser;
+  static const ::google::protobuf::internal::TcParseTable<4, 12,
+                                   2, 64,
+                                   2>
+      _table_;
+
+  friend class ::google::protobuf::MessageLite;
+  friend class ::google::protobuf::Arena;
+  template <typename T>
+  friend class ::google::protobuf::Arena::InternalHelper;
+  using InternalArenaConstructable_ = void;
+  using DestructorSkippable_ = void;
+  struct Impl_ {
+    inline explicit constexpr Impl_(::google::protobuf::internal::ConstantInitialized) noexcept;
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+        const LogRecord& from_msg);
+    ::google::protobuf::internal::HasBits<1> _has_bits_;
+    ::google::protobuf::internal::CachedSize _cached_size_;
+    ::google::protobuf::RepeatedPtrField< ::holons::v1::KeyValue > attributes_;
+    ::google::protobuf::RepeatedPtrField<::std::string> chain_;
+    ::google::protobuf::internal::ArenaStringPtr severity_text_;
+    ::google::protobuf::internal::ArenaStringPtr trace_id_;
+    ::google::protobuf::internal::ArenaStringPtr span_id_;
+    ::google::protobuf::internal::ArenaStringPtr event_name_;
+    ::holons::v1::AnyValue* PROTOBUF_NULLABLE body_;
+    ::uint64_t time_unix_nano_;
+    int severity_number_;
+    ::uint32_t dropped_attributes_count_;
+    ::uint64_t observed_time_unix_nano_;
+    ::uint32_t flags_;
+    PROTOBUF_TSAN_DECLARE_MEMBER
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_holons_2fv1_2fobservability_2eproto;
+};
+
+extern const ::google::protobuf::internal::ClassDataFull LogRecord_class_data_;
+// -------------------------------------------------------------------
+
+class HistogramDataPoint final : public ::google::protobuf::Message
+/* @@protoc_insertion_point(class_definition:holons.v1.HistogramDataPoint) */ {
+ public:
+  inline HistogramDataPoint() : HistogramDataPoint(nullptr) {}
+  ~HistogramDataPoint() PROTOBUF_FINAL;
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+  void operator delete(HistogramDataPoint* PROTOBUF_NONNULL msg, ::std::destroying_delete_t) {
+    SharedDtor(*msg);
+    ::google::protobuf::internal::SizedDelete(msg, sizeof(HistogramDataPoint));
+  }
+#endif
+
+  template <typename = void>
+  explicit PROTOBUF_CONSTEXPR HistogramDataPoint(::google::protobuf::internal::ConstantInitialized);
+
+  inline HistogramDataPoint(const HistogramDataPoint& from) : HistogramDataPoint(nullptr, from) {}
+  inline HistogramDataPoint(HistogramDataPoint&& from) noexcept
+      : HistogramDataPoint(nullptr, ::std::move(from)) {}
+  inline HistogramDataPoint& operator=(const HistogramDataPoint& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline HistogramDataPoint& operator=(HistogramDataPoint&& from) noexcept {
+    if (this == &from) return *this;
+    if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance);
+  }
+  inline ::google::protobuf::UnknownFieldSet* PROTOBUF_NONNULL mutable_unknown_fields()
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.mutable_unknown_fields<::google::protobuf::UnknownFieldSet>();
+  }
+
+  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL descriptor() {
+    return GetDescriptor();
+  }
+  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::google::protobuf::Reflection* PROTOBUF_NONNULL GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const HistogramDataPoint& default_instance() {
+    return *reinterpret_cast<const HistogramDataPoint*>(
+        &_HistogramDataPoint_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages = 12;
+  friend void swap(HistogramDataPoint& a, HistogramDataPoint& b) { a.Swap(&b); }
+  inline void Swap(HistogramDataPoint* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
+      InternalSwap(other);
+    } else {
+      ::google::protobuf::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(HistogramDataPoint* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetArena() == other->GetArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  HistogramDataPoint* PROTOBUF_NONNULL New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
+    return ::google::protobuf::Message::DefaultConstruct<HistogramDataPoint>(arena);
+  }
+  using ::google::protobuf::Message::CopyFrom;
+  void CopyFrom(const HistogramDataPoint& from);
+  using ::google::protobuf::Message::MergeFrom;
+  void MergeFrom(const HistogramDataPoint& from) { HistogramDataPoint::MergeImpl(*this, from); }
+
+  private:
+  static void MergeImpl(::google::protobuf::MessageLite& to_msg,
+                        const ::google::protobuf::MessageLite& from_msg);
+
+  public:
+  bool IsInitialized() const {
+    return true;
+  }
+  ABSL_ATTRIBUTE_REINITIALIZES void Clear() PROTOBUF_FINAL;
+  #if defined(PROTOBUF_CUSTOM_VTABLE)
+  private:
+  static ::size_t ByteSizeLong(const ::google::protobuf::MessageLite& msg);
+  static ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      const ::google::protobuf::MessageLite& msg, ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream);
+
+  public:
+  ::size_t ByteSizeLong() const { return ByteSizeLong(*this); }
+  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+    return _InternalSerialize(*this, target, stream);
+  }
+  #else   // PROTOBUF_CUSTOM_VTABLE
+  ::size_t ByteSizeLong() const final;
+  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const final;
+  #endif  // PROTOBUF_CUSTOM_VTABLE
+  int GetCachedSize() const { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static void SharedDtor(MessageLite& self);
+  void InternalSwap(HistogramDataPoint* PROTOBUF_NONNULL other);
+ private:
+  template <typename T>
+  friend ::absl::string_view(::google::protobuf::internal::GetAnyMessageName)();
+  static ::absl::string_view FullMessageName() { return "holons.v1.HistogramDataPoint"; }
+
+ protected:
+  explicit HistogramDataPoint(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  HistogramDataPoint(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const HistogramDataPoint& from);
+  HistogramDataPoint(
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, HistogramDataPoint&& from) noexcept
+      : HistogramDataPoint(arena) {
+    *this = ::std::move(from);
+  }
+  const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
+  static void* PROTOBUF_NONNULL PlacementNew_(
+      const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static constexpr auto InternalNewImpl_();
+
+ public:
+  static constexpr auto InternalGenerateClassData_();
+
+  ::google::protobuf::Metadata GetMetadata() const;
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+  enum : int {
+    kBucketCountsFieldNumber = 6,
+    kExplicitBoundsFieldNumber = 7,
+    kAttributesFieldNumber = 9,
+    kStartTimeUnixNanoFieldNumber = 2,
+    kTimeUnixNanoFieldNumber = 3,
+    kCountFieldNumber = 4,
+    kSumFieldNumber = 5,
+    kMinFieldNumber = 11,
+    kMaxFieldNumber = 12,
+  };
+  // repeated uint64 bucket_counts = 6;
+  int bucket_counts_size() const;
+  private:
+  int _internal_bucket_counts_size() const;
+
+  public:
+  void clear_bucket_counts() ;
+  ::uint64_t bucket_counts(int index) const;
+  void set_bucket_counts(int index, ::uint64_t value);
+  void add_bucket_counts(::uint64_t value);
+  const ::google::protobuf::RepeatedField<::uint64_t>& bucket_counts() const;
+  ::google::protobuf::RepeatedField<::uint64_t>* PROTOBUF_NONNULL mutable_bucket_counts();
+
+  private:
+  const ::google::protobuf::RepeatedField<::uint64_t>& _internal_bucket_counts() const;
+  ::google::protobuf::RepeatedField<::uint64_t>* PROTOBUF_NONNULL _internal_mutable_bucket_counts();
+
+  public:
+  // repeated double explicit_bounds = 7;
+  int explicit_bounds_size() const;
+  private:
+  int _internal_explicit_bounds_size() const;
+
+  public:
+  void clear_explicit_bounds() ;
+  double explicit_bounds(int index) const;
+  void set_explicit_bounds(int index, double value);
+  void add_explicit_bounds(double value);
+  const ::google::protobuf::RepeatedField<double>& explicit_bounds() const;
+  ::google::protobuf::RepeatedField<double>* PROTOBUF_NONNULL mutable_explicit_bounds();
+
+  private:
+  const ::google::protobuf::RepeatedField<double>& _internal_explicit_bounds() const;
+  ::google::protobuf::RepeatedField<double>* PROTOBUF_NONNULL _internal_mutable_explicit_bounds();
+
+  public:
+  // repeated .holons.v1.KeyValue attributes = 9;
+  int attributes_size() const;
+  private:
+  int _internal_attributes_size() const;
+
+  public:
+  void clear_attributes() ;
+  ::holons::v1::KeyValue* PROTOBUF_NONNULL mutable_attributes(int index);
+  ::google::protobuf::RepeatedPtrField<::holons::v1::KeyValue>* PROTOBUF_NONNULL mutable_attributes();
+
+  private:
+  const ::google::protobuf::RepeatedPtrField<::holons::v1::KeyValue>& _internal_attributes() const;
+  ::google::protobuf::RepeatedPtrField<::holons::v1::KeyValue>* PROTOBUF_NONNULL _internal_mutable_attributes();
+  public:
+  const ::holons::v1::KeyValue& attributes(int index) const;
+  ::holons::v1::KeyValue* PROTOBUF_NONNULL add_attributes();
+  const ::google::protobuf::RepeatedPtrField<::holons::v1::KeyValue>& attributes() const;
+  // fixed64 start_time_unix_nano = 2;
+  void clear_start_time_unix_nano() ;
+  ::uint64_t start_time_unix_nano() const;
+  void set_start_time_unix_nano(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_start_time_unix_nano() const;
+  void _internal_set_start_time_unix_nano(::uint64_t value);
+
+  public:
+  // fixed64 time_unix_nano = 3;
+  void clear_time_unix_nano() ;
+  ::uint64_t time_unix_nano() const;
+  void set_time_unix_nano(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_time_unix_nano() const;
+  void _internal_set_time_unix_nano(::uint64_t value);
+
+  public:
+  // uint64 count = 4;
+  void clear_count() ;
+  ::uint64_t count() const;
+  void set_count(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_count() const;
+  void _internal_set_count(::uint64_t value);
+
+  public:
+  // double sum = 5;
+  void clear_sum() ;
+  double sum() const;
+  void set_sum(double value);
+
+  private:
+  double _internal_sum() const;
+  void _internal_set_sum(double value);
+
+  public:
+  // double min = 11;
+  void clear_min() ;
+  double min() const;
+  void set_min(double value);
+
+  private:
+  double _internal_min() const;
+  void _internal_set_min(double value);
+
+  public:
+  // double max = 12;
+  void clear_max() ;
+  double max() const;
+  void set_max(double value);
+
+  private:
+  double _internal_max() const;
+  void _internal_set_max(double value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:holons.v1.HistogramDataPoint)
+ private:
+  class _Internal;
+  friend class ::google::protobuf::internal::TcParser;
+  static const ::google::protobuf::internal::TcParseTable<4, 9,
+                                   1, 0,
+                                   2>
+      _table_;
+
+  friend class ::google::protobuf::MessageLite;
+  friend class ::google::protobuf::Arena;
+  template <typename T>
+  friend class ::google::protobuf::Arena::InternalHelper;
+  using InternalArenaConstructable_ = void;
+  using DestructorSkippable_ = void;
+  struct Impl_ {
+    inline explicit constexpr Impl_(::google::protobuf::internal::ConstantInitialized) noexcept;
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+        const HistogramDataPoint& from_msg);
+    ::google::protobuf::internal::HasBits<1> _has_bits_;
+    ::google::protobuf::internal::CachedSize _cached_size_;
+    ::google::protobuf::RepeatedField<::uint64_t> bucket_counts_;
+    ::google::protobuf::internal::CachedSize _bucket_counts_cached_byte_size_;
+    ::google::protobuf::RepeatedField<double> explicit_bounds_;
+    ::google::protobuf::RepeatedPtrField< ::holons::v1::KeyValue > attributes_;
+    ::uint64_t start_time_unix_nano_;
+    ::uint64_t time_unix_nano_;
+    ::uint64_t count_;
+    double sum_;
+    double min_;
+    double max_;
+    PROTOBUF_TSAN_DECLARE_MEMBER
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_holons_2fv1_2fobservability_2eproto;
+};
+
+extern const ::google::protobuf::internal::ClassDataFull HistogramDataPoint_class_data_;
+// -------------------------------------------------------------------
+
+class Sum final : public ::google::protobuf::Message
+/* @@protoc_insertion_point(class_definition:holons.v1.Sum) */ {
+ public:
+  inline Sum() : Sum(nullptr) {}
+  ~Sum() PROTOBUF_FINAL;
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+  void operator delete(Sum* PROTOBUF_NONNULL msg, ::std::destroying_delete_t) {
+    SharedDtor(*msg);
+    ::google::protobuf::internal::SizedDelete(msg, sizeof(Sum));
+  }
+#endif
+
+  template <typename = void>
+  explicit PROTOBUF_CONSTEXPR Sum(::google::protobuf::internal::ConstantInitialized);
+
+  inline Sum(const Sum& from) : Sum(nullptr, from) {}
+  inline Sum(Sum&& from) noexcept
+      : Sum(nullptr, ::std::move(from)) {}
+  inline Sum& operator=(const Sum& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline Sum& operator=(Sum&& from) noexcept {
+    if (this == &from) return *this;
+    if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance);
+  }
+  inline ::google::protobuf::UnknownFieldSet* PROTOBUF_NONNULL mutable_unknown_fields()
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.mutable_unknown_fields<::google::protobuf::UnknownFieldSet>();
+  }
+
+  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL descriptor() {
+    return GetDescriptor();
+  }
+  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::google::protobuf::Reflection* PROTOBUF_NONNULL GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const Sum& default_instance() {
+    return *reinterpret_cast<const Sum*>(
+        &_Sum_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages = 9;
+  friend void swap(Sum& a, Sum& b) { a.Swap(&b); }
+  inline void Swap(Sum* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
+      InternalSwap(other);
+    } else {
+      ::google::protobuf::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(Sum* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetArena() == other->GetArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  Sum* PROTOBUF_NONNULL New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
+    return ::google::protobuf::Message::DefaultConstruct<Sum>(arena);
+  }
+  using ::google::protobuf::Message::CopyFrom;
+  void CopyFrom(const Sum& from);
+  using ::google::protobuf::Message::MergeFrom;
+  void MergeFrom(const Sum& from) { Sum::MergeImpl(*this, from); }
+
+  private:
+  static void MergeImpl(::google::protobuf::MessageLite& to_msg,
+                        const ::google::protobuf::MessageLite& from_msg);
+
+  public:
+  bool IsInitialized() const {
+    return true;
+  }
+  ABSL_ATTRIBUTE_REINITIALIZES void Clear() PROTOBUF_FINAL;
+  #if defined(PROTOBUF_CUSTOM_VTABLE)
+  private:
+  static ::size_t ByteSizeLong(const ::google::protobuf::MessageLite& msg);
+  static ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      const ::google::protobuf::MessageLite& msg, ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream);
+
+  public:
+  ::size_t ByteSizeLong() const { return ByteSizeLong(*this); }
+  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+    return _InternalSerialize(*this, target, stream);
+  }
+  #else   // PROTOBUF_CUSTOM_VTABLE
+  ::size_t ByteSizeLong() const final;
+  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const final;
+  #endif  // PROTOBUF_CUSTOM_VTABLE
+  int GetCachedSize() const { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static void SharedDtor(MessageLite& self);
+  void InternalSwap(Sum* PROTOBUF_NONNULL other);
+ private:
+  template <typename T>
+  friend ::absl::string_view(::google::protobuf::internal::GetAnyMessageName)();
+  static ::absl::string_view FullMessageName() { return "holons.v1.Sum"; }
+
+ protected:
+  explicit Sum(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  Sum(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Sum& from);
+  Sum(
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, Sum&& from) noexcept
+      : Sum(arena) {
+    *this = ::std::move(from);
+  }
+  const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
+  static void* PROTOBUF_NONNULL PlacementNew_(
+      const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static constexpr auto InternalNewImpl_();
+
+ public:
+  static constexpr auto InternalGenerateClassData_();
+
+  ::google::protobuf::Metadata GetMetadata() const;
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+  enum : int {
+    kDataPointsFieldNumber = 1,
+    kAggregationTemporalityFieldNumber = 2,
+    kIsMonotonicFieldNumber = 3,
+  };
+  // repeated .holons.v1.NumberDataPoint data_points = 1;
+  int data_points_size() const;
+  private:
+  int _internal_data_points_size() const;
+
+  public:
+  void clear_data_points() ;
+  ::holons::v1::NumberDataPoint* PROTOBUF_NONNULL mutable_data_points(int index);
+  ::google::protobuf::RepeatedPtrField<::holons::v1::NumberDataPoint>* PROTOBUF_NONNULL mutable_data_points();
+
+  private:
+  const ::google::protobuf::RepeatedPtrField<::holons::v1::NumberDataPoint>& _internal_data_points() const;
+  ::google::protobuf::RepeatedPtrField<::holons::v1::NumberDataPoint>* PROTOBUF_NONNULL _internal_mutable_data_points();
+  public:
+  const ::holons::v1::NumberDataPoint& data_points(int index) const;
+  ::holons::v1::NumberDataPoint* PROTOBUF_NONNULL add_data_points();
+  const ::google::protobuf::RepeatedPtrField<::holons::v1::NumberDataPoint>& data_points() const;
+  // .holons.v1.AggregationTemporality aggregation_temporality = 2;
+  void clear_aggregation_temporality() ;
+  ::holons::v1::AggregationTemporality aggregation_temporality() const;
+  void set_aggregation_temporality(::holons::v1::AggregationTemporality value);
+
+  private:
+  ::holons::v1::AggregationTemporality _internal_aggregation_temporality() const;
+  void _internal_set_aggregation_temporality(::holons::v1::AggregationTemporality value);
+
+  public:
+  // bool is_monotonic = 3;
+  void clear_is_monotonic() ;
+  bool is_monotonic() const;
+  void set_is_monotonic(bool value);
+
+  private:
+  bool _internal_is_monotonic() const;
+  void _internal_set_is_monotonic(bool value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:holons.v1.Sum)
+ private:
+  class _Internal;
+  friend class ::google::protobuf::internal::TcParser;
+  static const ::google::protobuf::internal::TcParseTable<2, 3,
+                                   1, 0,
+                                   2>
+      _table_;
+
+  friend class ::google::protobuf::MessageLite;
+  friend class ::google::protobuf::Arena;
+  template <typename T>
+  friend class ::google::protobuf::Arena::InternalHelper;
+  using InternalArenaConstructable_ = void;
+  using DestructorSkippable_ = void;
+  struct Impl_ {
+    inline explicit constexpr Impl_(::google::protobuf::internal::ConstantInitialized) noexcept;
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+        const Sum& from_msg);
+    ::google::protobuf::internal::HasBits<1> _has_bits_;
+    ::google::protobuf::internal::CachedSize _cached_size_;
+    ::google::protobuf::RepeatedPtrField< ::holons::v1::NumberDataPoint > data_points_;
+    int aggregation_temporality_;
+    bool is_monotonic_;
+    PROTOBUF_TSAN_DECLARE_MEMBER
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_holons_2fv1_2fobservability_2eproto;
+};
+
+extern const ::google::protobuf::internal::ClassDataFull Sum_class_data_;
+// -------------------------------------------------------------------
+
+class Histogram final : public ::google::protobuf::Message
+/* @@protoc_insertion_point(class_definition:holons.v1.Histogram) */ {
+ public:
+  inline Histogram() : Histogram(nullptr) {}
+  ~Histogram() PROTOBUF_FINAL;
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+  void operator delete(Histogram* PROTOBUF_NONNULL msg, ::std::destroying_delete_t) {
+    SharedDtor(*msg);
+    ::google::protobuf::internal::SizedDelete(msg, sizeof(Histogram));
+  }
+#endif
+
+  template <typename = void>
+  explicit PROTOBUF_CONSTEXPR Histogram(::google::protobuf::internal::ConstantInitialized);
+
+  inline Histogram(const Histogram& from) : Histogram(nullptr, from) {}
+  inline Histogram(Histogram&& from) noexcept
+      : Histogram(nullptr, ::std::move(from)) {}
+  inline Histogram& operator=(const Histogram& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline Histogram& operator=(Histogram&& from) noexcept {
+    if (this == &from) return *this;
+    if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance);
+  }
+  inline ::google::protobuf::UnknownFieldSet* PROTOBUF_NONNULL mutable_unknown_fields()
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.mutable_unknown_fields<::google::protobuf::UnknownFieldSet>();
+  }
+
+  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL descriptor() {
+    return GetDescriptor();
+  }
+  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::google::protobuf::Reflection* PROTOBUF_NONNULL GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const Histogram& default_instance() {
+    return *reinterpret_cast<const Histogram*>(
+        &_Histogram_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages = 10;
+  friend void swap(Histogram& a, Histogram& b) { a.Swap(&b); }
+  inline void Swap(Histogram* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
+      InternalSwap(other);
+    } else {
+      ::google::protobuf::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(Histogram* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetArena() == other->GetArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  Histogram* PROTOBUF_NONNULL New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
+    return ::google::protobuf::Message::DefaultConstruct<Histogram>(arena);
+  }
+  using ::google::protobuf::Message::CopyFrom;
+  void CopyFrom(const Histogram& from);
+  using ::google::protobuf::Message::MergeFrom;
+  void MergeFrom(const Histogram& from) { Histogram::MergeImpl(*this, from); }
+
+  private:
+  static void MergeImpl(::google::protobuf::MessageLite& to_msg,
+                        const ::google::protobuf::MessageLite& from_msg);
+
+  public:
+  bool IsInitialized() const {
+    return true;
+  }
+  ABSL_ATTRIBUTE_REINITIALIZES void Clear() PROTOBUF_FINAL;
+  #if defined(PROTOBUF_CUSTOM_VTABLE)
+  private:
+  static ::size_t ByteSizeLong(const ::google::protobuf::MessageLite& msg);
+  static ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      const ::google::protobuf::MessageLite& msg, ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream);
+
+  public:
+  ::size_t ByteSizeLong() const { return ByteSizeLong(*this); }
+  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+    return _InternalSerialize(*this, target, stream);
+  }
+  #else   // PROTOBUF_CUSTOM_VTABLE
+  ::size_t ByteSizeLong() const final;
+  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const final;
+  #endif  // PROTOBUF_CUSTOM_VTABLE
+  int GetCachedSize() const { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static void SharedDtor(MessageLite& self);
+  void InternalSwap(Histogram* PROTOBUF_NONNULL other);
+ private:
+  template <typename T>
+  friend ::absl::string_view(::google::protobuf::internal::GetAnyMessageName)();
+  static ::absl::string_view FullMessageName() { return "holons.v1.Histogram"; }
+
+ protected:
+  explicit Histogram(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  Histogram(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Histogram& from);
+  Histogram(
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, Histogram&& from) noexcept
+      : Histogram(arena) {
+    *this = ::std::move(from);
+  }
+  const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
+  static void* PROTOBUF_NONNULL PlacementNew_(
+      const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static constexpr auto InternalNewImpl_();
+
+ public:
+  static constexpr auto InternalGenerateClassData_();
+
+  ::google::protobuf::Metadata GetMetadata() const;
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+  enum : int {
+    kDataPointsFieldNumber = 1,
+    kAggregationTemporalityFieldNumber = 2,
+  };
+  // repeated .holons.v1.HistogramDataPoint data_points = 1;
+  int data_points_size() const;
+  private:
+  int _internal_data_points_size() const;
+
+  public:
+  void clear_data_points() ;
+  ::holons::v1::HistogramDataPoint* PROTOBUF_NONNULL mutable_data_points(int index);
+  ::google::protobuf::RepeatedPtrField<::holons::v1::HistogramDataPoint>* PROTOBUF_NONNULL mutable_data_points();
+
+  private:
+  const ::google::protobuf::RepeatedPtrField<::holons::v1::HistogramDataPoint>& _internal_data_points() const;
+  ::google::protobuf::RepeatedPtrField<::holons::v1::HistogramDataPoint>* PROTOBUF_NONNULL _internal_mutable_data_points();
+  public:
+  const ::holons::v1::HistogramDataPoint& data_points(int index) const;
+  ::holons::v1::HistogramDataPoint* PROTOBUF_NONNULL add_data_points();
+  const ::google::protobuf::RepeatedPtrField<::holons::v1::HistogramDataPoint>& data_points() const;
+  // .holons.v1.AggregationTemporality aggregation_temporality = 2;
+  void clear_aggregation_temporality() ;
+  ::holons::v1::AggregationTemporality aggregation_temporality() const;
+  void set_aggregation_temporality(::holons::v1::AggregationTemporality value);
+
+  private:
+  ::holons::v1::AggregationTemporality _internal_aggregation_temporality() const;
+  void _internal_set_aggregation_temporality(::holons::v1::AggregationTemporality value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:holons.v1.Histogram)
+ private:
+  class _Internal;
+  friend class ::google::protobuf::internal::TcParser;
+  static const ::google::protobuf::internal::TcParseTable<1, 2,
+                                   1, 0,
+                                   2>
+      _table_;
+
+  friend class ::google::protobuf::MessageLite;
+  friend class ::google::protobuf::Arena;
+  template <typename T>
+  friend class ::google::protobuf::Arena::InternalHelper;
+  using InternalArenaConstructable_ = void;
+  using DestructorSkippable_ = void;
+  struct Impl_ {
+    inline explicit constexpr Impl_(::google::protobuf::internal::ConstantInitialized) noexcept;
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+        const Histogram& from_msg);
+    ::google::protobuf::internal::HasBits<1> _has_bits_;
+    ::google::protobuf::internal::CachedSize _cached_size_;
+    ::google::protobuf::RepeatedPtrField< ::holons::v1::HistogramDataPoint > data_points_;
+    int aggregation_temporality_;
+    PROTOBUF_TSAN_DECLARE_MEMBER
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_holons_2fv1_2fobservability_2eproto;
+};
+
+extern const ::google::protobuf::internal::ClassDataFull Histogram_class_data_;
+// -------------------------------------------------------------------
+
+class Gauge final : public ::google::protobuf::Message
+/* @@protoc_insertion_point(class_definition:holons.v1.Gauge) */ {
+ public:
+  inline Gauge() : Gauge(nullptr) {}
+  ~Gauge() PROTOBUF_FINAL;
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+  void operator delete(Gauge* PROTOBUF_NONNULL msg, ::std::destroying_delete_t) {
+    SharedDtor(*msg);
+    ::google::protobuf::internal::SizedDelete(msg, sizeof(Gauge));
+  }
+#endif
+
+  template <typename = void>
+  explicit PROTOBUF_CONSTEXPR Gauge(::google::protobuf::internal::ConstantInitialized);
+
+  inline Gauge(const Gauge& from) : Gauge(nullptr, from) {}
+  inline Gauge(Gauge&& from) noexcept
+      : Gauge(nullptr, ::std::move(from)) {}
+  inline Gauge& operator=(const Gauge& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline Gauge& operator=(Gauge&& from) noexcept {
+    if (this == &from) return *this;
+    if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance);
+  }
+  inline ::google::protobuf::UnknownFieldSet* PROTOBUF_NONNULL mutable_unknown_fields()
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.mutable_unknown_fields<::google::protobuf::UnknownFieldSet>();
+  }
+
+  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL descriptor() {
+    return GetDescriptor();
+  }
+  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::google::protobuf::Reflection* PROTOBUF_NONNULL GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const Gauge& default_instance() {
+    return *reinterpret_cast<const Gauge*>(
+        &_Gauge_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages = 8;
+  friend void swap(Gauge& a, Gauge& b) { a.Swap(&b); }
+  inline void Swap(Gauge* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
+      InternalSwap(other);
+    } else {
+      ::google::protobuf::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(Gauge* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetArena() == other->GetArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  Gauge* PROTOBUF_NONNULL New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
+    return ::google::protobuf::Message::DefaultConstruct<Gauge>(arena);
+  }
+  using ::google::protobuf::Message::CopyFrom;
+  void CopyFrom(const Gauge& from);
+  using ::google::protobuf::Message::MergeFrom;
+  void MergeFrom(const Gauge& from) { Gauge::MergeImpl(*this, from); }
+
+  private:
+  static void MergeImpl(::google::protobuf::MessageLite& to_msg,
+                        const ::google::protobuf::MessageLite& from_msg);
+
+  public:
+  bool IsInitialized() const {
+    return true;
+  }
+  ABSL_ATTRIBUTE_REINITIALIZES void Clear() PROTOBUF_FINAL;
+  #if defined(PROTOBUF_CUSTOM_VTABLE)
+  private:
+  static ::size_t ByteSizeLong(const ::google::protobuf::MessageLite& msg);
+  static ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      const ::google::protobuf::MessageLite& msg, ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream);
+
+  public:
+  ::size_t ByteSizeLong() const { return ByteSizeLong(*this); }
+  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+    return _InternalSerialize(*this, target, stream);
+  }
+  #else   // PROTOBUF_CUSTOM_VTABLE
+  ::size_t ByteSizeLong() const final;
+  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const final;
+  #endif  // PROTOBUF_CUSTOM_VTABLE
+  int GetCachedSize() const { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static void SharedDtor(MessageLite& self);
+  void InternalSwap(Gauge* PROTOBUF_NONNULL other);
+ private:
+  template <typename T>
+  friend ::absl::string_view(::google::protobuf::internal::GetAnyMessageName)();
+  static ::absl::string_view FullMessageName() { return "holons.v1.Gauge"; }
+
+ protected:
+  explicit Gauge(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  Gauge(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Gauge& from);
+  Gauge(
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, Gauge&& from) noexcept
+      : Gauge(arena) {
+    *this = ::std::move(from);
+  }
+  const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
+  static void* PROTOBUF_NONNULL PlacementNew_(
+      const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static constexpr auto InternalNewImpl_();
+
+ public:
+  static constexpr auto InternalGenerateClassData_();
+
+  ::google::protobuf::Metadata GetMetadata() const;
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+  enum : int {
+    kDataPointsFieldNumber = 1,
+  };
+  // repeated .holons.v1.NumberDataPoint data_points = 1;
+  int data_points_size() const;
+  private:
+  int _internal_data_points_size() const;
+
+  public:
+  void clear_data_points() ;
+  ::holons::v1::NumberDataPoint* PROTOBUF_NONNULL mutable_data_points(int index);
+  ::google::protobuf::RepeatedPtrField<::holons::v1::NumberDataPoint>* PROTOBUF_NONNULL mutable_data_points();
+
+  private:
+  const ::google::protobuf::RepeatedPtrField<::holons::v1::NumberDataPoint>& _internal_data_points() const;
+  ::google::protobuf::RepeatedPtrField<::holons::v1::NumberDataPoint>* PROTOBUF_NONNULL _internal_mutable_data_points();
+  public:
+  const ::holons::v1::NumberDataPoint& data_points(int index) const;
+  ::holons::v1::NumberDataPoint* PROTOBUF_NONNULL add_data_points();
+  const ::google::protobuf::RepeatedPtrField<::holons::v1::NumberDataPoint>& data_points() const;
+  // @@protoc_insertion_point(class_scope:holons.v1.Gauge)
+ private:
+  class _Internal;
+  friend class ::google::protobuf::internal::TcParser;
+  static const ::google::protobuf::internal::TcParseTable<0, 1,
+                                   1, 0,
+                                   2>
+      _table_;
+
+  friend class ::google::protobuf::MessageLite;
+  friend class ::google::protobuf::Arena;
+  template <typename T>
+  friend class ::google::protobuf::Arena::InternalHelper;
+  using InternalArenaConstructable_ = void;
+  using DestructorSkippable_ = void;
+  struct Impl_ {
+    inline explicit constexpr Impl_(::google::protobuf::internal::ConstantInitialized) noexcept;
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+        const Gauge& from_msg);
+    ::google::protobuf::RepeatedPtrField< ::holons::v1::NumberDataPoint > data_points_;
+    ::google::protobuf::internal::CachedSize _cached_size_;
+    PROTOBUF_TSAN_DECLARE_MEMBER
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_holons_2fv1_2fobservability_2eproto;
+};
+
+extern const ::google::protobuf::internal::ClassDataFull Gauge_class_data_;
+// -------------------------------------------------------------------
+
+class Metric final : public ::google::protobuf::Message
+/* @@protoc_insertion_point(class_definition:holons.v1.Metric) */ {
+ public:
+  inline Metric() : Metric(nullptr) {}
+  ~Metric() PROTOBUF_FINAL;
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+  void operator delete(Metric* PROTOBUF_NONNULL msg, ::std::destroying_delete_t) {
+    SharedDtor(*msg);
+    ::google::protobuf::internal::SizedDelete(msg, sizeof(Metric));
+  }
+#endif
+
+  template <typename = void>
+  explicit PROTOBUF_CONSTEXPR Metric(::google::protobuf::internal::ConstantInitialized);
+
+  inline Metric(const Metric& from) : Metric(nullptr, from) {}
+  inline Metric(Metric&& from) noexcept
+      : Metric(nullptr, ::std::move(from)) {}
+  inline Metric& operator=(const Metric& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline Metric& operator=(Metric&& from) noexcept {
+    if (this == &from) return *this;
+    if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance);
+  }
+  inline ::google::protobuf::UnknownFieldSet* PROTOBUF_NONNULL mutable_unknown_fields()
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.mutable_unknown_fields<::google::protobuf::UnknownFieldSet>();
+  }
+
+  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL descriptor() {
+    return GetDescriptor();
+  }
+  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::google::protobuf::Reflection* PROTOBUF_NONNULL GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const Metric& default_instance() {
+    return *reinterpret_cast<const Metric*>(
+        &_Metric_default_instance_);
+  }
+  enum DataCase {
+    kGauge = 5,
+    kSum = 7,
+    kHistogram = 9,
+    DATA_NOT_SET = 0,
+  };
+  static constexpr int kIndexInFileMessages = 7;
+  friend void swap(Metric& a, Metric& b) { a.Swap(&b); }
+  inline void Swap(Metric* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
+      InternalSwap(other);
+    } else {
+      ::google::protobuf::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(Metric* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetArena() == other->GetArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  Metric* PROTOBUF_NONNULL New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
+    return ::google::protobuf::Message::DefaultConstruct<Metric>(arena);
+  }
+  using ::google::protobuf::Message::CopyFrom;
+  void CopyFrom(const Metric& from);
+  using ::google::protobuf::Message::MergeFrom;
+  void MergeFrom(const Metric& from) { Metric::MergeImpl(*this, from); }
+
+  private:
+  static void MergeImpl(::google::protobuf::MessageLite& to_msg,
+                        const ::google::protobuf::MessageLite& from_msg);
+
+  public:
+  bool IsInitialized() const {
+    return true;
+  }
+  ABSL_ATTRIBUTE_REINITIALIZES void Clear() PROTOBUF_FINAL;
+  #if defined(PROTOBUF_CUSTOM_VTABLE)
+  private:
+  static ::size_t ByteSizeLong(const ::google::protobuf::MessageLite& msg);
+  static ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      const ::google::protobuf::MessageLite& msg, ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream);
+
+  public:
+  ::size_t ByteSizeLong() const { return ByteSizeLong(*this); }
+  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+    return _InternalSerialize(*this, target, stream);
+  }
+  #else   // PROTOBUF_CUSTOM_VTABLE
+  ::size_t ByteSizeLong() const final;
+  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const final;
+  #endif  // PROTOBUF_CUSTOM_VTABLE
+  int GetCachedSize() const { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static void SharedDtor(MessageLite& self);
+  void InternalSwap(Metric* PROTOBUF_NONNULL other);
+ private:
+  template <typename T>
+  friend ::absl::string_view(::google::protobuf::internal::GetAnyMessageName)();
+  static ::absl::string_view FullMessageName() { return "holons.v1.Metric"; }
+
+ protected:
+  explicit Metric(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  Metric(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Metric& from);
+  Metric(
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, Metric&& from) noexcept
+      : Metric(arena) {
+    *this = ::std::move(from);
+  }
+  const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
+  static void* PROTOBUF_NONNULL PlacementNew_(
+      const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static constexpr auto InternalNewImpl_();
+
+ public:
+  static constexpr auto InternalGenerateClassData_();
+
+  ::google::protobuf::Metadata GetMetadata() const;
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+  enum : int {
+    kNameFieldNumber = 1,
+    kDescriptionFieldNumber = 2,
+    kUnitFieldNumber = 3,
+    kGaugeFieldNumber = 5,
+    kSumFieldNumber = 7,
+    kHistogramFieldNumber = 9,
+  };
   // string name = 1;
   void clear_name() ;
   const ::std::string& name() const;
@@ -2542,75 +3328,106 @@ class MetricSample final : public ::google::protobuf::Message
   ::std::string* PROTOBUF_NONNULL _internal_mutable_name();
 
   public:
-  // string help = 6;
-  void clear_help() ;
-  const ::std::string& help() const;
+  // string description = 2;
+  void clear_description() ;
+  const ::std::string& description() const;
   template <typename Arg_ = const ::std::string&, typename... Args_>
-  void set_help(Arg_&& arg, Args_... args);
-  ::std::string* PROTOBUF_NONNULL mutable_help();
-  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_help();
-  void set_allocated_help(::std::string* PROTOBUF_NULLABLE value);
+  void set_description(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_description();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_description();
+  void set_allocated_description(::std::string* PROTOBUF_NULLABLE value);
 
   private:
-  const ::std::string& _internal_help() const;
-  PROTOBUF_ALWAYS_INLINE void _internal_set_help(const ::std::string& value);
-  ::std::string* PROTOBUF_NONNULL _internal_mutable_help();
+  const ::std::string& _internal_description() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_description(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_description();
 
   public:
-  // int64 counter = 3;
-  bool has_counter() const;
-  void clear_counter() ;
-  ::int64_t counter() const;
-  void set_counter(::int64_t value);
+  // string unit = 3;
+  void clear_unit() ;
+  const ::std::string& unit() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_unit(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_unit();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_unit();
+  void set_allocated_unit(::std::string* PROTOBUF_NULLABLE value);
 
   private:
-  ::int64_t _internal_counter() const;
-  void _internal_set_counter(::int64_t value);
+  const ::std::string& _internal_unit() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_unit(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_unit();
 
   public:
-  // double gauge = 4;
+  // .holons.v1.Gauge gauge = 5;
   bool has_gauge() const;
-  void clear_gauge() ;
-  double gauge() const;
-  void set_gauge(double value);
-
   private:
-  double _internal_gauge() const;
-  void _internal_set_gauge(double value);
+  bool _internal_has_gauge() const;
 
   public:
-  // .holons.v1.HistogramSample histogram = 5;
+  void clear_gauge() ;
+  const ::holons::v1::Gauge& gauge() const;
+  [[nodiscard]] ::holons::v1::Gauge* PROTOBUF_NULLABLE release_gauge();
+  ::holons::v1::Gauge* PROTOBUF_NONNULL mutable_gauge();
+  void set_allocated_gauge(::holons::v1::Gauge* PROTOBUF_NULLABLE value);
+  void unsafe_arena_set_allocated_gauge(::holons::v1::Gauge* PROTOBUF_NULLABLE value);
+  ::holons::v1::Gauge* PROTOBUF_NULLABLE unsafe_arena_release_gauge();
+
+  private:
+  const ::holons::v1::Gauge& _internal_gauge() const;
+  ::holons::v1::Gauge* PROTOBUF_NONNULL _internal_mutable_gauge();
+
+  public:
+  // .holons.v1.Sum sum = 7;
+  bool has_sum() const;
+  private:
+  bool _internal_has_sum() const;
+
+  public:
+  void clear_sum() ;
+  const ::holons::v1::Sum& sum() const;
+  [[nodiscard]] ::holons::v1::Sum* PROTOBUF_NULLABLE release_sum();
+  ::holons::v1::Sum* PROTOBUF_NONNULL mutable_sum();
+  void set_allocated_sum(::holons::v1::Sum* PROTOBUF_NULLABLE value);
+  void unsafe_arena_set_allocated_sum(::holons::v1::Sum* PROTOBUF_NULLABLE value);
+  ::holons::v1::Sum* PROTOBUF_NULLABLE unsafe_arena_release_sum();
+
+  private:
+  const ::holons::v1::Sum& _internal_sum() const;
+  ::holons::v1::Sum* PROTOBUF_NONNULL _internal_mutable_sum();
+
+  public:
+  // .holons.v1.Histogram histogram = 9;
   bool has_histogram() const;
   private:
   bool _internal_has_histogram() const;
 
   public:
   void clear_histogram() ;
-  const ::holons::v1::HistogramSample& histogram() const;
-  [[nodiscard]] ::holons::v1::HistogramSample* PROTOBUF_NULLABLE release_histogram();
-  ::holons::v1::HistogramSample* PROTOBUF_NONNULL mutable_histogram();
-  void set_allocated_histogram(::holons::v1::HistogramSample* PROTOBUF_NULLABLE value);
-  void unsafe_arena_set_allocated_histogram(::holons::v1::HistogramSample* PROTOBUF_NULLABLE value);
-  ::holons::v1::HistogramSample* PROTOBUF_NULLABLE unsafe_arena_release_histogram();
+  const ::holons::v1::Histogram& histogram() const;
+  [[nodiscard]] ::holons::v1::Histogram* PROTOBUF_NULLABLE release_histogram();
+  ::holons::v1::Histogram* PROTOBUF_NONNULL mutable_histogram();
+  void set_allocated_histogram(::holons::v1::Histogram* PROTOBUF_NULLABLE value);
+  void unsafe_arena_set_allocated_histogram(::holons::v1::Histogram* PROTOBUF_NULLABLE value);
+  ::holons::v1::Histogram* PROTOBUF_NULLABLE unsafe_arena_release_histogram();
 
   private:
-  const ::holons::v1::HistogramSample& _internal_histogram() const;
-  ::holons::v1::HistogramSample* PROTOBUF_NONNULL _internal_mutable_histogram();
+  const ::holons::v1::Histogram& _internal_histogram() const;
+  ::holons::v1::Histogram* PROTOBUF_NONNULL _internal_mutable_histogram();
 
   public:
-  void clear_value();
-  ValueCase value_case() const;
-  // @@protoc_insertion_point(class_scope:holons.v1.MetricSample)
+  void clear_data();
+  DataCase data_case() const;
+  // @@protoc_insertion_point(class_scope:holons.v1.Metric)
  private:
   class _Internal;
-  void set_has_counter();
   void set_has_gauge();
+  void set_has_sum();
   void set_has_histogram();
-  inline bool has_value() const;
-  inline void clear_has_value();
+  inline bool has_data() const;
+  inline void clear_has_data();
   friend class ::google::protobuf::internal::TcParser;
-  static const ::google::protobuf::internal::TcParseTable<2, 7,
-                                   3, 45,
+  static const ::google::protobuf::internal::TcParseTable<2, 6,
+                                   3, 44,
                                    2>
       _table_;
 
@@ -2628,23 +3445,19 @@ class MetricSample final : public ::google::protobuf::Message
     inline explicit Impl_(
         ::google::protobuf::internal::InternalVisibility visibility,
         ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
-        const MetricSample& from_msg);
+        const Metric& from_msg);
     ::google::protobuf::internal::HasBits<1> _has_bits_;
     ::google::protobuf::internal::CachedSize _cached_size_;
-    ::google::protobuf::internal::MapField<MetricSample_LabelsEntry_DoNotUse, ::std::string, ::std::string,
-                      ::google::protobuf::internal::WireFormatLite::TYPE_STRING,
-                      ::google::protobuf::internal::WireFormatLite::TYPE_STRING>
-        labels_;
-    ::google::protobuf::RepeatedPtrField< ::holons::v1::ChainHop > chain_;
     ::google::protobuf::internal::ArenaStringPtr name_;
-    ::google::protobuf::internal::ArenaStringPtr help_;
-    union ValueUnion {
-      constexpr ValueUnion() : _constinit_{} {}
+    ::google::protobuf::internal::ArenaStringPtr description_;
+    ::google::protobuf::internal::ArenaStringPtr unit_;
+    union DataUnion {
+      constexpr DataUnion() : _constinit_{} {}
       ::google::protobuf::internal::ConstantInitialized _constinit_;
-      ::int64_t counter_;
-      double gauge_;
-      ::holons::v1::HistogramSample* PROTOBUF_NULLABLE histogram_;
-    } value_;
+      ::google::protobuf::Message* PROTOBUF_NULLABLE gauge_;
+      ::google::protobuf::Message* PROTOBUF_NULLABLE sum_;
+      ::google::protobuf::Message* PROTOBUF_NULLABLE histogram_;
+    } data_;
     ::uint32_t _oneof_case_[1];
     PROTOBUF_TSAN_DECLARE_MEMBER
   };
@@ -2652,273 +3465,7 @@ class MetricSample final : public ::google::protobuf::Message
   friend struct ::TableStruct_holons_2fv1_2fobservability_2eproto;
 };
 
-extern const ::google::protobuf::internal::ClassDataFull MetricSample_class_data_;
-// -------------------------------------------------------------------
-
-class MetricsSnapshot final : public ::google::protobuf::Message
-/* @@protoc_insertion_point(class_definition:holons.v1.MetricsSnapshot) */ {
- public:
-  inline MetricsSnapshot() : MetricsSnapshot(nullptr) {}
-  ~MetricsSnapshot() PROTOBUF_FINAL;
-
-#if defined(PROTOBUF_CUSTOM_VTABLE)
-  void operator delete(MetricsSnapshot* PROTOBUF_NONNULL msg, ::std::destroying_delete_t) {
-    SharedDtor(*msg);
-    ::google::protobuf::internal::SizedDelete(msg, sizeof(MetricsSnapshot));
-  }
-#endif
-
-  template <typename = void>
-  explicit PROTOBUF_CONSTEXPR MetricsSnapshot(::google::protobuf::internal::ConstantInitialized);
-
-  inline MetricsSnapshot(const MetricsSnapshot& from) : MetricsSnapshot(nullptr, from) {}
-  inline MetricsSnapshot(MetricsSnapshot&& from) noexcept
-      : MetricsSnapshot(nullptr, ::std::move(from)) {}
-  inline MetricsSnapshot& operator=(const MetricsSnapshot& from) {
-    CopyFrom(from);
-    return *this;
-  }
-  inline MetricsSnapshot& operator=(MetricsSnapshot&& from) noexcept {
-    if (this == &from) return *this;
-    if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
-      InternalSwap(&from);
-    } else {
-      CopyFrom(from);
-    }
-    return *this;
-  }
-
-  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const
-      ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return _internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance);
-  }
-  inline ::google::protobuf::UnknownFieldSet* PROTOBUF_NONNULL mutable_unknown_fields()
-      ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return _internal_metadata_.mutable_unknown_fields<::google::protobuf::UnknownFieldSet>();
-  }
-
-  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL descriptor() {
-    return GetDescriptor();
-  }
-  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL GetDescriptor() {
-    return default_instance().GetMetadata().descriptor;
-  }
-  static const ::google::protobuf::Reflection* PROTOBUF_NONNULL GetReflection() {
-    return default_instance().GetMetadata().reflection;
-  }
-  static const MetricsSnapshot& default_instance() {
-    return *reinterpret_cast<const MetricsSnapshot*>(
-        &_MetricsSnapshot_default_instance_);
-  }
-  static constexpr int kIndexInFileMessages = 5;
-  friend void swap(MetricsSnapshot& a, MetricsSnapshot& b) { a.Swap(&b); }
-  inline void Swap(MetricsSnapshot* PROTOBUF_NONNULL other) {
-    if (other == this) return;
-    if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
-      InternalSwap(other);
-    } else {
-      ::google::protobuf::internal::GenericSwap(this, other);
-    }
-  }
-  void UnsafeArenaSwap(MetricsSnapshot* PROTOBUF_NONNULL other) {
-    if (other == this) return;
-    ABSL_DCHECK(GetArena() == other->GetArena());
-    InternalSwap(other);
-  }
-
-  // implements Message ----------------------------------------------
-
-  MetricsSnapshot* PROTOBUF_NONNULL New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
-    return ::google::protobuf::Message::DefaultConstruct<MetricsSnapshot>(arena);
-  }
-  using ::google::protobuf::Message::CopyFrom;
-  void CopyFrom(const MetricsSnapshot& from);
-  using ::google::protobuf::Message::MergeFrom;
-  void MergeFrom(const MetricsSnapshot& from) { MetricsSnapshot::MergeImpl(*this, from); }
-
-  private:
-  static void MergeImpl(::google::protobuf::MessageLite& to_msg,
-                        const ::google::protobuf::MessageLite& from_msg);
-
-  public:
-  bool IsInitialized() const {
-    return true;
-  }
-  ABSL_ATTRIBUTE_REINITIALIZES void Clear() PROTOBUF_FINAL;
-  #if defined(PROTOBUF_CUSTOM_VTABLE)
-  private:
-  static ::size_t ByteSizeLong(const ::google::protobuf::MessageLite& msg);
-  static ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
-      const ::google::protobuf::MessageLite& msg, ::uint8_t* PROTOBUF_NONNULL target,
-      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream);
-
-  public:
-  ::size_t ByteSizeLong() const { return ByteSizeLong(*this); }
-  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
-      ::uint8_t* PROTOBUF_NONNULL target,
-      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
-    return _InternalSerialize(*this, target, stream);
-  }
-  #else   // PROTOBUF_CUSTOM_VTABLE
-  ::size_t ByteSizeLong() const final;
-  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
-      ::uint8_t* PROTOBUF_NONNULL target,
-      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const final;
-  #endif  // PROTOBUF_CUSTOM_VTABLE
-  int GetCachedSize() const { return _impl_._cached_size_.Get(); }
-
-  private:
-  void SharedCtor(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
-  static void SharedDtor(MessageLite& self);
-  void InternalSwap(MetricsSnapshot* PROTOBUF_NONNULL other);
- private:
-  template <typename T>
-  friend ::absl::string_view(::google::protobuf::internal::GetAnyMessageName)();
-  static ::absl::string_view FullMessageName() { return "holons.v1.MetricsSnapshot"; }
-
- protected:
-  explicit MetricsSnapshot(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
-  MetricsSnapshot(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const MetricsSnapshot& from);
-  MetricsSnapshot(
-      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, MetricsSnapshot&& from) noexcept
-      : MetricsSnapshot(arena) {
-    *this = ::std::move(from);
-  }
-  const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
-  static void* PROTOBUF_NONNULL PlacementNew_(
-      const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
-      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
-  static constexpr auto InternalNewImpl_();
-
- public:
-  static constexpr auto InternalGenerateClassData_();
-
-  ::google::protobuf::Metadata GetMetadata() const;
-  // nested types ----------------------------------------------------
-
-  // accessors -------------------------------------------------------
-  enum : int {
-    kSamplesFieldNumber = 4,
-    kSlugFieldNumber = 2,
-    kInstanceUidFieldNumber = 3,
-    kCapturedAtFieldNumber = 1,
-    kSessionRollupFieldNumber = 5,
-  };
-  // repeated .holons.v1.MetricSample samples = 4;
-  int samples_size() const;
-  private:
-  int _internal_samples_size() const;
-
-  public:
-  void clear_samples() ;
-  ::holons::v1::MetricSample* PROTOBUF_NONNULL mutable_samples(int index);
-  ::google::protobuf::RepeatedPtrField<::holons::v1::MetricSample>* PROTOBUF_NONNULL mutable_samples();
-
-  private:
-  const ::google::protobuf::RepeatedPtrField<::holons::v1::MetricSample>& _internal_samples() const;
-  ::google::protobuf::RepeatedPtrField<::holons::v1::MetricSample>* PROTOBUF_NONNULL _internal_mutable_samples();
-  public:
-  const ::holons::v1::MetricSample& samples(int index) const;
-  ::holons::v1::MetricSample* PROTOBUF_NONNULL add_samples();
-  const ::google::protobuf::RepeatedPtrField<::holons::v1::MetricSample>& samples() const;
-  // string slug = 2;
-  void clear_slug() ;
-  const ::std::string& slug() const;
-  template <typename Arg_ = const ::std::string&, typename... Args_>
-  void set_slug(Arg_&& arg, Args_... args);
-  ::std::string* PROTOBUF_NONNULL mutable_slug();
-  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_slug();
-  void set_allocated_slug(::std::string* PROTOBUF_NULLABLE value);
-
-  private:
-  const ::std::string& _internal_slug() const;
-  PROTOBUF_ALWAYS_INLINE void _internal_set_slug(const ::std::string& value);
-  ::std::string* PROTOBUF_NONNULL _internal_mutable_slug();
-
-  public:
-  // string instance_uid = 3;
-  void clear_instance_uid() ;
-  const ::std::string& instance_uid() const;
-  template <typename Arg_ = const ::std::string&, typename... Args_>
-  void set_instance_uid(Arg_&& arg, Args_... args);
-  ::std::string* PROTOBUF_NONNULL mutable_instance_uid();
-  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_instance_uid();
-  void set_allocated_instance_uid(::std::string* PROTOBUF_NULLABLE value);
-
-  private:
-  const ::std::string& _internal_instance_uid() const;
-  PROTOBUF_ALWAYS_INLINE void _internal_set_instance_uid(const ::std::string& value);
-  ::std::string* PROTOBUF_NONNULL _internal_mutable_instance_uid();
-
-  public:
-  // .google.protobuf.Timestamp captured_at = 1;
-  bool has_captured_at() const;
-  void clear_captured_at() ;
-  const ::google::protobuf::Timestamp& captured_at() const;
-  [[nodiscard]] ::google::protobuf::Timestamp* PROTOBUF_NULLABLE release_captured_at();
-  ::google::protobuf::Timestamp* PROTOBUF_NONNULL mutable_captured_at();
-  void set_allocated_captured_at(::google::protobuf::Timestamp* PROTOBUF_NULLABLE value);
-  void unsafe_arena_set_allocated_captured_at(::google::protobuf::Timestamp* PROTOBUF_NULLABLE value);
-  ::google::protobuf::Timestamp* PROTOBUF_NULLABLE unsafe_arena_release_captured_at();
-
-  private:
-  const ::google::protobuf::Timestamp& _internal_captured_at() const;
-  ::google::protobuf::Timestamp* PROTOBUF_NONNULL _internal_mutable_captured_at();
-
-  public:
-  // .holons.v1.SessionMetrics session_rollup = 5;
-  bool has_session_rollup() const;
-  void clear_session_rollup() ;
-  const ::holons::v1::SessionMetrics& session_rollup() const;
-  [[nodiscard]] ::holons::v1::SessionMetrics* PROTOBUF_NULLABLE release_session_rollup();
-  ::holons::v1::SessionMetrics* PROTOBUF_NONNULL mutable_session_rollup();
-  void set_allocated_session_rollup(::holons::v1::SessionMetrics* PROTOBUF_NULLABLE value);
-  void unsafe_arena_set_allocated_session_rollup(::holons::v1::SessionMetrics* PROTOBUF_NULLABLE value);
-  ::holons::v1::SessionMetrics* PROTOBUF_NULLABLE unsafe_arena_release_session_rollup();
-
-  private:
-  const ::holons::v1::SessionMetrics& _internal_session_rollup() const;
-  ::holons::v1::SessionMetrics* PROTOBUF_NONNULL _internal_mutable_session_rollup();
-
-  public:
-  // @@protoc_insertion_point(class_scope:holons.v1.MetricsSnapshot)
- private:
-  class _Internal;
-  friend class ::google::protobuf::internal::TcParser;
-  static const ::google::protobuf::internal::TcParseTable<3, 5,
-                                   3, 50,
-                                   2>
-      _table_;
-
-  friend class ::google::protobuf::MessageLite;
-  friend class ::google::protobuf::Arena;
-  template <typename T>
-  friend class ::google::protobuf::Arena::InternalHelper;
-  using InternalArenaConstructable_ = void;
-  using DestructorSkippable_ = void;
-  struct Impl_ {
-    inline explicit constexpr Impl_(::google::protobuf::internal::ConstantInitialized) noexcept;
-    inline explicit Impl_(
-        ::google::protobuf::internal::InternalVisibility visibility,
-        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
-    inline explicit Impl_(
-        ::google::protobuf::internal::InternalVisibility visibility,
-        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
-        const MetricsSnapshot& from_msg);
-    ::google::protobuf::internal::HasBits<1> _has_bits_;
-    ::google::protobuf::internal::CachedSize _cached_size_;
-    ::google::protobuf::RepeatedPtrField< ::holons::v1::MetricSample > samples_;
-    ::google::protobuf::internal::ArenaStringPtr slug_;
-    ::google::protobuf::internal::ArenaStringPtr instance_uid_;
-    ::google::protobuf::Timestamp* PROTOBUF_NULLABLE captured_at_;
-    ::holons::v1::SessionMetrics* PROTOBUF_NULLABLE session_rollup_;
-    PROTOBUF_TSAN_DECLARE_MEMBER
-  };
-  union { Impl_ _impl_; };
-  friend struct ::TableStruct_holons_2fv1_2fobservability_2eproto;
-};
-
-extern const ::google::protobuf::internal::ClassDataFull MetricsSnapshot_class_data_;
+extern const ::google::protobuf::internal::ClassDataFull Metric_class_data_;
 
 // ===================================================================
 
@@ -2936,28 +3483,28 @@ extern const ::google::protobuf::internal::ClassDataFull MetricsSnapshot_class_d
 
 // LogsRequest
 
-// .holons.v1.LogLevel min_level = 1;
-inline void LogsRequest::clear_min_level() {
+// .holons.v1.SeverityNumber min_severity_number = 1;
+inline void LogsRequest::clear_min_severity_number() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.min_level_ = 0;
+  _impl_.min_severity_number_ = 0;
   _impl_._has_bits_[0] &= ~0x00000002U;
 }
-inline ::holons::v1::LogLevel LogsRequest::min_level() const {
-  // @@protoc_insertion_point(field_get:holons.v1.LogsRequest.min_level)
-  return _internal_min_level();
+inline ::holons::v1::SeverityNumber LogsRequest::min_severity_number() const {
+  // @@protoc_insertion_point(field_get:holons.v1.LogsRequest.min_severity_number)
+  return _internal_min_severity_number();
 }
-inline void LogsRequest::set_min_level(::holons::v1::LogLevel value) {
-  _internal_set_min_level(value);
+inline void LogsRequest::set_min_severity_number(::holons::v1::SeverityNumber value) {
+  _internal_set_min_severity_number(value);
   _impl_._has_bits_[0] |= 0x00000002U;
-  // @@protoc_insertion_point(field_set:holons.v1.LogsRequest.min_level)
+  // @@protoc_insertion_point(field_set:holons.v1.LogsRequest.min_severity_number)
 }
-inline ::holons::v1::LogLevel LogsRequest::_internal_min_level() const {
+inline ::holons::v1::SeverityNumber LogsRequest::_internal_min_severity_number() const {
   ::google::protobuf::internal::TSanRead(&_impl_);
-  return static_cast<::holons::v1::LogLevel>(_impl_.min_level_);
+  return static_cast<::holons::v1::SeverityNumber>(_impl_.min_severity_number_);
 }
-inline void LogsRequest::_internal_set_min_level(::holons::v1::LogLevel value) {
+inline void LogsRequest::_internal_set_min_severity_number(::holons::v1::SeverityNumber value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.min_level_ = value;
+  _impl_.min_severity_number_ = value;
 }
 
 // repeated string session_ids = 2;
@@ -3207,732 +3754,6 @@ inline void LogsRequest::_internal_set_follow(bool value) {
 
 // -------------------------------------------------------------------
 
-// -------------------------------------------------------------------
-
-// LogEntry
-
-// .google.protobuf.Timestamp ts = 1;
-inline bool LogEntry::has_ts() const {
-  bool value = (_impl_._has_bits_[0] & 0x00000040U) != 0;
-  PROTOBUF_ASSUME(!value || _impl_.ts_ != nullptr);
-  return value;
-}
-inline const ::google::protobuf::Timestamp& LogEntry::_internal_ts() const {
-  ::google::protobuf::internal::TSanRead(&_impl_);
-  const ::google::protobuf::Timestamp* p = _impl_.ts_;
-  return p != nullptr ? *p : reinterpret_cast<const ::google::protobuf::Timestamp&>(::google::protobuf::_Timestamp_default_instance_);
-}
-inline const ::google::protobuf::Timestamp& LogEntry::ts() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_get:holons.v1.LogEntry.ts)
-  return _internal_ts();
-}
-inline void LogEntry::unsafe_arena_set_allocated_ts(
-    ::google::protobuf::Timestamp* PROTOBUF_NULLABLE value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  if (GetArena() == nullptr) {
-    delete reinterpret_cast<::google::protobuf::MessageLite*>(_impl_.ts_);
-  }
-  _impl_.ts_ = reinterpret_cast<::google::protobuf::Timestamp*>(value);
-  if (value != nullptr) {
-    _impl_._has_bits_[0] |= 0x00000040U;
-  } else {
-    _impl_._has_bits_[0] &= ~0x00000040U;
-  }
-  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:holons.v1.LogEntry.ts)
-}
-inline ::google::protobuf::Timestamp* PROTOBUF_NULLABLE LogEntry::release_ts() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-
-  _impl_._has_bits_[0] &= ~0x00000040U;
-  ::google::protobuf::Timestamp* released = _impl_.ts_;
-  _impl_.ts_ = nullptr;
-  if (::google::protobuf::internal::DebugHardenForceCopyInRelease()) {
-    auto* old = reinterpret_cast<::google::protobuf::MessageLite*>(released);
-    released = ::google::protobuf::internal::DuplicateIfNonNull(released);
-    if (GetArena() == nullptr) {
-      delete old;
-    }
-  } else {
-    if (GetArena() != nullptr) {
-      released = ::google::protobuf::internal::DuplicateIfNonNull(released);
-    }
-  }
-  return released;
-}
-inline ::google::protobuf::Timestamp* PROTOBUF_NULLABLE LogEntry::unsafe_arena_release_ts() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  // @@protoc_insertion_point(field_release:holons.v1.LogEntry.ts)
-
-  _impl_._has_bits_[0] &= ~0x00000040U;
-  ::google::protobuf::Timestamp* temp = _impl_.ts_;
-  _impl_.ts_ = nullptr;
-  return temp;
-}
-inline ::google::protobuf::Timestamp* PROTOBUF_NONNULL LogEntry::_internal_mutable_ts() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  if (_impl_.ts_ == nullptr) {
-    auto* p = ::google::protobuf::Message::DefaultConstruct<::google::protobuf::Timestamp>(GetArena());
-    _impl_.ts_ = reinterpret_cast<::google::protobuf::Timestamp*>(p);
-  }
-  return _impl_.ts_;
-}
-inline ::google::protobuf::Timestamp* PROTOBUF_NONNULL LogEntry::mutable_ts()
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  _impl_._has_bits_[0] |= 0x00000040U;
-  ::google::protobuf::Timestamp* _msg = _internal_mutable_ts();
-  // @@protoc_insertion_point(field_mutable:holons.v1.LogEntry.ts)
-  return _msg;
-}
-inline void LogEntry::set_allocated_ts(::google::protobuf::Timestamp* PROTOBUF_NULLABLE value) {
-  ::google::protobuf::Arena* message_arena = GetArena();
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  if (message_arena == nullptr) {
-    delete reinterpret_cast<::google::protobuf::MessageLite*>(_impl_.ts_);
-  }
-
-  if (value != nullptr) {
-    ::google::protobuf::Arena* submessage_arena = reinterpret_cast<::google::protobuf::Message*>(value)->GetArena();
-    if (message_arena != submessage_arena) {
-      value = ::google::protobuf::internal::GetOwnedMessage(message_arena, value, submessage_arena);
-    }
-    _impl_._has_bits_[0] |= 0x00000040U;
-  } else {
-    _impl_._has_bits_[0] &= ~0x00000040U;
-  }
-
-  _impl_.ts_ = reinterpret_cast<::google::protobuf::Timestamp*>(value);
-  // @@protoc_insertion_point(field_set_allocated:holons.v1.LogEntry.ts)
-}
-
-// .holons.v1.LogLevel level = 2;
-inline void LogEntry::clear_level() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.level_ = 0;
-  _impl_._has_bits_[0] &= ~0x00000080U;
-}
-inline ::holons::v1::LogLevel LogEntry::level() const {
-  // @@protoc_insertion_point(field_get:holons.v1.LogEntry.level)
-  return _internal_level();
-}
-inline void LogEntry::set_level(::holons::v1::LogLevel value) {
-  _internal_set_level(value);
-  _impl_._has_bits_[0] |= 0x00000080U;
-  // @@protoc_insertion_point(field_set:holons.v1.LogEntry.level)
-}
-inline ::holons::v1::LogLevel LogEntry::_internal_level() const {
-  ::google::protobuf::internal::TSanRead(&_impl_);
-  return static_cast<::holons::v1::LogLevel>(_impl_.level_);
-}
-inline void LogEntry::_internal_set_level(::holons::v1::LogLevel value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.level_ = value;
-}
-
-// string slug = 3;
-inline void LogEntry::clear_slug() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.slug_.ClearToEmpty();
-  _impl_._has_bits_[0] &= ~0x00000001U;
-}
-inline const ::std::string& LogEntry::slug() const
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_get:holons.v1.LogEntry.slug)
-  return _internal_slug();
-}
-template <typename Arg_, typename... Args_>
-PROTOBUF_ALWAYS_INLINE void LogEntry::set_slug(Arg_&& arg, Args_... args) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000001U;
-  _impl_.slug_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
-  // @@protoc_insertion_point(field_set:holons.v1.LogEntry.slug)
-}
-inline ::std::string* PROTOBUF_NONNULL LogEntry::mutable_slug()
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  ::std::string* _s = _internal_mutable_slug();
-  // @@protoc_insertion_point(field_mutable:holons.v1.LogEntry.slug)
-  return _s;
-}
-inline const ::std::string& LogEntry::_internal_slug() const {
-  ::google::protobuf::internal::TSanRead(&_impl_);
-  return _impl_.slug_.Get();
-}
-inline void LogEntry::_internal_set_slug(const ::std::string& value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000001U;
-  _impl_.slug_.Set(value, GetArena());
-}
-inline ::std::string* PROTOBUF_NONNULL LogEntry::_internal_mutable_slug() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000001U;
-  return _impl_.slug_.Mutable( GetArena());
-}
-inline ::std::string* PROTOBUF_NULLABLE LogEntry::release_slug() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  // @@protoc_insertion_point(field_release:holons.v1.LogEntry.slug)
-  if ((_impl_._has_bits_[0] & 0x00000001U) == 0) {
-    return nullptr;
-  }
-  _impl_._has_bits_[0] &= ~0x00000001U;
-  auto* released = _impl_.slug_.Release();
-  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
-    _impl_.slug_.Set("", GetArena());
-  }
-  return released;
-}
-inline void LogEntry::set_allocated_slug(::std::string* PROTOBUF_NULLABLE value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  if (value != nullptr) {
-    _impl_._has_bits_[0] |= 0x00000001U;
-  } else {
-    _impl_._has_bits_[0] &= ~0x00000001U;
-  }
-  _impl_.slug_.SetAllocated(value, GetArena());
-  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.slug_.IsDefault()) {
-    _impl_.slug_.Set("", GetArena());
-  }
-  // @@protoc_insertion_point(field_set_allocated:holons.v1.LogEntry.slug)
-}
-
-// string instance_uid = 4;
-inline void LogEntry::clear_instance_uid() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.instance_uid_.ClearToEmpty();
-  _impl_._has_bits_[0] &= ~0x00000002U;
-}
-inline const ::std::string& LogEntry::instance_uid() const
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_get:holons.v1.LogEntry.instance_uid)
-  return _internal_instance_uid();
-}
-template <typename Arg_, typename... Args_>
-PROTOBUF_ALWAYS_INLINE void LogEntry::set_instance_uid(Arg_&& arg, Args_... args) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000002U;
-  _impl_.instance_uid_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
-  // @@protoc_insertion_point(field_set:holons.v1.LogEntry.instance_uid)
-}
-inline ::std::string* PROTOBUF_NONNULL LogEntry::mutable_instance_uid()
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  ::std::string* _s = _internal_mutable_instance_uid();
-  // @@protoc_insertion_point(field_mutable:holons.v1.LogEntry.instance_uid)
-  return _s;
-}
-inline const ::std::string& LogEntry::_internal_instance_uid() const {
-  ::google::protobuf::internal::TSanRead(&_impl_);
-  return _impl_.instance_uid_.Get();
-}
-inline void LogEntry::_internal_set_instance_uid(const ::std::string& value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000002U;
-  _impl_.instance_uid_.Set(value, GetArena());
-}
-inline ::std::string* PROTOBUF_NONNULL LogEntry::_internal_mutable_instance_uid() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000002U;
-  return _impl_.instance_uid_.Mutable( GetArena());
-}
-inline ::std::string* PROTOBUF_NULLABLE LogEntry::release_instance_uid() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  // @@protoc_insertion_point(field_release:holons.v1.LogEntry.instance_uid)
-  if ((_impl_._has_bits_[0] & 0x00000002U) == 0) {
-    return nullptr;
-  }
-  _impl_._has_bits_[0] &= ~0x00000002U;
-  auto* released = _impl_.instance_uid_.Release();
-  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
-    _impl_.instance_uid_.Set("", GetArena());
-  }
-  return released;
-}
-inline void LogEntry::set_allocated_instance_uid(::std::string* PROTOBUF_NULLABLE value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  if (value != nullptr) {
-    _impl_._has_bits_[0] |= 0x00000002U;
-  } else {
-    _impl_._has_bits_[0] &= ~0x00000002U;
-  }
-  _impl_.instance_uid_.SetAllocated(value, GetArena());
-  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.instance_uid_.IsDefault()) {
-    _impl_.instance_uid_.Set("", GetArena());
-  }
-  // @@protoc_insertion_point(field_set_allocated:holons.v1.LogEntry.instance_uid)
-}
-
-// string session_id = 5;
-inline void LogEntry::clear_session_id() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.session_id_.ClearToEmpty();
-  _impl_._has_bits_[0] &= ~0x00000004U;
-}
-inline const ::std::string& LogEntry::session_id() const
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_get:holons.v1.LogEntry.session_id)
-  return _internal_session_id();
-}
-template <typename Arg_, typename... Args_>
-PROTOBUF_ALWAYS_INLINE void LogEntry::set_session_id(Arg_&& arg, Args_... args) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000004U;
-  _impl_.session_id_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
-  // @@protoc_insertion_point(field_set:holons.v1.LogEntry.session_id)
-}
-inline ::std::string* PROTOBUF_NONNULL LogEntry::mutable_session_id()
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  ::std::string* _s = _internal_mutable_session_id();
-  // @@protoc_insertion_point(field_mutable:holons.v1.LogEntry.session_id)
-  return _s;
-}
-inline const ::std::string& LogEntry::_internal_session_id() const {
-  ::google::protobuf::internal::TSanRead(&_impl_);
-  return _impl_.session_id_.Get();
-}
-inline void LogEntry::_internal_set_session_id(const ::std::string& value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000004U;
-  _impl_.session_id_.Set(value, GetArena());
-}
-inline ::std::string* PROTOBUF_NONNULL LogEntry::_internal_mutable_session_id() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000004U;
-  return _impl_.session_id_.Mutable( GetArena());
-}
-inline ::std::string* PROTOBUF_NULLABLE LogEntry::release_session_id() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  // @@protoc_insertion_point(field_release:holons.v1.LogEntry.session_id)
-  if ((_impl_._has_bits_[0] & 0x00000004U) == 0) {
-    return nullptr;
-  }
-  _impl_._has_bits_[0] &= ~0x00000004U;
-  auto* released = _impl_.session_id_.Release();
-  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
-    _impl_.session_id_.Set("", GetArena());
-  }
-  return released;
-}
-inline void LogEntry::set_allocated_session_id(::std::string* PROTOBUF_NULLABLE value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  if (value != nullptr) {
-    _impl_._has_bits_[0] |= 0x00000004U;
-  } else {
-    _impl_._has_bits_[0] &= ~0x00000004U;
-  }
-  _impl_.session_id_.SetAllocated(value, GetArena());
-  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.session_id_.IsDefault()) {
-    _impl_.session_id_.Set("", GetArena());
-  }
-  // @@protoc_insertion_point(field_set_allocated:holons.v1.LogEntry.session_id)
-}
-
-// string rpc_method = 6;
-inline void LogEntry::clear_rpc_method() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.rpc_method_.ClearToEmpty();
-  _impl_._has_bits_[0] &= ~0x00000008U;
-}
-inline const ::std::string& LogEntry::rpc_method() const
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_get:holons.v1.LogEntry.rpc_method)
-  return _internal_rpc_method();
-}
-template <typename Arg_, typename... Args_>
-PROTOBUF_ALWAYS_INLINE void LogEntry::set_rpc_method(Arg_&& arg, Args_... args) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000008U;
-  _impl_.rpc_method_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
-  // @@protoc_insertion_point(field_set:holons.v1.LogEntry.rpc_method)
-}
-inline ::std::string* PROTOBUF_NONNULL LogEntry::mutable_rpc_method()
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  ::std::string* _s = _internal_mutable_rpc_method();
-  // @@protoc_insertion_point(field_mutable:holons.v1.LogEntry.rpc_method)
-  return _s;
-}
-inline const ::std::string& LogEntry::_internal_rpc_method() const {
-  ::google::protobuf::internal::TSanRead(&_impl_);
-  return _impl_.rpc_method_.Get();
-}
-inline void LogEntry::_internal_set_rpc_method(const ::std::string& value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000008U;
-  _impl_.rpc_method_.Set(value, GetArena());
-}
-inline ::std::string* PROTOBUF_NONNULL LogEntry::_internal_mutable_rpc_method() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000008U;
-  return _impl_.rpc_method_.Mutable( GetArena());
-}
-inline ::std::string* PROTOBUF_NULLABLE LogEntry::release_rpc_method() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  // @@protoc_insertion_point(field_release:holons.v1.LogEntry.rpc_method)
-  if ((_impl_._has_bits_[0] & 0x00000008U) == 0) {
-    return nullptr;
-  }
-  _impl_._has_bits_[0] &= ~0x00000008U;
-  auto* released = _impl_.rpc_method_.Release();
-  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
-    _impl_.rpc_method_.Set("", GetArena());
-  }
-  return released;
-}
-inline void LogEntry::set_allocated_rpc_method(::std::string* PROTOBUF_NULLABLE value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  if (value != nullptr) {
-    _impl_._has_bits_[0] |= 0x00000008U;
-  } else {
-    _impl_._has_bits_[0] &= ~0x00000008U;
-  }
-  _impl_.rpc_method_.SetAllocated(value, GetArena());
-  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.rpc_method_.IsDefault()) {
-    _impl_.rpc_method_.Set("", GetArena());
-  }
-  // @@protoc_insertion_point(field_set_allocated:holons.v1.LogEntry.rpc_method)
-}
-
-// string message = 7;
-inline void LogEntry::clear_message() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.message_.ClearToEmpty();
-  _impl_._has_bits_[0] &= ~0x00000010U;
-}
-inline const ::std::string& LogEntry::message() const
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_get:holons.v1.LogEntry.message)
-  return _internal_message();
-}
-template <typename Arg_, typename... Args_>
-PROTOBUF_ALWAYS_INLINE void LogEntry::set_message(Arg_&& arg, Args_... args) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000010U;
-  _impl_.message_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
-  // @@protoc_insertion_point(field_set:holons.v1.LogEntry.message)
-}
-inline ::std::string* PROTOBUF_NONNULL LogEntry::mutable_message()
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  ::std::string* _s = _internal_mutable_message();
-  // @@protoc_insertion_point(field_mutable:holons.v1.LogEntry.message)
-  return _s;
-}
-inline const ::std::string& LogEntry::_internal_message() const {
-  ::google::protobuf::internal::TSanRead(&_impl_);
-  return _impl_.message_.Get();
-}
-inline void LogEntry::_internal_set_message(const ::std::string& value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000010U;
-  _impl_.message_.Set(value, GetArena());
-}
-inline ::std::string* PROTOBUF_NONNULL LogEntry::_internal_mutable_message() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000010U;
-  return _impl_.message_.Mutable( GetArena());
-}
-inline ::std::string* PROTOBUF_NULLABLE LogEntry::release_message() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  // @@protoc_insertion_point(field_release:holons.v1.LogEntry.message)
-  if ((_impl_._has_bits_[0] & 0x00000010U) == 0) {
-    return nullptr;
-  }
-  _impl_._has_bits_[0] &= ~0x00000010U;
-  auto* released = _impl_.message_.Release();
-  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
-    _impl_.message_.Set("", GetArena());
-  }
-  return released;
-}
-inline void LogEntry::set_allocated_message(::std::string* PROTOBUF_NULLABLE value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  if (value != nullptr) {
-    _impl_._has_bits_[0] |= 0x00000010U;
-  } else {
-    _impl_._has_bits_[0] &= ~0x00000010U;
-  }
-  _impl_.message_.SetAllocated(value, GetArena());
-  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.message_.IsDefault()) {
-    _impl_.message_.Set("", GetArena());
-  }
-  // @@protoc_insertion_point(field_set_allocated:holons.v1.LogEntry.message)
-}
-
-// map<string, string> fields = 8;
-inline int LogEntry::_internal_fields_size() const {
-  return _internal_fields().size();
-}
-inline int LogEntry::fields_size() const {
-  return _internal_fields_size();
-}
-inline void LogEntry::clear_fields() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.fields_.Clear();
-}
-inline const ::google::protobuf::Map<::std::string, ::std::string>& LogEntry::_internal_fields() const {
-  ::google::protobuf::internal::TSanRead(&_impl_);
-  return _impl_.fields_.GetMap();
-}
-inline const ::google::protobuf::Map<::std::string, ::std::string>& LogEntry::fields() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_map:holons.v1.LogEntry.fields)
-  return _internal_fields();
-}
-inline ::google::protobuf::Map<::std::string, ::std::string>* PROTOBUF_NONNULL LogEntry::_internal_mutable_fields() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  return _impl_.fields_.MutableMap();
-}
-inline ::google::protobuf::Map<::std::string, ::std::string>* PROTOBUF_NONNULL LogEntry::mutable_fields()
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_mutable_map:holons.v1.LogEntry.fields)
-  return _internal_mutable_fields();
-}
-
-// string caller = 9;
-inline void LogEntry::clear_caller() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.caller_.ClearToEmpty();
-  _impl_._has_bits_[0] &= ~0x00000020U;
-}
-inline const ::std::string& LogEntry::caller() const
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_get:holons.v1.LogEntry.caller)
-  return _internal_caller();
-}
-template <typename Arg_, typename... Args_>
-PROTOBUF_ALWAYS_INLINE void LogEntry::set_caller(Arg_&& arg, Args_... args) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000020U;
-  _impl_.caller_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
-  // @@protoc_insertion_point(field_set:holons.v1.LogEntry.caller)
-}
-inline ::std::string* PROTOBUF_NONNULL LogEntry::mutable_caller()
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  ::std::string* _s = _internal_mutable_caller();
-  // @@protoc_insertion_point(field_mutable:holons.v1.LogEntry.caller)
-  return _s;
-}
-inline const ::std::string& LogEntry::_internal_caller() const {
-  ::google::protobuf::internal::TSanRead(&_impl_);
-  return _impl_.caller_.Get();
-}
-inline void LogEntry::_internal_set_caller(const ::std::string& value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000020U;
-  _impl_.caller_.Set(value, GetArena());
-}
-inline ::std::string* PROTOBUF_NONNULL LogEntry::_internal_mutable_caller() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000020U;
-  return _impl_.caller_.Mutable( GetArena());
-}
-inline ::std::string* PROTOBUF_NULLABLE LogEntry::release_caller() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  // @@protoc_insertion_point(field_release:holons.v1.LogEntry.caller)
-  if ((_impl_._has_bits_[0] & 0x00000020U) == 0) {
-    return nullptr;
-  }
-  _impl_._has_bits_[0] &= ~0x00000020U;
-  auto* released = _impl_.caller_.Release();
-  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
-    _impl_.caller_.Set("", GetArena());
-  }
-  return released;
-}
-inline void LogEntry::set_allocated_caller(::std::string* PROTOBUF_NULLABLE value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  if (value != nullptr) {
-    _impl_._has_bits_[0] |= 0x00000020U;
-  } else {
-    _impl_._has_bits_[0] &= ~0x00000020U;
-  }
-  _impl_.caller_.SetAllocated(value, GetArena());
-  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.caller_.IsDefault()) {
-    _impl_.caller_.Set("", GetArena());
-  }
-  // @@protoc_insertion_point(field_set_allocated:holons.v1.LogEntry.caller)
-}
-
-// repeated .holons.v1.ChainHop chain = 10;
-inline int LogEntry::_internal_chain_size() const {
-  return _internal_chain().size();
-}
-inline int LogEntry::chain_size() const {
-  return _internal_chain_size();
-}
-inline void LogEntry::clear_chain() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.chain_.Clear();
-}
-inline ::holons::v1::ChainHop* PROTOBUF_NONNULL LogEntry::mutable_chain(int index)
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_mutable:holons.v1.LogEntry.chain)
-  return _internal_mutable_chain()->Mutable(index);
-}
-inline ::google::protobuf::RepeatedPtrField<::holons::v1::ChainHop>* PROTOBUF_NONNULL LogEntry::mutable_chain()
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_mutable_list:holons.v1.LogEntry.chain)
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  return _internal_mutable_chain();
-}
-inline const ::holons::v1::ChainHop& LogEntry::chain(int index) const
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_get:holons.v1.LogEntry.chain)
-  return _internal_chain().Get(index);
-}
-inline ::holons::v1::ChainHop* PROTOBUF_NONNULL LogEntry::add_chain()
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  ::holons::v1::ChainHop* _add = _internal_mutable_chain()->Add();
-  // @@protoc_insertion_point(field_add:holons.v1.LogEntry.chain)
-  return _add;
-}
-inline const ::google::protobuf::RepeatedPtrField<::holons::v1::ChainHop>& LogEntry::chain() const
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_list:holons.v1.LogEntry.chain)
-  return _internal_chain();
-}
-inline const ::google::protobuf::RepeatedPtrField<::holons::v1::ChainHop>&
-LogEntry::_internal_chain() const {
-  ::google::protobuf::internal::TSanRead(&_impl_);
-  return _impl_.chain_;
-}
-inline ::google::protobuf::RepeatedPtrField<::holons::v1::ChainHop>* PROTOBUF_NONNULL
-LogEntry::_internal_mutable_chain() {
-  ::google::protobuf::internal::TSanRead(&_impl_);
-  return &_impl_.chain_;
-}
-
-// -------------------------------------------------------------------
-
-// ChainHop
-
-// string slug = 1;
-inline void ChainHop::clear_slug() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.slug_.ClearToEmpty();
-  _impl_._has_bits_[0] &= ~0x00000001U;
-}
-inline const ::std::string& ChainHop::slug() const
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_get:holons.v1.ChainHop.slug)
-  return _internal_slug();
-}
-template <typename Arg_, typename... Args_>
-PROTOBUF_ALWAYS_INLINE void ChainHop::set_slug(Arg_&& arg, Args_... args) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000001U;
-  _impl_.slug_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
-  // @@protoc_insertion_point(field_set:holons.v1.ChainHop.slug)
-}
-inline ::std::string* PROTOBUF_NONNULL ChainHop::mutable_slug()
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  ::std::string* _s = _internal_mutable_slug();
-  // @@protoc_insertion_point(field_mutable:holons.v1.ChainHop.slug)
-  return _s;
-}
-inline const ::std::string& ChainHop::_internal_slug() const {
-  ::google::protobuf::internal::TSanRead(&_impl_);
-  return _impl_.slug_.Get();
-}
-inline void ChainHop::_internal_set_slug(const ::std::string& value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000001U;
-  _impl_.slug_.Set(value, GetArena());
-}
-inline ::std::string* PROTOBUF_NONNULL ChainHop::_internal_mutable_slug() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000001U;
-  return _impl_.slug_.Mutable( GetArena());
-}
-inline ::std::string* PROTOBUF_NULLABLE ChainHop::release_slug() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  // @@protoc_insertion_point(field_release:holons.v1.ChainHop.slug)
-  if ((_impl_._has_bits_[0] & 0x00000001U) == 0) {
-    return nullptr;
-  }
-  _impl_._has_bits_[0] &= ~0x00000001U;
-  auto* released = _impl_.slug_.Release();
-  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
-    _impl_.slug_.Set("", GetArena());
-  }
-  return released;
-}
-inline void ChainHop::set_allocated_slug(::std::string* PROTOBUF_NULLABLE value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  if (value != nullptr) {
-    _impl_._has_bits_[0] |= 0x00000001U;
-  } else {
-    _impl_._has_bits_[0] &= ~0x00000001U;
-  }
-  _impl_.slug_.SetAllocated(value, GetArena());
-  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.slug_.IsDefault()) {
-    _impl_.slug_.Set("", GetArena());
-  }
-  // @@protoc_insertion_point(field_set_allocated:holons.v1.ChainHop.slug)
-}
-
-// string instance_uid = 2;
-inline void ChainHop::clear_instance_uid() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.instance_uid_.ClearToEmpty();
-  _impl_._has_bits_[0] &= ~0x00000002U;
-}
-inline const ::std::string& ChainHop::instance_uid() const
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_get:holons.v1.ChainHop.instance_uid)
-  return _internal_instance_uid();
-}
-template <typename Arg_, typename... Args_>
-PROTOBUF_ALWAYS_INLINE void ChainHop::set_instance_uid(Arg_&& arg, Args_... args) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000002U;
-  _impl_.instance_uid_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
-  // @@protoc_insertion_point(field_set:holons.v1.ChainHop.instance_uid)
-}
-inline ::std::string* PROTOBUF_NONNULL ChainHop::mutable_instance_uid()
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  ::std::string* _s = _internal_mutable_instance_uid();
-  // @@protoc_insertion_point(field_mutable:holons.v1.ChainHop.instance_uid)
-  return _s;
-}
-inline const ::std::string& ChainHop::_internal_instance_uid() const {
-  ::google::protobuf::internal::TSanRead(&_impl_);
-  return _impl_.instance_uid_.Get();
-}
-inline void ChainHop::_internal_set_instance_uid(const ::std::string& value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000002U;
-  _impl_.instance_uid_.Set(value, GetArena());
-}
-inline ::std::string* PROTOBUF_NONNULL ChainHop::_internal_mutable_instance_uid() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000002U;
-  return _impl_.instance_uid_.Mutable( GetArena());
-}
-inline ::std::string* PROTOBUF_NULLABLE ChainHop::release_instance_uid() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  // @@protoc_insertion_point(field_release:holons.v1.ChainHop.instance_uid)
-  if ((_impl_._has_bits_[0] & 0x00000002U) == 0) {
-    return nullptr;
-  }
-  _impl_._has_bits_[0] &= ~0x00000002U;
-  auto* released = _impl_.instance_uid_.Release();
-  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
-    _impl_.instance_uid_.Set("", GetArena());
-  }
-  return released;
-}
-inline void ChainHop::set_allocated_instance_uid(::std::string* PROTOBUF_NULLABLE value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  if (value != nullptr) {
-    _impl_._has_bits_[0] |= 0x00000002U;
-  } else {
-    _impl_._has_bits_[0] &= ~0x00000002U;
-  }
-  _impl_.instance_uid_.SetAllocated(value, GetArena());
-  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.instance_uid_.IsDefault()) {
-    _impl_.instance_uid_.Set("", GetArena());
-  }
-  // @@protoc_insertion_point(field_set_allocated:holons.v1.ChainHop.instance_uid)
-}
-
-// -------------------------------------------------------------------
-
 // MetricsRequest
 
 // repeated string name_prefixes = 1;
@@ -3999,973 +3820,72 @@ MetricsRequest::_internal_mutable_name_prefixes() {
   return &_impl_.name_prefixes_;
 }
 
-// bool include_session_rollup = 2;
-inline void MetricsRequest::clear_include_session_rollup() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.include_session_rollup_ = false;
-  _impl_._has_bits_[0] &= ~0x00000001U;
-}
-inline bool MetricsRequest::include_session_rollup() const {
-  // @@protoc_insertion_point(field_get:holons.v1.MetricsRequest.include_session_rollup)
-  return _internal_include_session_rollup();
-}
-inline void MetricsRequest::set_include_session_rollup(bool value) {
-  _internal_set_include_session_rollup(value);
-  _impl_._has_bits_[0] |= 0x00000001U;
-  // @@protoc_insertion_point(field_set:holons.v1.MetricsRequest.include_session_rollup)
-}
-inline bool MetricsRequest::_internal_include_session_rollup() const {
-  ::google::protobuf::internal::TSanRead(&_impl_);
-  return _impl_.include_session_rollup_;
-}
-inline void MetricsRequest::_internal_set_include_session_rollup(bool value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.include_session_rollup_ = value;
-}
-
-// -------------------------------------------------------------------
-
-// MetricsSnapshot
-
-// .google.protobuf.Timestamp captured_at = 1;
-inline bool MetricsSnapshot::has_captured_at() const {
-  bool value = (_impl_._has_bits_[0] & 0x00000004U) != 0;
-  PROTOBUF_ASSUME(!value || _impl_.captured_at_ != nullptr);
-  return value;
-}
-inline const ::google::protobuf::Timestamp& MetricsSnapshot::_internal_captured_at() const {
-  ::google::protobuf::internal::TSanRead(&_impl_);
-  const ::google::protobuf::Timestamp* p = _impl_.captured_at_;
-  return p != nullptr ? *p : reinterpret_cast<const ::google::protobuf::Timestamp&>(::google::protobuf::_Timestamp_default_instance_);
-}
-inline const ::google::protobuf::Timestamp& MetricsSnapshot::captured_at() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_get:holons.v1.MetricsSnapshot.captured_at)
-  return _internal_captured_at();
-}
-inline void MetricsSnapshot::unsafe_arena_set_allocated_captured_at(
-    ::google::protobuf::Timestamp* PROTOBUF_NULLABLE value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  if (GetArena() == nullptr) {
-    delete reinterpret_cast<::google::protobuf::MessageLite*>(_impl_.captured_at_);
-  }
-  _impl_.captured_at_ = reinterpret_cast<::google::protobuf::Timestamp*>(value);
-  if (value != nullptr) {
-    _impl_._has_bits_[0] |= 0x00000004U;
-  } else {
-    _impl_._has_bits_[0] &= ~0x00000004U;
-  }
-  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:holons.v1.MetricsSnapshot.captured_at)
-}
-inline ::google::protobuf::Timestamp* PROTOBUF_NULLABLE MetricsSnapshot::release_captured_at() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-
-  _impl_._has_bits_[0] &= ~0x00000004U;
-  ::google::protobuf::Timestamp* released = _impl_.captured_at_;
-  _impl_.captured_at_ = nullptr;
-  if (::google::protobuf::internal::DebugHardenForceCopyInRelease()) {
-    auto* old = reinterpret_cast<::google::protobuf::MessageLite*>(released);
-    released = ::google::protobuf::internal::DuplicateIfNonNull(released);
-    if (GetArena() == nullptr) {
-      delete old;
-    }
-  } else {
-    if (GetArena() != nullptr) {
-      released = ::google::protobuf::internal::DuplicateIfNonNull(released);
-    }
-  }
-  return released;
-}
-inline ::google::protobuf::Timestamp* PROTOBUF_NULLABLE MetricsSnapshot::unsafe_arena_release_captured_at() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  // @@protoc_insertion_point(field_release:holons.v1.MetricsSnapshot.captured_at)
-
-  _impl_._has_bits_[0] &= ~0x00000004U;
-  ::google::protobuf::Timestamp* temp = _impl_.captured_at_;
-  _impl_.captured_at_ = nullptr;
-  return temp;
-}
-inline ::google::protobuf::Timestamp* PROTOBUF_NONNULL MetricsSnapshot::_internal_mutable_captured_at() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  if (_impl_.captured_at_ == nullptr) {
-    auto* p = ::google::protobuf::Message::DefaultConstruct<::google::protobuf::Timestamp>(GetArena());
-    _impl_.captured_at_ = reinterpret_cast<::google::protobuf::Timestamp*>(p);
-  }
-  return _impl_.captured_at_;
-}
-inline ::google::protobuf::Timestamp* PROTOBUF_NONNULL MetricsSnapshot::mutable_captured_at()
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  _impl_._has_bits_[0] |= 0x00000004U;
-  ::google::protobuf::Timestamp* _msg = _internal_mutable_captured_at();
-  // @@protoc_insertion_point(field_mutable:holons.v1.MetricsSnapshot.captured_at)
-  return _msg;
-}
-inline void MetricsSnapshot::set_allocated_captured_at(::google::protobuf::Timestamp* PROTOBUF_NULLABLE value) {
-  ::google::protobuf::Arena* message_arena = GetArena();
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  if (message_arena == nullptr) {
-    delete reinterpret_cast<::google::protobuf::MessageLite*>(_impl_.captured_at_);
-  }
-
-  if (value != nullptr) {
-    ::google::protobuf::Arena* submessage_arena = reinterpret_cast<::google::protobuf::Message*>(value)->GetArena();
-    if (message_arena != submessage_arena) {
-      value = ::google::protobuf::internal::GetOwnedMessage(message_arena, value, submessage_arena);
-    }
-    _impl_._has_bits_[0] |= 0x00000004U;
-  } else {
-    _impl_._has_bits_[0] &= ~0x00000004U;
-  }
-
-  _impl_.captured_at_ = reinterpret_cast<::google::protobuf::Timestamp*>(value);
-  // @@protoc_insertion_point(field_set_allocated:holons.v1.MetricsSnapshot.captured_at)
-}
-
-// string slug = 2;
-inline void MetricsSnapshot::clear_slug() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.slug_.ClearToEmpty();
-  _impl_._has_bits_[0] &= ~0x00000001U;
-}
-inline const ::std::string& MetricsSnapshot::slug() const
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_get:holons.v1.MetricsSnapshot.slug)
-  return _internal_slug();
-}
-template <typename Arg_, typename... Args_>
-PROTOBUF_ALWAYS_INLINE void MetricsSnapshot::set_slug(Arg_&& arg, Args_... args) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000001U;
-  _impl_.slug_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
-  // @@protoc_insertion_point(field_set:holons.v1.MetricsSnapshot.slug)
-}
-inline ::std::string* PROTOBUF_NONNULL MetricsSnapshot::mutable_slug()
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  ::std::string* _s = _internal_mutable_slug();
-  // @@protoc_insertion_point(field_mutable:holons.v1.MetricsSnapshot.slug)
-  return _s;
-}
-inline const ::std::string& MetricsSnapshot::_internal_slug() const {
-  ::google::protobuf::internal::TSanRead(&_impl_);
-  return _impl_.slug_.Get();
-}
-inline void MetricsSnapshot::_internal_set_slug(const ::std::string& value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000001U;
-  _impl_.slug_.Set(value, GetArena());
-}
-inline ::std::string* PROTOBUF_NONNULL MetricsSnapshot::_internal_mutable_slug() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000001U;
-  return _impl_.slug_.Mutable( GetArena());
-}
-inline ::std::string* PROTOBUF_NULLABLE MetricsSnapshot::release_slug() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  // @@protoc_insertion_point(field_release:holons.v1.MetricsSnapshot.slug)
-  if ((_impl_._has_bits_[0] & 0x00000001U) == 0) {
-    return nullptr;
-  }
-  _impl_._has_bits_[0] &= ~0x00000001U;
-  auto* released = _impl_.slug_.Release();
-  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
-    _impl_.slug_.Set("", GetArena());
-  }
-  return released;
-}
-inline void MetricsSnapshot::set_allocated_slug(::std::string* PROTOBUF_NULLABLE value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  if (value != nullptr) {
-    _impl_._has_bits_[0] |= 0x00000001U;
-  } else {
-    _impl_._has_bits_[0] &= ~0x00000001U;
-  }
-  _impl_.slug_.SetAllocated(value, GetArena());
-  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.slug_.IsDefault()) {
-    _impl_.slug_.Set("", GetArena());
-  }
-  // @@protoc_insertion_point(field_set_allocated:holons.v1.MetricsSnapshot.slug)
-}
-
-// string instance_uid = 3;
-inline void MetricsSnapshot::clear_instance_uid() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.instance_uid_.ClearToEmpty();
-  _impl_._has_bits_[0] &= ~0x00000002U;
-}
-inline const ::std::string& MetricsSnapshot::instance_uid() const
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_get:holons.v1.MetricsSnapshot.instance_uid)
-  return _internal_instance_uid();
-}
-template <typename Arg_, typename... Args_>
-PROTOBUF_ALWAYS_INLINE void MetricsSnapshot::set_instance_uid(Arg_&& arg, Args_... args) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000002U;
-  _impl_.instance_uid_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
-  // @@protoc_insertion_point(field_set:holons.v1.MetricsSnapshot.instance_uid)
-}
-inline ::std::string* PROTOBUF_NONNULL MetricsSnapshot::mutable_instance_uid()
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  ::std::string* _s = _internal_mutable_instance_uid();
-  // @@protoc_insertion_point(field_mutable:holons.v1.MetricsSnapshot.instance_uid)
-  return _s;
-}
-inline const ::std::string& MetricsSnapshot::_internal_instance_uid() const {
-  ::google::protobuf::internal::TSanRead(&_impl_);
-  return _impl_.instance_uid_.Get();
-}
-inline void MetricsSnapshot::_internal_set_instance_uid(const ::std::string& value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000002U;
-  _impl_.instance_uid_.Set(value, GetArena());
-}
-inline ::std::string* PROTOBUF_NONNULL MetricsSnapshot::_internal_mutable_instance_uid() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000002U;
-  return _impl_.instance_uid_.Mutable( GetArena());
-}
-inline ::std::string* PROTOBUF_NULLABLE MetricsSnapshot::release_instance_uid() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  // @@protoc_insertion_point(field_release:holons.v1.MetricsSnapshot.instance_uid)
-  if ((_impl_._has_bits_[0] & 0x00000002U) == 0) {
-    return nullptr;
-  }
-  _impl_._has_bits_[0] &= ~0x00000002U;
-  auto* released = _impl_.instance_uid_.Release();
-  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
-    _impl_.instance_uid_.Set("", GetArena());
-  }
-  return released;
-}
-inline void MetricsSnapshot::set_allocated_instance_uid(::std::string* PROTOBUF_NULLABLE value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  if (value != nullptr) {
-    _impl_._has_bits_[0] |= 0x00000002U;
-  } else {
-    _impl_._has_bits_[0] &= ~0x00000002U;
-  }
-  _impl_.instance_uid_.SetAllocated(value, GetArena());
-  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.instance_uid_.IsDefault()) {
-    _impl_.instance_uid_.Set("", GetArena());
-  }
-  // @@protoc_insertion_point(field_set_allocated:holons.v1.MetricsSnapshot.instance_uid)
-}
-
-// repeated .holons.v1.MetricSample samples = 4;
-inline int MetricsSnapshot::_internal_samples_size() const {
-  return _internal_samples().size();
-}
-inline int MetricsSnapshot::samples_size() const {
-  return _internal_samples_size();
-}
-inline void MetricsSnapshot::clear_samples() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.samples_.Clear();
-}
-inline ::holons::v1::MetricSample* PROTOBUF_NONNULL MetricsSnapshot::mutable_samples(int index)
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_mutable:holons.v1.MetricsSnapshot.samples)
-  return _internal_mutable_samples()->Mutable(index);
-}
-inline ::google::protobuf::RepeatedPtrField<::holons::v1::MetricSample>* PROTOBUF_NONNULL MetricsSnapshot::mutable_samples()
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_mutable_list:holons.v1.MetricsSnapshot.samples)
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  return _internal_mutable_samples();
-}
-inline const ::holons::v1::MetricSample& MetricsSnapshot::samples(int index) const
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_get:holons.v1.MetricsSnapshot.samples)
-  return _internal_samples().Get(index);
-}
-inline ::holons::v1::MetricSample* PROTOBUF_NONNULL MetricsSnapshot::add_samples()
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  ::holons::v1::MetricSample* _add = _internal_mutable_samples()->Add();
-  // @@protoc_insertion_point(field_add:holons.v1.MetricsSnapshot.samples)
-  return _add;
-}
-inline const ::google::protobuf::RepeatedPtrField<::holons::v1::MetricSample>& MetricsSnapshot::samples() const
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_list:holons.v1.MetricsSnapshot.samples)
-  return _internal_samples();
-}
-inline const ::google::protobuf::RepeatedPtrField<::holons::v1::MetricSample>&
-MetricsSnapshot::_internal_samples() const {
-  ::google::protobuf::internal::TSanRead(&_impl_);
-  return _impl_.samples_;
-}
-inline ::google::protobuf::RepeatedPtrField<::holons::v1::MetricSample>* PROTOBUF_NONNULL
-MetricsSnapshot::_internal_mutable_samples() {
-  ::google::protobuf::internal::TSanRead(&_impl_);
-  return &_impl_.samples_;
-}
-
-// .holons.v1.SessionMetrics session_rollup = 5;
-inline bool MetricsSnapshot::has_session_rollup() const {
-  bool value = (_impl_._has_bits_[0] & 0x00000008U) != 0;
-  PROTOBUF_ASSUME(!value || _impl_.session_rollup_ != nullptr);
-  return value;
-}
-inline const ::holons::v1::SessionMetrics& MetricsSnapshot::_internal_session_rollup() const {
-  ::google::protobuf::internal::TSanRead(&_impl_);
-  const ::holons::v1::SessionMetrics* p = _impl_.session_rollup_;
-  return p != nullptr ? *p : reinterpret_cast<const ::holons::v1::SessionMetrics&>(::holons::v1::_SessionMetrics_default_instance_);
-}
-inline const ::holons::v1::SessionMetrics& MetricsSnapshot::session_rollup() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_get:holons.v1.MetricsSnapshot.session_rollup)
-  return _internal_session_rollup();
-}
-inline void MetricsSnapshot::unsafe_arena_set_allocated_session_rollup(
-    ::holons::v1::SessionMetrics* PROTOBUF_NULLABLE value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  if (GetArena() == nullptr) {
-    delete reinterpret_cast<::google::protobuf::MessageLite*>(_impl_.session_rollup_);
-  }
-  _impl_.session_rollup_ = reinterpret_cast<::holons::v1::SessionMetrics*>(value);
-  if (value != nullptr) {
-    _impl_._has_bits_[0] |= 0x00000008U;
-  } else {
-    _impl_._has_bits_[0] &= ~0x00000008U;
-  }
-  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:holons.v1.MetricsSnapshot.session_rollup)
-}
-inline ::holons::v1::SessionMetrics* PROTOBUF_NULLABLE MetricsSnapshot::release_session_rollup() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-
-  _impl_._has_bits_[0] &= ~0x00000008U;
-  ::holons::v1::SessionMetrics* released = _impl_.session_rollup_;
-  _impl_.session_rollup_ = nullptr;
-  if (::google::protobuf::internal::DebugHardenForceCopyInRelease()) {
-    auto* old = reinterpret_cast<::google::protobuf::MessageLite*>(released);
-    released = ::google::protobuf::internal::DuplicateIfNonNull(released);
-    if (GetArena() == nullptr) {
-      delete old;
-    }
-  } else {
-    if (GetArena() != nullptr) {
-      released = ::google::protobuf::internal::DuplicateIfNonNull(released);
-    }
-  }
-  return released;
-}
-inline ::holons::v1::SessionMetrics* PROTOBUF_NULLABLE MetricsSnapshot::unsafe_arena_release_session_rollup() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  // @@protoc_insertion_point(field_release:holons.v1.MetricsSnapshot.session_rollup)
-
-  _impl_._has_bits_[0] &= ~0x00000008U;
-  ::holons::v1::SessionMetrics* temp = _impl_.session_rollup_;
-  _impl_.session_rollup_ = nullptr;
-  return temp;
-}
-inline ::holons::v1::SessionMetrics* PROTOBUF_NONNULL MetricsSnapshot::_internal_mutable_session_rollup() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  if (_impl_.session_rollup_ == nullptr) {
-    auto* p = ::google::protobuf::Message::DefaultConstruct<::holons::v1::SessionMetrics>(GetArena());
-    _impl_.session_rollup_ = reinterpret_cast<::holons::v1::SessionMetrics*>(p);
-  }
-  return _impl_.session_rollup_;
-}
-inline ::holons::v1::SessionMetrics* PROTOBUF_NONNULL MetricsSnapshot::mutable_session_rollup()
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  _impl_._has_bits_[0] |= 0x00000008U;
-  ::holons::v1::SessionMetrics* _msg = _internal_mutable_session_rollup();
-  // @@protoc_insertion_point(field_mutable:holons.v1.MetricsSnapshot.session_rollup)
-  return _msg;
-}
-inline void MetricsSnapshot::set_allocated_session_rollup(::holons::v1::SessionMetrics* PROTOBUF_NULLABLE value) {
-  ::google::protobuf::Arena* message_arena = GetArena();
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  if (message_arena == nullptr) {
-    delete reinterpret_cast<::google::protobuf::MessageLite*>(_impl_.session_rollup_);
-  }
-
-  if (value != nullptr) {
-    ::google::protobuf::Arena* submessage_arena = reinterpret_cast<::google::protobuf::Message*>(value)->GetArena();
-    if (message_arena != submessage_arena) {
-      value = ::google::protobuf::internal::GetOwnedMessage(message_arena, value, submessage_arena);
-    }
-    _impl_._has_bits_[0] |= 0x00000008U;
-  } else {
-    _impl_._has_bits_[0] &= ~0x00000008U;
-  }
-
-  _impl_.session_rollup_ = reinterpret_cast<::holons::v1::SessionMetrics*>(value);
-  // @@protoc_insertion_point(field_set_allocated:holons.v1.MetricsSnapshot.session_rollup)
-}
-
-// -------------------------------------------------------------------
-
-// -------------------------------------------------------------------
-
-// MetricSample
-
-// string name = 1;
-inline void MetricSample::clear_name() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.name_.ClearToEmpty();
-  _impl_._has_bits_[0] &= ~0x00000001U;
-}
-inline const ::std::string& MetricSample::name() const
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_get:holons.v1.MetricSample.name)
-  return _internal_name();
-}
-template <typename Arg_, typename... Args_>
-PROTOBUF_ALWAYS_INLINE void MetricSample::set_name(Arg_&& arg, Args_... args) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000001U;
-  _impl_.name_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
-  // @@protoc_insertion_point(field_set:holons.v1.MetricSample.name)
-}
-inline ::std::string* PROTOBUF_NONNULL MetricSample::mutable_name()
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  ::std::string* _s = _internal_mutable_name();
-  // @@protoc_insertion_point(field_mutable:holons.v1.MetricSample.name)
-  return _s;
-}
-inline const ::std::string& MetricSample::_internal_name() const {
-  ::google::protobuf::internal::TSanRead(&_impl_);
-  return _impl_.name_.Get();
-}
-inline void MetricSample::_internal_set_name(const ::std::string& value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000001U;
-  _impl_.name_.Set(value, GetArena());
-}
-inline ::std::string* PROTOBUF_NONNULL MetricSample::_internal_mutable_name() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000001U;
-  return _impl_.name_.Mutable( GetArena());
-}
-inline ::std::string* PROTOBUF_NULLABLE MetricSample::release_name() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  // @@protoc_insertion_point(field_release:holons.v1.MetricSample.name)
-  if ((_impl_._has_bits_[0] & 0x00000001U) == 0) {
-    return nullptr;
-  }
-  _impl_._has_bits_[0] &= ~0x00000001U;
-  auto* released = _impl_.name_.Release();
-  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
-    _impl_.name_.Set("", GetArena());
-  }
-  return released;
-}
-inline void MetricSample::set_allocated_name(::std::string* PROTOBUF_NULLABLE value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  if (value != nullptr) {
-    _impl_._has_bits_[0] |= 0x00000001U;
-  } else {
-    _impl_._has_bits_[0] &= ~0x00000001U;
-  }
-  _impl_.name_.SetAllocated(value, GetArena());
-  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.name_.IsDefault()) {
-    _impl_.name_.Set("", GetArena());
-  }
-  // @@protoc_insertion_point(field_set_allocated:holons.v1.MetricSample.name)
-}
-
-// map<string, string> labels = 2;
-inline int MetricSample::_internal_labels_size() const {
-  return _internal_labels().size();
-}
-inline int MetricSample::labels_size() const {
-  return _internal_labels_size();
-}
-inline void MetricSample::clear_labels() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.labels_.Clear();
-}
-inline const ::google::protobuf::Map<::std::string, ::std::string>& MetricSample::_internal_labels() const {
-  ::google::protobuf::internal::TSanRead(&_impl_);
-  return _impl_.labels_.GetMap();
-}
-inline const ::google::protobuf::Map<::std::string, ::std::string>& MetricSample::labels() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_map:holons.v1.MetricSample.labels)
-  return _internal_labels();
-}
-inline ::google::protobuf::Map<::std::string, ::std::string>* PROTOBUF_NONNULL MetricSample::_internal_mutable_labels() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  return _impl_.labels_.MutableMap();
-}
-inline ::google::protobuf::Map<::std::string, ::std::string>* PROTOBUF_NONNULL MetricSample::mutable_labels()
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_mutable_map:holons.v1.MetricSample.labels)
-  return _internal_mutable_labels();
-}
-
-// int64 counter = 3;
-inline bool MetricSample::has_counter() const {
-  return value_case() == kCounter;
-}
-inline void MetricSample::set_has_counter() {
-  _impl_._oneof_case_[0] = kCounter;
-}
-inline void MetricSample::clear_counter() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  if (value_case() == kCounter) {
-    _impl_.value_.counter_ = ::int64_t{0};
-    clear_has_value();
-  }
-}
-inline ::int64_t MetricSample::counter() const {
-  // @@protoc_insertion_point(field_get:holons.v1.MetricSample.counter)
-  return _internal_counter();
-}
-inline void MetricSample::set_counter(::int64_t value) {
-  if (value_case() != kCounter) {
-    clear_value();
-    set_has_counter();
-  }
-  _impl_.value_.counter_ = value;
-  // @@protoc_insertion_point(field_set:holons.v1.MetricSample.counter)
-}
-inline ::int64_t MetricSample::_internal_counter() const {
-  if (value_case() == kCounter) {
-    return _impl_.value_.counter_;
-  }
-  return ::int64_t{0};
-}
-
-// double gauge = 4;
-inline bool MetricSample::has_gauge() const {
-  return value_case() == kGauge;
-}
-inline void MetricSample::set_has_gauge() {
-  _impl_._oneof_case_[0] = kGauge;
-}
-inline void MetricSample::clear_gauge() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  if (value_case() == kGauge) {
-    _impl_.value_.gauge_ = 0;
-    clear_has_value();
-  }
-}
-inline double MetricSample::gauge() const {
-  // @@protoc_insertion_point(field_get:holons.v1.MetricSample.gauge)
-  return _internal_gauge();
-}
-inline void MetricSample::set_gauge(double value) {
-  if (value_case() != kGauge) {
-    clear_value();
-    set_has_gauge();
-  }
-  _impl_.value_.gauge_ = value;
-  // @@protoc_insertion_point(field_set:holons.v1.MetricSample.gauge)
-}
-inline double MetricSample::_internal_gauge() const {
-  if (value_case() == kGauge) {
-    return _impl_.value_.gauge_;
-  }
-  return 0;
-}
-
-// .holons.v1.HistogramSample histogram = 5;
-inline bool MetricSample::has_histogram() const {
-  return value_case() == kHistogram;
-}
-inline bool MetricSample::_internal_has_histogram() const {
-  return value_case() == kHistogram;
-}
-inline void MetricSample::set_has_histogram() {
-  _impl_._oneof_case_[0] = kHistogram;
-}
-inline void MetricSample::clear_histogram() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  if (value_case() == kHistogram) {
-    if (GetArena() == nullptr) {
-      delete _impl_.value_.histogram_;
-    } else if (::google::protobuf::internal::DebugHardenClearOneofMessageOnArena()) {
-      ::google::protobuf::internal::MaybePoisonAfterClear(_impl_.value_.histogram_);
-    }
-    clear_has_value();
-  }
-}
-inline ::holons::v1::HistogramSample* PROTOBUF_NULLABLE MetricSample::release_histogram() {
-  // @@protoc_insertion_point(field_release:holons.v1.MetricSample.histogram)
-  if (value_case() == kHistogram) {
-    clear_has_value();
-    auto* temp = _impl_.value_.histogram_;
-    if (GetArena() != nullptr) {
-      temp = ::google::protobuf::internal::DuplicateIfNonNull(temp);
-    }
-    _impl_.value_.histogram_ = nullptr;
-    return temp;
-  } else {
-    return nullptr;
-  }
-}
-inline const ::holons::v1::HistogramSample& MetricSample::_internal_histogram() const {
-  return value_case() == kHistogram ? *_impl_.value_.histogram_ : reinterpret_cast<::holons::v1::HistogramSample&>(::holons::v1::_HistogramSample_default_instance_);
-}
-inline const ::holons::v1::HistogramSample& MetricSample::histogram() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_get:holons.v1.MetricSample.histogram)
-  return _internal_histogram();
-}
-inline ::holons::v1::HistogramSample* PROTOBUF_NULLABLE MetricSample::unsafe_arena_release_histogram() {
-  // @@protoc_insertion_point(field_unsafe_arena_release:holons.v1.MetricSample.histogram)
-  if (value_case() == kHistogram) {
-    clear_has_value();
-    auto* temp = _impl_.value_.histogram_;
-    _impl_.value_.histogram_ = nullptr;
-    return temp;
-  } else {
-    return nullptr;
-  }
-}
-inline void MetricSample::unsafe_arena_set_allocated_histogram(
-    ::holons::v1::HistogramSample* PROTOBUF_NULLABLE value) {
-  // We rely on the oneof clear method to free the earlier contents
-  // of this oneof. We can directly use the pointer we're given to
-  // set the new value.
-  clear_value();
-  if (value) {
-    set_has_histogram();
-    _impl_.value_.histogram_ = value;
-  }
-  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:holons.v1.MetricSample.histogram)
-}
-inline ::holons::v1::HistogramSample* PROTOBUF_NONNULL MetricSample::_internal_mutable_histogram() {
-  if (value_case() != kHistogram) {
-    clear_value();
-    set_has_histogram();
-    _impl_.value_.histogram_ = 
-        ::google::protobuf::Message::DefaultConstruct<::holons::v1::HistogramSample>(GetArena());
-  }
-  return _impl_.value_.histogram_;
-}
-inline ::holons::v1::HistogramSample* PROTOBUF_NONNULL MetricSample::mutable_histogram()
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  ::holons::v1::HistogramSample* _msg = _internal_mutable_histogram();
-  // @@protoc_insertion_point(field_mutable:holons.v1.MetricSample.histogram)
-  return _msg;
-}
-
-// string help = 6;
-inline void MetricSample::clear_help() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.help_.ClearToEmpty();
-  _impl_._has_bits_[0] &= ~0x00000002U;
-}
-inline const ::std::string& MetricSample::help() const
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_get:holons.v1.MetricSample.help)
-  return _internal_help();
-}
-template <typename Arg_, typename... Args_>
-PROTOBUF_ALWAYS_INLINE void MetricSample::set_help(Arg_&& arg, Args_... args) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000002U;
-  _impl_.help_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
-  // @@protoc_insertion_point(field_set:holons.v1.MetricSample.help)
-}
-inline ::std::string* PROTOBUF_NONNULL MetricSample::mutable_help()
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  ::std::string* _s = _internal_mutable_help();
-  // @@protoc_insertion_point(field_mutable:holons.v1.MetricSample.help)
-  return _s;
-}
-inline const ::std::string& MetricSample::_internal_help() const {
-  ::google::protobuf::internal::TSanRead(&_impl_);
-  return _impl_.help_.Get();
-}
-inline void MetricSample::_internal_set_help(const ::std::string& value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000002U;
-  _impl_.help_.Set(value, GetArena());
-}
-inline ::std::string* PROTOBUF_NONNULL MetricSample::_internal_mutable_help() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_._has_bits_[0] |= 0x00000002U;
-  return _impl_.help_.Mutable( GetArena());
-}
-inline ::std::string* PROTOBUF_NULLABLE MetricSample::release_help() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  // @@protoc_insertion_point(field_release:holons.v1.MetricSample.help)
-  if ((_impl_._has_bits_[0] & 0x00000002U) == 0) {
-    return nullptr;
-  }
-  _impl_._has_bits_[0] &= ~0x00000002U;
-  auto* released = _impl_.help_.Release();
-  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
-    _impl_.help_.Set("", GetArena());
-  }
-  return released;
-}
-inline void MetricSample::set_allocated_help(::std::string* PROTOBUF_NULLABLE value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  if (value != nullptr) {
-    _impl_._has_bits_[0] |= 0x00000002U;
-  } else {
-    _impl_._has_bits_[0] &= ~0x00000002U;
-  }
-  _impl_.help_.SetAllocated(value, GetArena());
-  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.help_.IsDefault()) {
-    _impl_.help_.Set("", GetArena());
-  }
-  // @@protoc_insertion_point(field_set_allocated:holons.v1.MetricSample.help)
-}
-
-// repeated .holons.v1.ChainHop chain = 7;
-inline int MetricSample::_internal_chain_size() const {
-  return _internal_chain().size();
-}
-inline int MetricSample::chain_size() const {
-  return _internal_chain_size();
-}
-inline void MetricSample::clear_chain() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.chain_.Clear();
-}
-inline ::holons::v1::ChainHop* PROTOBUF_NONNULL MetricSample::mutable_chain(int index)
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_mutable:holons.v1.MetricSample.chain)
-  return _internal_mutable_chain()->Mutable(index);
-}
-inline ::google::protobuf::RepeatedPtrField<::holons::v1::ChainHop>* PROTOBUF_NONNULL MetricSample::mutable_chain()
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_mutable_list:holons.v1.MetricSample.chain)
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  return _internal_mutable_chain();
-}
-inline const ::holons::v1::ChainHop& MetricSample::chain(int index) const
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_get:holons.v1.MetricSample.chain)
-  return _internal_chain().Get(index);
-}
-inline ::holons::v1::ChainHop* PROTOBUF_NONNULL MetricSample::add_chain()
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  ::holons::v1::ChainHop* _add = _internal_mutable_chain()->Add();
-  // @@protoc_insertion_point(field_add:holons.v1.MetricSample.chain)
-  return _add;
-}
-inline const ::google::protobuf::RepeatedPtrField<::holons::v1::ChainHop>& MetricSample::chain() const
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_list:holons.v1.MetricSample.chain)
-  return _internal_chain();
-}
-inline const ::google::protobuf::RepeatedPtrField<::holons::v1::ChainHop>&
-MetricSample::_internal_chain() const {
-  ::google::protobuf::internal::TSanRead(&_impl_);
-  return _impl_.chain_;
-}
-inline ::google::protobuf::RepeatedPtrField<::holons::v1::ChainHop>* PROTOBUF_NONNULL
-MetricSample::_internal_mutable_chain() {
-  ::google::protobuf::internal::TSanRead(&_impl_);
-  return &_impl_.chain_;
-}
-
-inline bool MetricSample::has_value() const {
-  return value_case() != VALUE_NOT_SET;
-}
-inline void MetricSample::clear_has_value() {
-  _impl_._oneof_case_[0] = VALUE_NOT_SET;
-}
-inline MetricSample::ValueCase MetricSample::value_case() const {
-  return MetricSample::ValueCase(_impl_._oneof_case_[0]);
-}
-// -------------------------------------------------------------------
-
-// HistogramSample
-
-// repeated .holons.v1.Bucket buckets = 1;
-inline int HistogramSample::_internal_buckets_size() const {
-  return _internal_buckets().size();
-}
-inline int HistogramSample::buckets_size() const {
-  return _internal_buckets_size();
-}
-inline void HistogramSample::clear_buckets() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.buckets_.Clear();
-}
-inline ::holons::v1::Bucket* PROTOBUF_NONNULL HistogramSample::mutable_buckets(int index)
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_mutable:holons.v1.HistogramSample.buckets)
-  return _internal_mutable_buckets()->Mutable(index);
-}
-inline ::google::protobuf::RepeatedPtrField<::holons::v1::Bucket>* PROTOBUF_NONNULL HistogramSample::mutable_buckets()
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_mutable_list:holons.v1.HistogramSample.buckets)
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  return _internal_mutable_buckets();
-}
-inline const ::holons::v1::Bucket& HistogramSample::buckets(int index) const
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_get:holons.v1.HistogramSample.buckets)
-  return _internal_buckets().Get(index);
-}
-inline ::holons::v1::Bucket* PROTOBUF_NONNULL HistogramSample::add_buckets()
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  ::holons::v1::Bucket* _add = _internal_mutable_buckets()->Add();
-  // @@protoc_insertion_point(field_add:holons.v1.HistogramSample.buckets)
-  return _add;
-}
-inline const ::google::protobuf::RepeatedPtrField<::holons::v1::Bucket>& HistogramSample::buckets() const
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_list:holons.v1.HistogramSample.buckets)
-  return _internal_buckets();
-}
-inline const ::google::protobuf::RepeatedPtrField<::holons::v1::Bucket>&
-HistogramSample::_internal_buckets() const {
-  ::google::protobuf::internal::TSanRead(&_impl_);
-  return _impl_.buckets_;
-}
-inline ::google::protobuf::RepeatedPtrField<::holons::v1::Bucket>* PROTOBUF_NONNULL
-HistogramSample::_internal_mutable_buckets() {
-  ::google::protobuf::internal::TSanRead(&_impl_);
-  return &_impl_.buckets_;
-}
-
-// int64 count = 2;
-inline void HistogramSample::clear_count() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.count_ = ::int64_t{0};
-  _impl_._has_bits_[0] &= ~0x00000001U;
-}
-inline ::int64_t HistogramSample::count() const {
-  // @@protoc_insertion_point(field_get:holons.v1.HistogramSample.count)
-  return _internal_count();
-}
-inline void HistogramSample::set_count(::int64_t value) {
-  _internal_set_count(value);
-  _impl_._has_bits_[0] |= 0x00000001U;
-  // @@protoc_insertion_point(field_set:holons.v1.HistogramSample.count)
-}
-inline ::int64_t HistogramSample::_internal_count() const {
-  ::google::protobuf::internal::TSanRead(&_impl_);
-  return _impl_.count_;
-}
-inline void HistogramSample::_internal_set_count(::int64_t value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.count_ = value;
-}
-
-// double sum = 3;
-inline void HistogramSample::clear_sum() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.sum_ = 0;
-  _impl_._has_bits_[0] &= ~0x00000002U;
-}
-inline double HistogramSample::sum() const {
-  // @@protoc_insertion_point(field_get:holons.v1.HistogramSample.sum)
-  return _internal_sum();
-}
-inline void HistogramSample::set_sum(double value) {
-  _internal_set_sum(value);
-  _impl_._has_bits_[0] |= 0x00000002U;
-  // @@protoc_insertion_point(field_set:holons.v1.HistogramSample.sum)
-}
-inline double HistogramSample::_internal_sum() const {
-  ::google::protobuf::internal::TSanRead(&_impl_);
-  return _impl_.sum_;
-}
-inline void HistogramSample::_internal_set_sum(double value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.sum_ = value;
-}
-
-// -------------------------------------------------------------------
-
-// Bucket
-
-// double upper_bound = 1;
-inline void Bucket::clear_upper_bound() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.upper_bound_ = 0;
-  _impl_._has_bits_[0] &= ~0x00000001U;
-}
-inline double Bucket::upper_bound() const {
-  // @@protoc_insertion_point(field_get:holons.v1.Bucket.upper_bound)
-  return _internal_upper_bound();
-}
-inline void Bucket::set_upper_bound(double value) {
-  _internal_set_upper_bound(value);
-  _impl_._has_bits_[0] |= 0x00000001U;
-  // @@protoc_insertion_point(field_set:holons.v1.Bucket.upper_bound)
-}
-inline double Bucket::_internal_upper_bound() const {
-  ::google::protobuf::internal::TSanRead(&_impl_);
-  return _impl_.upper_bound_;
-}
-inline void Bucket::_internal_set_upper_bound(double value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.upper_bound_ = value;
-}
-
-// int64 count = 2;
-inline void Bucket::clear_count() {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.count_ = ::int64_t{0};
-  _impl_._has_bits_[0] &= ~0x00000002U;
-}
-inline ::int64_t Bucket::count() const {
-  // @@protoc_insertion_point(field_get:holons.v1.Bucket.count)
-  return _internal_count();
-}
-inline void Bucket::set_count(::int64_t value) {
-  _internal_set_count(value);
-  _impl_._has_bits_[0] |= 0x00000002U;
-  // @@protoc_insertion_point(field_set:holons.v1.Bucket.count)
-}
-inline ::int64_t Bucket::_internal_count() const {
-  ::google::protobuf::internal::TSanRead(&_impl_);
-  return _impl_.count_;
-}
-inline void Bucket::_internal_set_count(::int64_t value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.count_ = value;
-}
-
 // -------------------------------------------------------------------
 
 // EventsRequest
 
-// repeated .holons.v1.EventType types = 1;
-inline int EventsRequest::_internal_types_size() const {
-  return _internal_types().size();
+// repeated string event_names = 1;
+inline int EventsRequest::_internal_event_names_size() const {
+  return _internal_event_names().size();
 }
-inline int EventsRequest::types_size() const {
-  return _internal_types_size();
+inline int EventsRequest::event_names_size() const {
+  return _internal_event_names_size();
 }
-inline void EventsRequest::clear_types() {
+inline void EventsRequest::clear_event_names() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.types_.Clear();
+  _impl_.event_names_.Clear();
 }
-inline ::holons::v1::EventType EventsRequest::types(int index) const {
-  // @@protoc_insertion_point(field_get:holons.v1.EventsRequest.types)
-  return static_cast<::holons::v1::EventType>(_internal_types().Get(index));
-}
-inline void EventsRequest::set_types(int index, ::holons::v1::EventType value) {
-  _internal_mutable_types()->Set(index, value);
-  // @@protoc_insertion_point(field_set:holons.v1.EventsRequest.types)
-}
-inline void EventsRequest::add_types(::holons::v1::EventType value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _internal_mutable_types()->Add(value);
-  // @@protoc_insertion_point(field_add:holons.v1.EventsRequest.types)
-}
-inline const ::google::protobuf::RepeatedField<int>& EventsRequest::types() const
+inline ::std::string* PROTOBUF_NONNULL EventsRequest::add_event_names()
     ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_list:holons.v1.EventsRequest.types)
-  return _internal_types();
-}
-inline ::google::protobuf::RepeatedField<int>* PROTOBUF_NONNULL EventsRequest::mutable_types()
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_mutable_list:holons.v1.EventsRequest.types)
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  return _internal_mutable_types();
+  ::std::string* _s = _internal_mutable_event_names()->Add();
+  // @@protoc_insertion_point(field_add_mutable:holons.v1.EventsRequest.event_names)
+  return _s;
 }
-inline const ::google::protobuf::RepeatedField<int>& EventsRequest::_internal_types()
-    const {
-  ::google::protobuf::internal::TSanRead(&_impl_);
-  return _impl_.types_;
+inline const ::std::string& EventsRequest::event_names(int index) const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:holons.v1.EventsRequest.event_names)
+  return _internal_event_names().Get(index);
 }
-inline ::google::protobuf::RepeatedField<int>* PROTOBUF_NONNULL
-EventsRequest::_internal_mutable_types() {
+inline ::std::string* PROTOBUF_NONNULL EventsRequest::mutable_event_names(int index)
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_mutable:holons.v1.EventsRequest.event_names)
+  return _internal_mutable_event_names()->Mutable(index);
+}
+template <typename Arg_, typename... Args_>
+inline void EventsRequest::set_event_names(int index, Arg_&& value, Args_... args) {
+  ::google::protobuf::internal::AssignToString(*_internal_mutable_event_names()->Mutable(index), ::std::forward<Arg_>(value),
+                        args... );
+  // @@protoc_insertion_point(field_set:holons.v1.EventsRequest.event_names)
+}
+template <typename Arg_, typename... Args_>
+inline void EventsRequest::add_event_names(Arg_&& value, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::google::protobuf::internal::AddToRepeatedPtrField(*_internal_mutable_event_names(),
+                               ::std::forward<Arg_>(value),
+                               args... );
+  // @@protoc_insertion_point(field_add:holons.v1.EventsRequest.event_names)
+}
+inline const ::google::protobuf::RepeatedPtrField<::std::string>& EventsRequest::event_names()
+    const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_list:holons.v1.EventsRequest.event_names)
+  return _internal_event_names();
+}
+inline ::google::protobuf::RepeatedPtrField<::std::string>* PROTOBUF_NONNULL
+EventsRequest::mutable_event_names() ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_mutable_list:holons.v1.EventsRequest.event_names)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _internal_mutable_event_names();
+}
+inline const ::google::protobuf::RepeatedPtrField<::std::string>&
+EventsRequest::_internal_event_names() const {
   ::google::protobuf::internal::TSanRead(&_impl_);
-  return &_impl_.types_;
+  return _impl_.event_names_;
+}
+inline ::google::protobuf::RepeatedPtrField<::std::string>* PROTOBUF_NONNULL
+EventsRequest::_internal_mutable_event_names() {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return &_impl_.event_names_;
 }
 
 // .google.protobuf.Duration since = 2;
@@ -5087,45 +4007,310 @@ inline void EventsRequest::_internal_set_follow(bool value) {
 
 // -------------------------------------------------------------------
 
+// AnyValue
+
+// string string_value = 1;
+inline bool AnyValue::has_string_value() const {
+  return value_case() == kStringValue;
+}
+inline void AnyValue::set_has_string_value() {
+  _impl_._oneof_case_[0] = kStringValue;
+}
+inline void AnyValue::clear_string_value() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value_case() == kStringValue) {
+    _impl_.value_.string_value_.Destroy();
+    clear_has_value();
+  }
+}
+inline const ::std::string& AnyValue::string_value() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:holons.v1.AnyValue.string_value)
+  return _internal_string_value();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void AnyValue::set_string_value(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value_case() != kStringValue) {
+    clear_value();
+
+    set_has_string_value();
+    _impl_.value_.string_value_.InitDefault();
+  }
+  _impl_.value_.string_value_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:holons.v1.AnyValue.string_value)
+}
+inline ::std::string* PROTOBUF_NONNULL AnyValue::mutable_string_value()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::std::string* _s = _internal_mutable_string_value();
+  // @@protoc_insertion_point(field_mutable:holons.v1.AnyValue.string_value)
+  return _s;
+}
+inline const ::std::string& AnyValue::_internal_string_value() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  if (value_case() != kStringValue) {
+    return ::google::protobuf::internal::GetEmptyStringAlreadyInited();
+  }
+  return _impl_.value_.string_value_.Get();
+}
+inline void AnyValue::_internal_set_string_value(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value_case() != kStringValue) {
+    clear_value();
+
+    set_has_string_value();
+    _impl_.value_.string_value_.InitDefault();
+  }
+  _impl_.value_.string_value_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL AnyValue::_internal_mutable_string_value() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value_case() != kStringValue) {
+    clear_value();
+
+    set_has_string_value();
+    _impl_.value_.string_value_.InitDefault();
+  }
+  return _impl_.value_.string_value_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE AnyValue::release_string_value() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:holons.v1.AnyValue.string_value)
+  if (value_case() != kStringValue) {
+    return nullptr;
+  }
+  clear_has_value();
+  return _impl_.value_.string_value_.Release();
+}
+inline void AnyValue::set_allocated_string_value(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (has_value()) {
+    clear_value();
+  }
+  if (value != nullptr) {
+    set_has_string_value();
+    _impl_.value_.string_value_.InitAllocated(value, GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:holons.v1.AnyValue.string_value)
+}
+
+// bool bool_value = 2;
+inline bool AnyValue::has_bool_value() const {
+  return value_case() == kBoolValue;
+}
+inline void AnyValue::set_has_bool_value() {
+  _impl_._oneof_case_[0] = kBoolValue;
+}
+inline void AnyValue::clear_bool_value() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value_case() == kBoolValue) {
+    _impl_.value_.bool_value_ = false;
+    clear_has_value();
+  }
+}
+inline bool AnyValue::bool_value() const {
+  // @@protoc_insertion_point(field_get:holons.v1.AnyValue.bool_value)
+  return _internal_bool_value();
+}
+inline void AnyValue::set_bool_value(bool value) {
+  if (value_case() != kBoolValue) {
+    clear_value();
+    set_has_bool_value();
+  }
+  _impl_.value_.bool_value_ = value;
+  // @@protoc_insertion_point(field_set:holons.v1.AnyValue.bool_value)
+}
+inline bool AnyValue::_internal_bool_value() const {
+  if (value_case() == kBoolValue) {
+    return _impl_.value_.bool_value_;
+  }
+  return false;
+}
+
+// int64 int_value = 3;
+inline bool AnyValue::has_int_value() const {
+  return value_case() == kIntValue;
+}
+inline void AnyValue::set_has_int_value() {
+  _impl_._oneof_case_[0] = kIntValue;
+}
+inline void AnyValue::clear_int_value() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value_case() == kIntValue) {
+    _impl_.value_.int_value_ = ::int64_t{0};
+    clear_has_value();
+  }
+}
+inline ::int64_t AnyValue::int_value() const {
+  // @@protoc_insertion_point(field_get:holons.v1.AnyValue.int_value)
+  return _internal_int_value();
+}
+inline void AnyValue::set_int_value(::int64_t value) {
+  if (value_case() != kIntValue) {
+    clear_value();
+    set_has_int_value();
+  }
+  _impl_.value_.int_value_ = value;
+  // @@protoc_insertion_point(field_set:holons.v1.AnyValue.int_value)
+}
+inline ::int64_t AnyValue::_internal_int_value() const {
+  if (value_case() == kIntValue) {
+    return _impl_.value_.int_value_;
+  }
+  return ::int64_t{0};
+}
+
+// double double_value = 4;
+inline bool AnyValue::has_double_value() const {
+  return value_case() == kDoubleValue;
+}
+inline void AnyValue::set_has_double_value() {
+  _impl_._oneof_case_[0] = kDoubleValue;
+}
+inline void AnyValue::clear_double_value() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value_case() == kDoubleValue) {
+    _impl_.value_.double_value_ = 0;
+    clear_has_value();
+  }
+}
+inline double AnyValue::double_value() const {
+  // @@protoc_insertion_point(field_get:holons.v1.AnyValue.double_value)
+  return _internal_double_value();
+}
+inline void AnyValue::set_double_value(double value) {
+  if (value_case() != kDoubleValue) {
+    clear_value();
+    set_has_double_value();
+  }
+  _impl_.value_.double_value_ = value;
+  // @@protoc_insertion_point(field_set:holons.v1.AnyValue.double_value)
+}
+inline double AnyValue::_internal_double_value() const {
+  if (value_case() == kDoubleValue) {
+    return _impl_.value_.double_value_;
+  }
+  return 0;
+}
+
+inline bool AnyValue::has_value() const {
+  return value_case() != VALUE_NOT_SET;
+}
+inline void AnyValue::clear_has_value() {
+  _impl_._oneof_case_[0] = VALUE_NOT_SET;
+}
+inline AnyValue::ValueCase AnyValue::value_case() const {
+  return AnyValue::ValueCase(_impl_._oneof_case_[0]);
+}
 // -------------------------------------------------------------------
 
-// EventInfo
+// KeyValue
 
-// .google.protobuf.Timestamp ts = 1;
-inline bool EventInfo::has_ts() const {
-  bool value = (_impl_._has_bits_[0] & 0x00000008U) != 0;
-  PROTOBUF_ASSUME(!value || _impl_.ts_ != nullptr);
+// string key = 1;
+inline void KeyValue::clear_key() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.key_.ClearToEmpty();
+  _impl_._has_bits_[0] &= ~0x00000001U;
+}
+inline const ::std::string& KeyValue::key() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:holons.v1.KeyValue.key)
+  return _internal_key();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void KeyValue::set_key(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000001U;
+  _impl_.key_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:holons.v1.KeyValue.key)
+}
+inline ::std::string* PROTOBUF_NONNULL KeyValue::mutable_key()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::std::string* _s = _internal_mutable_key();
+  // @@protoc_insertion_point(field_mutable:holons.v1.KeyValue.key)
+  return _s;
+}
+inline const ::std::string& KeyValue::_internal_key() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.key_.Get();
+}
+inline void KeyValue::_internal_set_key(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000001U;
+  _impl_.key_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL KeyValue::_internal_mutable_key() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000001U;
+  return _impl_.key_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE KeyValue::release_key() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:holons.v1.KeyValue.key)
+  if ((_impl_._has_bits_[0] & 0x00000001U) == 0) {
+    return nullptr;
+  }
+  _impl_._has_bits_[0] &= ~0x00000001U;
+  auto* released = _impl_.key_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.key_.Set("", GetArena());
+  }
+  return released;
+}
+inline void KeyValue::set_allocated_key(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000001U;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000001U;
+  }
+  _impl_.key_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.key_.IsDefault()) {
+    _impl_.key_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:holons.v1.KeyValue.key)
+}
+
+// .holons.v1.AnyValue value = 2;
+inline bool KeyValue::has_value() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000002U) != 0;
+  PROTOBUF_ASSUME(!value || _impl_.value_ != nullptr);
   return value;
 }
-inline const ::google::protobuf::Timestamp& EventInfo::_internal_ts() const {
+inline void KeyValue::clear_value() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (_impl_.value_ != nullptr) _impl_.value_->Clear();
+  _impl_._has_bits_[0] &= ~0x00000002U;
+}
+inline const ::holons::v1::AnyValue& KeyValue::_internal_value() const {
   ::google::protobuf::internal::TSanRead(&_impl_);
-  const ::google::protobuf::Timestamp* p = _impl_.ts_;
-  return p != nullptr ? *p : reinterpret_cast<const ::google::protobuf::Timestamp&>(::google::protobuf::_Timestamp_default_instance_);
+  const ::holons::v1::AnyValue* p = _impl_.value_;
+  return p != nullptr ? *p : reinterpret_cast<const ::holons::v1::AnyValue&>(::holons::v1::_AnyValue_default_instance_);
 }
-inline const ::google::protobuf::Timestamp& EventInfo::ts() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_get:holons.v1.EventInfo.ts)
-  return _internal_ts();
+inline const ::holons::v1::AnyValue& KeyValue::value() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:holons.v1.KeyValue.value)
+  return _internal_value();
 }
-inline void EventInfo::unsafe_arena_set_allocated_ts(
-    ::google::protobuf::Timestamp* PROTOBUF_NULLABLE value) {
+inline void KeyValue::unsafe_arena_set_allocated_value(
+    ::holons::v1::AnyValue* PROTOBUF_NULLABLE value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   if (GetArena() == nullptr) {
-    delete reinterpret_cast<::google::protobuf::MessageLite*>(_impl_.ts_);
+    delete reinterpret_cast<::google::protobuf::MessageLite*>(_impl_.value_);
   }
-  _impl_.ts_ = reinterpret_cast<::google::protobuf::Timestamp*>(value);
+  _impl_.value_ = reinterpret_cast<::holons::v1::AnyValue*>(value);
   if (value != nullptr) {
-    _impl_._has_bits_[0] |= 0x00000008U;
+    _impl_._has_bits_[0] |= 0x00000002U;
   } else {
-    _impl_._has_bits_[0] &= ~0x00000008U;
+    _impl_._has_bits_[0] &= ~0x00000002U;
   }
-  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:holons.v1.EventInfo.ts)
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:holons.v1.KeyValue.value)
 }
-inline ::google::protobuf::Timestamp* PROTOBUF_NULLABLE EventInfo::release_ts() {
+inline ::holons::v1::AnyValue* PROTOBUF_NULLABLE KeyValue::release_value() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
 
-  _impl_._has_bits_[0] &= ~0x00000008U;
-  ::google::protobuf::Timestamp* released = _impl_.ts_;
-  _impl_.ts_ = nullptr;
+  _impl_._has_bits_[0] &= ~0x00000002U;
+  ::holons::v1::AnyValue* released = _impl_.value_;
+  _impl_.value_ = nullptr;
   if (::google::protobuf::internal::DebugHardenForceCopyInRelease()) {
     auto* old = reinterpret_cast<::google::protobuf::MessageLite*>(released);
     released = ::google::protobuf::internal::DuplicateIfNonNull(released);
@@ -5139,347 +4324,1875 @@ inline ::google::protobuf::Timestamp* PROTOBUF_NULLABLE EventInfo::release_ts() 
   }
   return released;
 }
-inline ::google::protobuf::Timestamp* PROTOBUF_NULLABLE EventInfo::unsafe_arena_release_ts() {
+inline ::holons::v1::AnyValue* PROTOBUF_NULLABLE KeyValue::unsafe_arena_release_value() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  // @@protoc_insertion_point(field_release:holons.v1.EventInfo.ts)
+  // @@protoc_insertion_point(field_release:holons.v1.KeyValue.value)
 
-  _impl_._has_bits_[0] &= ~0x00000008U;
-  ::google::protobuf::Timestamp* temp = _impl_.ts_;
-  _impl_.ts_ = nullptr;
+  _impl_._has_bits_[0] &= ~0x00000002U;
+  ::holons::v1::AnyValue* temp = _impl_.value_;
+  _impl_.value_ = nullptr;
   return temp;
 }
-inline ::google::protobuf::Timestamp* PROTOBUF_NONNULL EventInfo::_internal_mutable_ts() {
+inline ::holons::v1::AnyValue* PROTOBUF_NONNULL KeyValue::_internal_mutable_value() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  if (_impl_.ts_ == nullptr) {
-    auto* p = ::google::protobuf::Message::DefaultConstruct<::google::protobuf::Timestamp>(GetArena());
-    _impl_.ts_ = reinterpret_cast<::google::protobuf::Timestamp*>(p);
+  if (_impl_.value_ == nullptr) {
+    auto* p = ::google::protobuf::Message::DefaultConstruct<::holons::v1::AnyValue>(GetArena());
+    _impl_.value_ = reinterpret_cast<::holons::v1::AnyValue*>(p);
   }
-  return _impl_.ts_;
+  return _impl_.value_;
 }
-inline ::google::protobuf::Timestamp* PROTOBUF_NONNULL EventInfo::mutable_ts()
+inline ::holons::v1::AnyValue* PROTOBUF_NONNULL KeyValue::mutable_value()
     ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  _impl_._has_bits_[0] |= 0x00000008U;
-  ::google::protobuf::Timestamp* _msg = _internal_mutable_ts();
-  // @@protoc_insertion_point(field_mutable:holons.v1.EventInfo.ts)
+  _impl_._has_bits_[0] |= 0x00000002U;
+  ::holons::v1::AnyValue* _msg = _internal_mutable_value();
+  // @@protoc_insertion_point(field_mutable:holons.v1.KeyValue.value)
   return _msg;
 }
-inline void EventInfo::set_allocated_ts(::google::protobuf::Timestamp* PROTOBUF_NULLABLE value) {
+inline void KeyValue::set_allocated_value(::holons::v1::AnyValue* PROTOBUF_NULLABLE value) {
   ::google::protobuf::Arena* message_arena = GetArena();
   ::google::protobuf::internal::TSanWrite(&_impl_);
   if (message_arena == nullptr) {
-    delete reinterpret_cast<::google::protobuf::MessageLite*>(_impl_.ts_);
+    delete reinterpret_cast<::google::protobuf::MessageLite*>(_impl_.value_);
   }
 
   if (value != nullptr) {
-    ::google::protobuf::Arena* submessage_arena = reinterpret_cast<::google::protobuf::Message*>(value)->GetArena();
+    ::google::protobuf::Arena* submessage_arena = value->GetArena();
     if (message_arena != submessage_arena) {
       value = ::google::protobuf::internal::GetOwnedMessage(message_arena, value, submessage_arena);
     }
-    _impl_._has_bits_[0] |= 0x00000008U;
+    _impl_._has_bits_[0] |= 0x00000002U;
   } else {
-    _impl_._has_bits_[0] &= ~0x00000008U;
+    _impl_._has_bits_[0] &= ~0x00000002U;
   }
 
-  _impl_.ts_ = reinterpret_cast<::google::protobuf::Timestamp*>(value);
-  // @@protoc_insertion_point(field_set_allocated:holons.v1.EventInfo.ts)
+  _impl_.value_ = reinterpret_cast<::holons::v1::AnyValue*>(value);
+  // @@protoc_insertion_point(field_set_allocated:holons.v1.KeyValue.value)
 }
 
-// .holons.v1.EventType type = 2;
-inline void EventInfo::clear_type() {
+// -------------------------------------------------------------------
+
+// Resource
+
+// repeated .holons.v1.KeyValue attributes = 1;
+inline int Resource::_internal_attributes_size() const {
+  return _internal_attributes().size();
+}
+inline int Resource::attributes_size() const {
+  return _internal_attributes_size();
+}
+inline void Resource::clear_attributes() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.type_ = 0;
-  _impl_._has_bits_[0] &= ~0x00000010U;
+  _impl_.attributes_.Clear();
 }
-inline ::holons::v1::EventType EventInfo::type() const {
-  // @@protoc_insertion_point(field_get:holons.v1.EventInfo.type)
-  return _internal_type();
+inline ::holons::v1::KeyValue* PROTOBUF_NONNULL Resource::mutable_attributes(int index)
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_mutable:holons.v1.Resource.attributes)
+  return _internal_mutable_attributes()->Mutable(index);
 }
-inline void EventInfo::set_type(::holons::v1::EventType value) {
-  _internal_set_type(value);
-  _impl_._has_bits_[0] |= 0x00000010U;
-  // @@protoc_insertion_point(field_set:holons.v1.EventInfo.type)
+inline ::google::protobuf::RepeatedPtrField<::holons::v1::KeyValue>* PROTOBUF_NONNULL Resource::mutable_attributes()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_mutable_list:holons.v1.Resource.attributes)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _internal_mutable_attributes();
 }
-inline ::holons::v1::EventType EventInfo::_internal_type() const {
+inline const ::holons::v1::KeyValue& Resource::attributes(int index) const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:holons.v1.Resource.attributes)
+  return _internal_attributes().Get(index);
+}
+inline ::holons::v1::KeyValue* PROTOBUF_NONNULL Resource::add_attributes()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::holons::v1::KeyValue* _add = _internal_mutable_attributes()->Add();
+  // @@protoc_insertion_point(field_add:holons.v1.Resource.attributes)
+  return _add;
+}
+inline const ::google::protobuf::RepeatedPtrField<::holons::v1::KeyValue>& Resource::attributes() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_list:holons.v1.Resource.attributes)
+  return _internal_attributes();
+}
+inline const ::google::protobuf::RepeatedPtrField<::holons::v1::KeyValue>&
+Resource::_internal_attributes() const {
   ::google::protobuf::internal::TSanRead(&_impl_);
-  return static_cast<::holons::v1::EventType>(_impl_.type_);
+  return _impl_.attributes_;
 }
-inline void EventInfo::_internal_set_type(::holons::v1::EventType value) {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.type_ = value;
+inline ::google::protobuf::RepeatedPtrField<::holons::v1::KeyValue>* PROTOBUF_NONNULL
+Resource::_internal_mutable_attributes() {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return &_impl_.attributes_;
 }
 
-// string slug = 3;
-inline void EventInfo::clear_slug() {
+// uint32 dropped_attributes_count = 2;
+inline void Resource::clear_dropped_attributes_count() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.slug_.ClearToEmpty();
+  _impl_.dropped_attributes_count_ = 0u;
   _impl_._has_bits_[0] &= ~0x00000001U;
 }
-inline const ::std::string& EventInfo::slug() const
+inline ::uint32_t Resource::dropped_attributes_count() const {
+  // @@protoc_insertion_point(field_get:holons.v1.Resource.dropped_attributes_count)
+  return _internal_dropped_attributes_count();
+}
+inline void Resource::set_dropped_attributes_count(::uint32_t value) {
+  _internal_set_dropped_attributes_count(value);
+  _impl_._has_bits_[0] |= 0x00000001U;
+  // @@protoc_insertion_point(field_set:holons.v1.Resource.dropped_attributes_count)
+}
+inline ::uint32_t Resource::_internal_dropped_attributes_count() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.dropped_attributes_count_;
+}
+inline void Resource::_internal_set_dropped_attributes_count(::uint32_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.dropped_attributes_count_ = value;
+}
+
+// -------------------------------------------------------------------
+
+// LogRecord
+
+// fixed64 time_unix_nano = 1;
+inline void LogRecord::clear_time_unix_nano() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.time_unix_nano_ = ::uint64_t{0u};
+  _impl_._has_bits_[0] &= ~0x00000020U;
+}
+inline ::uint64_t LogRecord::time_unix_nano() const {
+  // @@protoc_insertion_point(field_get:holons.v1.LogRecord.time_unix_nano)
+  return _internal_time_unix_nano();
+}
+inline void LogRecord::set_time_unix_nano(::uint64_t value) {
+  _internal_set_time_unix_nano(value);
+  _impl_._has_bits_[0] |= 0x00000020U;
+  // @@protoc_insertion_point(field_set:holons.v1.LogRecord.time_unix_nano)
+}
+inline ::uint64_t LogRecord::_internal_time_unix_nano() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.time_unix_nano_;
+}
+inline void LogRecord::_internal_set_time_unix_nano(::uint64_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.time_unix_nano_ = value;
+}
+
+// .holons.v1.SeverityNumber severity_number = 2;
+inline void LogRecord::clear_severity_number() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.severity_number_ = 0;
+  _impl_._has_bits_[0] &= ~0x00000040U;
+}
+inline ::holons::v1::SeverityNumber LogRecord::severity_number() const {
+  // @@protoc_insertion_point(field_get:holons.v1.LogRecord.severity_number)
+  return _internal_severity_number();
+}
+inline void LogRecord::set_severity_number(::holons::v1::SeverityNumber value) {
+  _internal_set_severity_number(value);
+  _impl_._has_bits_[0] |= 0x00000040U;
+  // @@protoc_insertion_point(field_set:holons.v1.LogRecord.severity_number)
+}
+inline ::holons::v1::SeverityNumber LogRecord::_internal_severity_number() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return static_cast<::holons::v1::SeverityNumber>(_impl_.severity_number_);
+}
+inline void LogRecord::_internal_set_severity_number(::holons::v1::SeverityNumber value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.severity_number_ = value;
+}
+
+// string severity_text = 3;
+inline void LogRecord::clear_severity_text() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.severity_text_.ClearToEmpty();
+  _impl_._has_bits_[0] &= ~0x00000001U;
+}
+inline const ::std::string& LogRecord::severity_text() const
     ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_get:holons.v1.EventInfo.slug)
-  return _internal_slug();
+  // @@protoc_insertion_point(field_get:holons.v1.LogRecord.severity_text)
+  return _internal_severity_text();
 }
 template <typename Arg_, typename... Args_>
-PROTOBUF_ALWAYS_INLINE void EventInfo::set_slug(Arg_&& arg, Args_... args) {
+PROTOBUF_ALWAYS_INLINE void LogRecord::set_severity_text(Arg_&& arg, Args_... args) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_._has_bits_[0] |= 0x00000001U;
-  _impl_.slug_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
-  // @@protoc_insertion_point(field_set:holons.v1.EventInfo.slug)
+  _impl_.severity_text_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:holons.v1.LogRecord.severity_text)
 }
-inline ::std::string* PROTOBUF_NONNULL EventInfo::mutable_slug()
+inline ::std::string* PROTOBUF_NONNULL LogRecord::mutable_severity_text()
     ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  ::std::string* _s = _internal_mutable_slug();
-  // @@protoc_insertion_point(field_mutable:holons.v1.EventInfo.slug)
+  ::std::string* _s = _internal_mutable_severity_text();
+  // @@protoc_insertion_point(field_mutable:holons.v1.LogRecord.severity_text)
   return _s;
 }
-inline const ::std::string& EventInfo::_internal_slug() const {
+inline const ::std::string& LogRecord::_internal_severity_text() const {
   ::google::protobuf::internal::TSanRead(&_impl_);
-  return _impl_.slug_.Get();
+  return _impl_.severity_text_.Get();
 }
-inline void EventInfo::_internal_set_slug(const ::std::string& value) {
+inline void LogRecord::_internal_set_severity_text(const ::std::string& value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_._has_bits_[0] |= 0x00000001U;
-  _impl_.slug_.Set(value, GetArena());
+  _impl_.severity_text_.Set(value, GetArena());
 }
-inline ::std::string* PROTOBUF_NONNULL EventInfo::_internal_mutable_slug() {
+inline ::std::string* PROTOBUF_NONNULL LogRecord::_internal_mutable_severity_text() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_._has_bits_[0] |= 0x00000001U;
-  return _impl_.slug_.Mutable( GetArena());
+  return _impl_.severity_text_.Mutable( GetArena());
 }
-inline ::std::string* PROTOBUF_NULLABLE EventInfo::release_slug() {
+inline ::std::string* PROTOBUF_NULLABLE LogRecord::release_severity_text() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  // @@protoc_insertion_point(field_release:holons.v1.EventInfo.slug)
+  // @@protoc_insertion_point(field_release:holons.v1.LogRecord.severity_text)
   if ((_impl_._has_bits_[0] & 0x00000001U) == 0) {
     return nullptr;
   }
   _impl_._has_bits_[0] &= ~0x00000001U;
-  auto* released = _impl_.slug_.Release();
+  auto* released = _impl_.severity_text_.Release();
   if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
-    _impl_.slug_.Set("", GetArena());
+    _impl_.severity_text_.Set("", GetArena());
   }
   return released;
 }
-inline void EventInfo::set_allocated_slug(::std::string* PROTOBUF_NULLABLE value) {
+inline void LogRecord::set_allocated_severity_text(::std::string* PROTOBUF_NULLABLE value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   if (value != nullptr) {
     _impl_._has_bits_[0] |= 0x00000001U;
   } else {
     _impl_._has_bits_[0] &= ~0x00000001U;
   }
-  _impl_.slug_.SetAllocated(value, GetArena());
-  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.slug_.IsDefault()) {
-    _impl_.slug_.Set("", GetArena());
+  _impl_.severity_text_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.severity_text_.IsDefault()) {
+    _impl_.severity_text_.Set("", GetArena());
   }
-  // @@protoc_insertion_point(field_set_allocated:holons.v1.EventInfo.slug)
+  // @@protoc_insertion_point(field_set_allocated:holons.v1.LogRecord.severity_text)
 }
 
-// string instance_uid = 4;
-inline void EventInfo::clear_instance_uid() {
+// .holons.v1.AnyValue body = 5;
+inline bool LogRecord::has_body() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000010U) != 0;
+  PROTOBUF_ASSUME(!value || _impl_.body_ != nullptr);
+  return value;
+}
+inline void LogRecord::clear_body() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.instance_uid_.ClearToEmpty();
+  if (_impl_.body_ != nullptr) _impl_.body_->Clear();
+  _impl_._has_bits_[0] &= ~0x00000010U;
+}
+inline const ::holons::v1::AnyValue& LogRecord::_internal_body() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  const ::holons::v1::AnyValue* p = _impl_.body_;
+  return p != nullptr ? *p : reinterpret_cast<const ::holons::v1::AnyValue&>(::holons::v1::_AnyValue_default_instance_);
+}
+inline const ::holons::v1::AnyValue& LogRecord::body() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:holons.v1.LogRecord.body)
+  return _internal_body();
+}
+inline void LogRecord::unsafe_arena_set_allocated_body(
+    ::holons::v1::AnyValue* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (GetArena() == nullptr) {
+    delete reinterpret_cast<::google::protobuf::MessageLite*>(_impl_.body_);
+  }
+  _impl_.body_ = reinterpret_cast<::holons::v1::AnyValue*>(value);
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000010U;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000010U;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:holons.v1.LogRecord.body)
+}
+inline ::holons::v1::AnyValue* PROTOBUF_NULLABLE LogRecord::release_body() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+
+  _impl_._has_bits_[0] &= ~0x00000010U;
+  ::holons::v1::AnyValue* released = _impl_.body_;
+  _impl_.body_ = nullptr;
+  if (::google::protobuf::internal::DebugHardenForceCopyInRelease()) {
+    auto* old = reinterpret_cast<::google::protobuf::MessageLite*>(released);
+    released = ::google::protobuf::internal::DuplicateIfNonNull(released);
+    if (GetArena() == nullptr) {
+      delete old;
+    }
+  } else {
+    if (GetArena() != nullptr) {
+      released = ::google::protobuf::internal::DuplicateIfNonNull(released);
+    }
+  }
+  return released;
+}
+inline ::holons::v1::AnyValue* PROTOBUF_NULLABLE LogRecord::unsafe_arena_release_body() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:holons.v1.LogRecord.body)
+
+  _impl_._has_bits_[0] &= ~0x00000010U;
+  ::holons::v1::AnyValue* temp = _impl_.body_;
+  _impl_.body_ = nullptr;
+  return temp;
+}
+inline ::holons::v1::AnyValue* PROTOBUF_NONNULL LogRecord::_internal_mutable_body() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (_impl_.body_ == nullptr) {
+    auto* p = ::google::protobuf::Message::DefaultConstruct<::holons::v1::AnyValue>(GetArena());
+    _impl_.body_ = reinterpret_cast<::holons::v1::AnyValue*>(p);
+  }
+  return _impl_.body_;
+}
+inline ::holons::v1::AnyValue* PROTOBUF_NONNULL LogRecord::mutable_body()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  _impl_._has_bits_[0] |= 0x00000010U;
+  ::holons::v1::AnyValue* _msg = _internal_mutable_body();
+  // @@protoc_insertion_point(field_mutable:holons.v1.LogRecord.body)
+  return _msg;
+}
+inline void LogRecord::set_allocated_body(::holons::v1::AnyValue* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::Arena* message_arena = GetArena();
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (message_arena == nullptr) {
+    delete reinterpret_cast<::google::protobuf::MessageLite*>(_impl_.body_);
+  }
+
+  if (value != nullptr) {
+    ::google::protobuf::Arena* submessage_arena = value->GetArena();
+    if (message_arena != submessage_arena) {
+      value = ::google::protobuf::internal::GetOwnedMessage(message_arena, value, submessage_arena);
+    }
+    _impl_._has_bits_[0] |= 0x00000010U;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000010U;
+  }
+
+  _impl_.body_ = reinterpret_cast<::holons::v1::AnyValue*>(value);
+  // @@protoc_insertion_point(field_set_allocated:holons.v1.LogRecord.body)
+}
+
+// repeated .holons.v1.KeyValue attributes = 6;
+inline int LogRecord::_internal_attributes_size() const {
+  return _internal_attributes().size();
+}
+inline int LogRecord::attributes_size() const {
+  return _internal_attributes_size();
+}
+inline void LogRecord::clear_attributes() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.attributes_.Clear();
+}
+inline ::holons::v1::KeyValue* PROTOBUF_NONNULL LogRecord::mutable_attributes(int index)
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_mutable:holons.v1.LogRecord.attributes)
+  return _internal_mutable_attributes()->Mutable(index);
+}
+inline ::google::protobuf::RepeatedPtrField<::holons::v1::KeyValue>* PROTOBUF_NONNULL LogRecord::mutable_attributes()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_mutable_list:holons.v1.LogRecord.attributes)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _internal_mutable_attributes();
+}
+inline const ::holons::v1::KeyValue& LogRecord::attributes(int index) const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:holons.v1.LogRecord.attributes)
+  return _internal_attributes().Get(index);
+}
+inline ::holons::v1::KeyValue* PROTOBUF_NONNULL LogRecord::add_attributes()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::holons::v1::KeyValue* _add = _internal_mutable_attributes()->Add();
+  // @@protoc_insertion_point(field_add:holons.v1.LogRecord.attributes)
+  return _add;
+}
+inline const ::google::protobuf::RepeatedPtrField<::holons::v1::KeyValue>& LogRecord::attributes() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_list:holons.v1.LogRecord.attributes)
+  return _internal_attributes();
+}
+inline const ::google::protobuf::RepeatedPtrField<::holons::v1::KeyValue>&
+LogRecord::_internal_attributes() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.attributes_;
+}
+inline ::google::protobuf::RepeatedPtrField<::holons::v1::KeyValue>* PROTOBUF_NONNULL
+LogRecord::_internal_mutable_attributes() {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return &_impl_.attributes_;
+}
+
+// uint32 dropped_attributes_count = 7;
+inline void LogRecord::clear_dropped_attributes_count() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.dropped_attributes_count_ = 0u;
+  _impl_._has_bits_[0] &= ~0x00000080U;
+}
+inline ::uint32_t LogRecord::dropped_attributes_count() const {
+  // @@protoc_insertion_point(field_get:holons.v1.LogRecord.dropped_attributes_count)
+  return _internal_dropped_attributes_count();
+}
+inline void LogRecord::set_dropped_attributes_count(::uint32_t value) {
+  _internal_set_dropped_attributes_count(value);
+  _impl_._has_bits_[0] |= 0x00000080U;
+  // @@protoc_insertion_point(field_set:holons.v1.LogRecord.dropped_attributes_count)
+}
+inline ::uint32_t LogRecord::_internal_dropped_attributes_count() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.dropped_attributes_count_;
+}
+inline void LogRecord::_internal_set_dropped_attributes_count(::uint32_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.dropped_attributes_count_ = value;
+}
+
+// uint32 flags = 8;
+inline void LogRecord::clear_flags() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.flags_ = 0u;
+  _impl_._has_bits_[0] &= ~0x00000200U;
+}
+inline ::uint32_t LogRecord::flags() const {
+  // @@protoc_insertion_point(field_get:holons.v1.LogRecord.flags)
+  return _internal_flags();
+}
+inline void LogRecord::set_flags(::uint32_t value) {
+  _internal_set_flags(value);
+  _impl_._has_bits_[0] |= 0x00000200U;
+  // @@protoc_insertion_point(field_set:holons.v1.LogRecord.flags)
+}
+inline ::uint32_t LogRecord::_internal_flags() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.flags_;
+}
+inline void LogRecord::_internal_set_flags(::uint32_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.flags_ = value;
+}
+
+// bytes trace_id = 9;
+inline void LogRecord::clear_trace_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.trace_id_.ClearToEmpty();
   _impl_._has_bits_[0] &= ~0x00000002U;
 }
-inline const ::std::string& EventInfo::instance_uid() const
+inline const ::std::string& LogRecord::trace_id() const
     ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_get:holons.v1.EventInfo.instance_uid)
-  return _internal_instance_uid();
+  // @@protoc_insertion_point(field_get:holons.v1.LogRecord.trace_id)
+  return _internal_trace_id();
 }
 template <typename Arg_, typename... Args_>
-PROTOBUF_ALWAYS_INLINE void EventInfo::set_instance_uid(Arg_&& arg, Args_... args) {
+PROTOBUF_ALWAYS_INLINE void LogRecord::set_trace_id(Arg_&& arg, Args_... args) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_._has_bits_[0] |= 0x00000002U;
-  _impl_.instance_uid_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
-  // @@protoc_insertion_point(field_set:holons.v1.EventInfo.instance_uid)
+  _impl_.trace_id_.SetBytes(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:holons.v1.LogRecord.trace_id)
 }
-inline ::std::string* PROTOBUF_NONNULL EventInfo::mutable_instance_uid()
+inline ::std::string* PROTOBUF_NONNULL LogRecord::mutable_trace_id()
     ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  ::std::string* _s = _internal_mutable_instance_uid();
-  // @@protoc_insertion_point(field_mutable:holons.v1.EventInfo.instance_uid)
+  ::std::string* _s = _internal_mutable_trace_id();
+  // @@protoc_insertion_point(field_mutable:holons.v1.LogRecord.trace_id)
   return _s;
 }
-inline const ::std::string& EventInfo::_internal_instance_uid() const {
+inline const ::std::string& LogRecord::_internal_trace_id() const {
   ::google::protobuf::internal::TSanRead(&_impl_);
-  return _impl_.instance_uid_.Get();
+  return _impl_.trace_id_.Get();
 }
-inline void EventInfo::_internal_set_instance_uid(const ::std::string& value) {
+inline void LogRecord::_internal_set_trace_id(const ::std::string& value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_._has_bits_[0] |= 0x00000002U;
-  _impl_.instance_uid_.Set(value, GetArena());
+  _impl_.trace_id_.Set(value, GetArena());
 }
-inline ::std::string* PROTOBUF_NONNULL EventInfo::_internal_mutable_instance_uid() {
+inline ::std::string* PROTOBUF_NONNULL LogRecord::_internal_mutable_trace_id() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_._has_bits_[0] |= 0x00000002U;
-  return _impl_.instance_uid_.Mutable( GetArena());
+  return _impl_.trace_id_.Mutable( GetArena());
 }
-inline ::std::string* PROTOBUF_NULLABLE EventInfo::release_instance_uid() {
+inline ::std::string* PROTOBUF_NULLABLE LogRecord::release_trace_id() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  // @@protoc_insertion_point(field_release:holons.v1.EventInfo.instance_uid)
+  // @@protoc_insertion_point(field_release:holons.v1.LogRecord.trace_id)
   if ((_impl_._has_bits_[0] & 0x00000002U) == 0) {
     return nullptr;
   }
   _impl_._has_bits_[0] &= ~0x00000002U;
-  auto* released = _impl_.instance_uid_.Release();
+  auto* released = _impl_.trace_id_.Release();
   if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
-    _impl_.instance_uid_.Set("", GetArena());
+    _impl_.trace_id_.Set("", GetArena());
   }
   return released;
 }
-inline void EventInfo::set_allocated_instance_uid(::std::string* PROTOBUF_NULLABLE value) {
+inline void LogRecord::set_allocated_trace_id(::std::string* PROTOBUF_NULLABLE value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   if (value != nullptr) {
     _impl_._has_bits_[0] |= 0x00000002U;
   } else {
     _impl_._has_bits_[0] &= ~0x00000002U;
   }
-  _impl_.instance_uid_.SetAllocated(value, GetArena());
-  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.instance_uid_.IsDefault()) {
-    _impl_.instance_uid_.Set("", GetArena());
+  _impl_.trace_id_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.trace_id_.IsDefault()) {
+    _impl_.trace_id_.Set("", GetArena());
   }
-  // @@protoc_insertion_point(field_set_allocated:holons.v1.EventInfo.instance_uid)
+  // @@protoc_insertion_point(field_set_allocated:holons.v1.LogRecord.trace_id)
 }
 
-// string session_id = 5;
-inline void EventInfo::clear_session_id() {
+// bytes span_id = 10;
+inline void LogRecord::clear_span_id() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.session_id_.ClearToEmpty();
+  _impl_.span_id_.ClearToEmpty();
   _impl_._has_bits_[0] &= ~0x00000004U;
 }
-inline const ::std::string& EventInfo::session_id() const
+inline const ::std::string& LogRecord::span_id() const
     ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_get:holons.v1.EventInfo.session_id)
-  return _internal_session_id();
+  // @@protoc_insertion_point(field_get:holons.v1.LogRecord.span_id)
+  return _internal_span_id();
 }
 template <typename Arg_, typename... Args_>
-PROTOBUF_ALWAYS_INLINE void EventInfo::set_session_id(Arg_&& arg, Args_... args) {
+PROTOBUF_ALWAYS_INLINE void LogRecord::set_span_id(Arg_&& arg, Args_... args) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_._has_bits_[0] |= 0x00000004U;
-  _impl_.session_id_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
-  // @@protoc_insertion_point(field_set:holons.v1.EventInfo.session_id)
+  _impl_.span_id_.SetBytes(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:holons.v1.LogRecord.span_id)
 }
-inline ::std::string* PROTOBUF_NONNULL EventInfo::mutable_session_id()
+inline ::std::string* PROTOBUF_NONNULL LogRecord::mutable_span_id()
     ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  ::std::string* _s = _internal_mutable_session_id();
-  // @@protoc_insertion_point(field_mutable:holons.v1.EventInfo.session_id)
+  ::std::string* _s = _internal_mutable_span_id();
+  // @@protoc_insertion_point(field_mutable:holons.v1.LogRecord.span_id)
   return _s;
 }
-inline const ::std::string& EventInfo::_internal_session_id() const {
+inline const ::std::string& LogRecord::_internal_span_id() const {
   ::google::protobuf::internal::TSanRead(&_impl_);
-  return _impl_.session_id_.Get();
+  return _impl_.span_id_.Get();
 }
-inline void EventInfo::_internal_set_session_id(const ::std::string& value) {
+inline void LogRecord::_internal_set_span_id(const ::std::string& value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_._has_bits_[0] |= 0x00000004U;
-  _impl_.session_id_.Set(value, GetArena());
+  _impl_.span_id_.Set(value, GetArena());
 }
-inline ::std::string* PROTOBUF_NONNULL EventInfo::_internal_mutable_session_id() {
+inline ::std::string* PROTOBUF_NONNULL LogRecord::_internal_mutable_span_id() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_._has_bits_[0] |= 0x00000004U;
-  return _impl_.session_id_.Mutable( GetArena());
+  return _impl_.span_id_.Mutable( GetArena());
 }
-inline ::std::string* PROTOBUF_NULLABLE EventInfo::release_session_id() {
+inline ::std::string* PROTOBUF_NULLABLE LogRecord::release_span_id() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  // @@protoc_insertion_point(field_release:holons.v1.EventInfo.session_id)
+  // @@protoc_insertion_point(field_release:holons.v1.LogRecord.span_id)
   if ((_impl_._has_bits_[0] & 0x00000004U) == 0) {
     return nullptr;
   }
   _impl_._has_bits_[0] &= ~0x00000004U;
-  auto* released = _impl_.session_id_.Release();
+  auto* released = _impl_.span_id_.Release();
   if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
-    _impl_.session_id_.Set("", GetArena());
+    _impl_.span_id_.Set("", GetArena());
   }
   return released;
 }
-inline void EventInfo::set_allocated_session_id(::std::string* PROTOBUF_NULLABLE value) {
+inline void LogRecord::set_allocated_span_id(::std::string* PROTOBUF_NULLABLE value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   if (value != nullptr) {
     _impl_._has_bits_[0] |= 0x00000004U;
   } else {
     _impl_._has_bits_[0] &= ~0x00000004U;
   }
-  _impl_.session_id_.SetAllocated(value, GetArena());
-  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.session_id_.IsDefault()) {
-    _impl_.session_id_.Set("", GetArena());
+  _impl_.span_id_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.span_id_.IsDefault()) {
+    _impl_.span_id_.Set("", GetArena());
   }
-  // @@protoc_insertion_point(field_set_allocated:holons.v1.EventInfo.session_id)
+  // @@protoc_insertion_point(field_set_allocated:holons.v1.LogRecord.span_id)
 }
 
-// map<string, string> payload = 6;
-inline int EventInfo::_internal_payload_size() const {
-  return _internal_payload().size();
-}
-inline int EventInfo::payload_size() const {
-  return _internal_payload_size();
-}
-inline void EventInfo::clear_payload() {
+// fixed64 observed_time_unix_nano = 11;
+inline void LogRecord::clear_observed_time_unix_nano() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  _impl_.payload_.Clear();
+  _impl_.observed_time_unix_nano_ = ::uint64_t{0u};
+  _impl_._has_bits_[0] &= ~0x00000100U;
 }
-inline const ::google::protobuf::Map<::std::string, ::std::string>& EventInfo::_internal_payload() const {
+inline ::uint64_t LogRecord::observed_time_unix_nano() const {
+  // @@protoc_insertion_point(field_get:holons.v1.LogRecord.observed_time_unix_nano)
+  return _internal_observed_time_unix_nano();
+}
+inline void LogRecord::set_observed_time_unix_nano(::uint64_t value) {
+  _internal_set_observed_time_unix_nano(value);
+  _impl_._has_bits_[0] |= 0x00000100U;
+  // @@protoc_insertion_point(field_set:holons.v1.LogRecord.observed_time_unix_nano)
+}
+inline ::uint64_t LogRecord::_internal_observed_time_unix_nano() const {
   ::google::protobuf::internal::TSanRead(&_impl_);
-  return _impl_.payload_.GetMap();
+  return _impl_.observed_time_unix_nano_;
 }
-inline const ::google::protobuf::Map<::std::string, ::std::string>& EventInfo::payload() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_map:holons.v1.EventInfo.payload)
-  return _internal_payload();
-}
-inline ::google::protobuf::Map<::std::string, ::std::string>* PROTOBUF_NONNULL EventInfo::_internal_mutable_payload() {
+inline void LogRecord::_internal_set_observed_time_unix_nano(::uint64_t value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  return _impl_.payload_.MutableMap();
-}
-inline ::google::protobuf::Map<::std::string, ::std::string>* PROTOBUF_NONNULL EventInfo::mutable_payload()
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_mutable_map:holons.v1.EventInfo.payload)
-  return _internal_mutable_payload();
+  _impl_.observed_time_unix_nano_ = value;
 }
 
-// repeated .holons.v1.ChainHop chain = 7;
-inline int EventInfo::_internal_chain_size() const {
+// string event_name = 20;
+inline void LogRecord::clear_event_name() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.event_name_.ClearToEmpty();
+  _impl_._has_bits_[0] &= ~0x00000008U;
+}
+inline const ::std::string& LogRecord::event_name() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:holons.v1.LogRecord.event_name)
+  return _internal_event_name();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void LogRecord::set_event_name(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000008U;
+  _impl_.event_name_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:holons.v1.LogRecord.event_name)
+}
+inline ::std::string* PROTOBUF_NONNULL LogRecord::mutable_event_name()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::std::string* _s = _internal_mutable_event_name();
+  // @@protoc_insertion_point(field_mutable:holons.v1.LogRecord.event_name)
+  return _s;
+}
+inline const ::std::string& LogRecord::_internal_event_name() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.event_name_.Get();
+}
+inline void LogRecord::_internal_set_event_name(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000008U;
+  _impl_.event_name_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL LogRecord::_internal_mutable_event_name() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000008U;
+  return _impl_.event_name_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE LogRecord::release_event_name() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:holons.v1.LogRecord.event_name)
+  if ((_impl_._has_bits_[0] & 0x00000008U) == 0) {
+    return nullptr;
+  }
+  _impl_._has_bits_[0] &= ~0x00000008U;
+  auto* released = _impl_.event_name_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.event_name_.Set("", GetArena());
+  }
+  return released;
+}
+inline void LogRecord::set_allocated_event_name(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000008U;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000008U;
+  }
+  _impl_.event_name_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.event_name_.IsDefault()) {
+    _impl_.event_name_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:holons.v1.LogRecord.event_name)
+}
+
+// repeated string chain = 21;
+inline int LogRecord::_internal_chain_size() const {
   return _internal_chain().size();
 }
-inline int EventInfo::chain_size() const {
+inline int LogRecord::chain_size() const {
   return _internal_chain_size();
 }
-inline void EventInfo::clear_chain() {
+inline void LogRecord::clear_chain() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.chain_.Clear();
 }
-inline ::holons::v1::ChainHop* PROTOBUF_NONNULL EventInfo::mutable_chain(int index)
+inline ::std::string* PROTOBUF_NONNULL LogRecord::add_chain()
     ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_mutable:holons.v1.EventInfo.chain)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::std::string* _s = _internal_mutable_chain()->Add();
+  // @@protoc_insertion_point(field_add_mutable:holons.v1.LogRecord.chain)
+  return _s;
+}
+inline const ::std::string& LogRecord::chain(int index) const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:holons.v1.LogRecord.chain)
+  return _internal_chain().Get(index);
+}
+inline ::std::string* PROTOBUF_NONNULL LogRecord::mutable_chain(int index)
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_mutable:holons.v1.LogRecord.chain)
   return _internal_mutable_chain()->Mutable(index);
 }
-inline ::google::protobuf::RepeatedPtrField<::holons::v1::ChainHop>* PROTOBUF_NONNULL EventInfo::mutable_chain()
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_mutable_list:holons.v1.EventInfo.chain)
+template <typename Arg_, typename... Args_>
+inline void LogRecord::set_chain(int index, Arg_&& value, Args_... args) {
+  ::google::protobuf::internal::AssignToString(*_internal_mutable_chain()->Mutable(index), ::std::forward<Arg_>(value),
+                        args... );
+  // @@protoc_insertion_point(field_set:holons.v1.LogRecord.chain)
+}
+template <typename Arg_, typename... Args_>
+inline void LogRecord::add_chain(Arg_&& value, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::google::protobuf::internal::AddToRepeatedPtrField(*_internal_mutable_chain(),
+                               ::std::forward<Arg_>(value),
+                               args... );
+  // @@protoc_insertion_point(field_add:holons.v1.LogRecord.chain)
+}
+inline const ::google::protobuf::RepeatedPtrField<::std::string>& LogRecord::chain()
+    const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_list:holons.v1.LogRecord.chain)
+  return _internal_chain();
+}
+inline ::google::protobuf::RepeatedPtrField<::std::string>* PROTOBUF_NONNULL
+LogRecord::mutable_chain() ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_mutable_list:holons.v1.LogRecord.chain)
   ::google::protobuf::internal::TSanWrite(&_impl_);
   return _internal_mutable_chain();
 }
-inline const ::holons::v1::ChainHop& EventInfo::chain(int index) const
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_get:holons.v1.EventInfo.chain)
-  return _internal_chain().Get(index);
-}
-inline ::holons::v1::ChainHop* PROTOBUF_NONNULL EventInfo::add_chain()
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  ::google::protobuf::internal::TSanWrite(&_impl_);
-  ::holons::v1::ChainHop* _add = _internal_mutable_chain()->Add();
-  // @@protoc_insertion_point(field_add:holons.v1.EventInfo.chain)
-  return _add;
-}
-inline const ::google::protobuf::RepeatedPtrField<::holons::v1::ChainHop>& EventInfo::chain() const
-    ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  // @@protoc_insertion_point(field_list:holons.v1.EventInfo.chain)
-  return _internal_chain();
-}
-inline const ::google::protobuf::RepeatedPtrField<::holons::v1::ChainHop>&
-EventInfo::_internal_chain() const {
+inline const ::google::protobuf::RepeatedPtrField<::std::string>&
+LogRecord::_internal_chain() const {
   ::google::protobuf::internal::TSanRead(&_impl_);
   return _impl_.chain_;
 }
-inline ::google::protobuf::RepeatedPtrField<::holons::v1::ChainHop>* PROTOBUF_NONNULL
-EventInfo::_internal_mutable_chain() {
+inline ::google::protobuf::RepeatedPtrField<::std::string>* PROTOBUF_NONNULL
+LogRecord::_internal_mutable_chain() {
   ::google::protobuf::internal::TSanRead(&_impl_);
   return &_impl_.chain_;
+}
+
+// -------------------------------------------------------------------
+
+// Metric
+
+// string name = 1;
+inline void Metric::clear_name() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.name_.ClearToEmpty();
+  _impl_._has_bits_[0] &= ~0x00000001U;
+}
+inline const ::std::string& Metric::name() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:holons.v1.Metric.name)
+  return _internal_name();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void Metric::set_name(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000001U;
+  _impl_.name_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:holons.v1.Metric.name)
+}
+inline ::std::string* PROTOBUF_NONNULL Metric::mutable_name()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::std::string* _s = _internal_mutable_name();
+  // @@protoc_insertion_point(field_mutable:holons.v1.Metric.name)
+  return _s;
+}
+inline const ::std::string& Metric::_internal_name() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.name_.Get();
+}
+inline void Metric::_internal_set_name(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000001U;
+  _impl_.name_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL Metric::_internal_mutable_name() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000001U;
+  return _impl_.name_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE Metric::release_name() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:holons.v1.Metric.name)
+  if ((_impl_._has_bits_[0] & 0x00000001U) == 0) {
+    return nullptr;
+  }
+  _impl_._has_bits_[0] &= ~0x00000001U;
+  auto* released = _impl_.name_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.name_.Set("", GetArena());
+  }
+  return released;
+}
+inline void Metric::set_allocated_name(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000001U;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000001U;
+  }
+  _impl_.name_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.name_.IsDefault()) {
+    _impl_.name_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:holons.v1.Metric.name)
+}
+
+// string description = 2;
+inline void Metric::clear_description() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.description_.ClearToEmpty();
+  _impl_._has_bits_[0] &= ~0x00000002U;
+}
+inline const ::std::string& Metric::description() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:holons.v1.Metric.description)
+  return _internal_description();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void Metric::set_description(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000002U;
+  _impl_.description_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:holons.v1.Metric.description)
+}
+inline ::std::string* PROTOBUF_NONNULL Metric::mutable_description()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::std::string* _s = _internal_mutable_description();
+  // @@protoc_insertion_point(field_mutable:holons.v1.Metric.description)
+  return _s;
+}
+inline const ::std::string& Metric::_internal_description() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.description_.Get();
+}
+inline void Metric::_internal_set_description(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000002U;
+  _impl_.description_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL Metric::_internal_mutable_description() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000002U;
+  return _impl_.description_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE Metric::release_description() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:holons.v1.Metric.description)
+  if ((_impl_._has_bits_[0] & 0x00000002U) == 0) {
+    return nullptr;
+  }
+  _impl_._has_bits_[0] &= ~0x00000002U;
+  auto* released = _impl_.description_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.description_.Set("", GetArena());
+  }
+  return released;
+}
+inline void Metric::set_allocated_description(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000002U;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000002U;
+  }
+  _impl_.description_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.description_.IsDefault()) {
+    _impl_.description_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:holons.v1.Metric.description)
+}
+
+// string unit = 3;
+inline void Metric::clear_unit() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.unit_.ClearToEmpty();
+  _impl_._has_bits_[0] &= ~0x00000004U;
+}
+inline const ::std::string& Metric::unit() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:holons.v1.Metric.unit)
+  return _internal_unit();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void Metric::set_unit(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000004U;
+  _impl_.unit_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:holons.v1.Metric.unit)
+}
+inline ::std::string* PROTOBUF_NONNULL Metric::mutable_unit()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::std::string* _s = _internal_mutable_unit();
+  // @@protoc_insertion_point(field_mutable:holons.v1.Metric.unit)
+  return _s;
+}
+inline const ::std::string& Metric::_internal_unit() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.unit_.Get();
+}
+inline void Metric::_internal_set_unit(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000004U;
+  _impl_.unit_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL Metric::_internal_mutable_unit() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000004U;
+  return _impl_.unit_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE Metric::release_unit() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:holons.v1.Metric.unit)
+  if ((_impl_._has_bits_[0] & 0x00000004U) == 0) {
+    return nullptr;
+  }
+  _impl_._has_bits_[0] &= ~0x00000004U;
+  auto* released = _impl_.unit_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.unit_.Set("", GetArena());
+  }
+  return released;
+}
+inline void Metric::set_allocated_unit(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000004U;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000004U;
+  }
+  _impl_.unit_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.unit_.IsDefault()) {
+    _impl_.unit_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:holons.v1.Metric.unit)
+}
+
+// .holons.v1.Gauge gauge = 5;
+inline bool Metric::has_gauge() const {
+  return data_case() == kGauge;
+}
+inline bool Metric::_internal_has_gauge() const {
+  return data_case() == kGauge;
+}
+inline void Metric::set_has_gauge() {
+  _impl_._oneof_case_[0] = kGauge;
+}
+inline void Metric::clear_gauge() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (data_case() == kGauge) {
+    if (GetArena() == nullptr) {
+      delete _impl_.data_.gauge_;
+    } else if (::google::protobuf::internal::DebugHardenClearOneofMessageOnArena()) {
+      ::google::protobuf::internal::MaybePoisonAfterClear(_impl_.data_.gauge_);
+    }
+    clear_has_data();
+  }
+}
+inline ::holons::v1::Gauge* PROTOBUF_NULLABLE Metric::release_gauge() {
+  // @@protoc_insertion_point(field_release:holons.v1.Metric.gauge)
+  if (data_case() == kGauge) {
+    clear_has_data();
+    auto* temp = reinterpret_cast<::holons::v1::Gauge*>(_impl_.data_.gauge_);
+    if (GetArena() != nullptr) {
+      temp = ::google::protobuf::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.data_.gauge_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::holons::v1::Gauge& Metric::_internal_gauge() const {
+  return data_case() == kGauge ? *reinterpret_cast<::holons::v1::Gauge*>(_impl_.data_.gauge_) : reinterpret_cast<::holons::v1::Gauge&>(::holons::v1::_Gauge_default_instance_);
+}
+inline const ::holons::v1::Gauge& Metric::gauge() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:holons.v1.Metric.gauge)
+  return _internal_gauge();
+}
+inline ::holons::v1::Gauge* PROTOBUF_NULLABLE Metric::unsafe_arena_release_gauge() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:holons.v1.Metric.gauge)
+  if (data_case() == kGauge) {
+    clear_has_data();
+    auto* temp = reinterpret_cast<::holons::v1::Gauge*>(_impl_.data_.gauge_);
+    _impl_.data_.gauge_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void Metric::unsafe_arena_set_allocated_gauge(
+    ::holons::v1::Gauge* PROTOBUF_NULLABLE value) {
+  // We rely on the oneof clear method to free the earlier contents
+  // of this oneof. We can directly use the pointer we're given to
+  // set the new value.
+  clear_data();
+  if (value) {
+    set_has_gauge();
+    _impl_.data_.gauge_ = reinterpret_cast<::google::protobuf::Message*>(value);
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:holons.v1.Metric.gauge)
+}
+inline ::holons::v1::Gauge* PROTOBUF_NONNULL Metric::_internal_mutable_gauge() {
+  if (data_case() != kGauge) {
+    clear_data();
+    set_has_gauge();
+    _impl_.data_.gauge_ = reinterpret_cast<::google::protobuf::Message*>(
+        ::google::protobuf::Message::DefaultConstruct<::holons::v1::Gauge>(GetArena()));
+  }
+  return reinterpret_cast<::holons::v1::Gauge*>(_impl_.data_.gauge_);
+}
+inline ::holons::v1::Gauge* PROTOBUF_NONNULL Metric::mutable_gauge()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::holons::v1::Gauge* _msg = _internal_mutable_gauge();
+  // @@protoc_insertion_point(field_mutable:holons.v1.Metric.gauge)
+  return _msg;
+}
+
+// .holons.v1.Sum sum = 7;
+inline bool Metric::has_sum() const {
+  return data_case() == kSum;
+}
+inline bool Metric::_internal_has_sum() const {
+  return data_case() == kSum;
+}
+inline void Metric::set_has_sum() {
+  _impl_._oneof_case_[0] = kSum;
+}
+inline void Metric::clear_sum() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (data_case() == kSum) {
+    if (GetArena() == nullptr) {
+      delete _impl_.data_.sum_;
+    } else if (::google::protobuf::internal::DebugHardenClearOneofMessageOnArena()) {
+      ::google::protobuf::internal::MaybePoisonAfterClear(_impl_.data_.sum_);
+    }
+    clear_has_data();
+  }
+}
+inline ::holons::v1::Sum* PROTOBUF_NULLABLE Metric::release_sum() {
+  // @@protoc_insertion_point(field_release:holons.v1.Metric.sum)
+  if (data_case() == kSum) {
+    clear_has_data();
+    auto* temp = reinterpret_cast<::holons::v1::Sum*>(_impl_.data_.sum_);
+    if (GetArena() != nullptr) {
+      temp = ::google::protobuf::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.data_.sum_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::holons::v1::Sum& Metric::_internal_sum() const {
+  return data_case() == kSum ? *reinterpret_cast<::holons::v1::Sum*>(_impl_.data_.sum_) : reinterpret_cast<::holons::v1::Sum&>(::holons::v1::_Sum_default_instance_);
+}
+inline const ::holons::v1::Sum& Metric::sum() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:holons.v1.Metric.sum)
+  return _internal_sum();
+}
+inline ::holons::v1::Sum* PROTOBUF_NULLABLE Metric::unsafe_arena_release_sum() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:holons.v1.Metric.sum)
+  if (data_case() == kSum) {
+    clear_has_data();
+    auto* temp = reinterpret_cast<::holons::v1::Sum*>(_impl_.data_.sum_);
+    _impl_.data_.sum_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void Metric::unsafe_arena_set_allocated_sum(
+    ::holons::v1::Sum* PROTOBUF_NULLABLE value) {
+  // We rely on the oneof clear method to free the earlier contents
+  // of this oneof. We can directly use the pointer we're given to
+  // set the new value.
+  clear_data();
+  if (value) {
+    set_has_sum();
+    _impl_.data_.sum_ = reinterpret_cast<::google::protobuf::Message*>(value);
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:holons.v1.Metric.sum)
+}
+inline ::holons::v1::Sum* PROTOBUF_NONNULL Metric::_internal_mutable_sum() {
+  if (data_case() != kSum) {
+    clear_data();
+    set_has_sum();
+    _impl_.data_.sum_ = reinterpret_cast<::google::protobuf::Message*>(
+        ::google::protobuf::Message::DefaultConstruct<::holons::v1::Sum>(GetArena()));
+  }
+  return reinterpret_cast<::holons::v1::Sum*>(_impl_.data_.sum_);
+}
+inline ::holons::v1::Sum* PROTOBUF_NONNULL Metric::mutable_sum()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::holons::v1::Sum* _msg = _internal_mutable_sum();
+  // @@protoc_insertion_point(field_mutable:holons.v1.Metric.sum)
+  return _msg;
+}
+
+// .holons.v1.Histogram histogram = 9;
+inline bool Metric::has_histogram() const {
+  return data_case() == kHistogram;
+}
+inline bool Metric::_internal_has_histogram() const {
+  return data_case() == kHistogram;
+}
+inline void Metric::set_has_histogram() {
+  _impl_._oneof_case_[0] = kHistogram;
+}
+inline void Metric::clear_histogram() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (data_case() == kHistogram) {
+    if (GetArena() == nullptr) {
+      delete _impl_.data_.histogram_;
+    } else if (::google::protobuf::internal::DebugHardenClearOneofMessageOnArena()) {
+      ::google::protobuf::internal::MaybePoisonAfterClear(_impl_.data_.histogram_);
+    }
+    clear_has_data();
+  }
+}
+inline ::holons::v1::Histogram* PROTOBUF_NULLABLE Metric::release_histogram() {
+  // @@protoc_insertion_point(field_release:holons.v1.Metric.histogram)
+  if (data_case() == kHistogram) {
+    clear_has_data();
+    auto* temp = reinterpret_cast<::holons::v1::Histogram*>(_impl_.data_.histogram_);
+    if (GetArena() != nullptr) {
+      temp = ::google::protobuf::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.data_.histogram_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::holons::v1::Histogram& Metric::_internal_histogram() const {
+  return data_case() == kHistogram ? *reinterpret_cast<::holons::v1::Histogram*>(_impl_.data_.histogram_) : reinterpret_cast<::holons::v1::Histogram&>(::holons::v1::_Histogram_default_instance_);
+}
+inline const ::holons::v1::Histogram& Metric::histogram() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:holons.v1.Metric.histogram)
+  return _internal_histogram();
+}
+inline ::holons::v1::Histogram* PROTOBUF_NULLABLE Metric::unsafe_arena_release_histogram() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:holons.v1.Metric.histogram)
+  if (data_case() == kHistogram) {
+    clear_has_data();
+    auto* temp = reinterpret_cast<::holons::v1::Histogram*>(_impl_.data_.histogram_);
+    _impl_.data_.histogram_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void Metric::unsafe_arena_set_allocated_histogram(
+    ::holons::v1::Histogram* PROTOBUF_NULLABLE value) {
+  // We rely on the oneof clear method to free the earlier contents
+  // of this oneof. We can directly use the pointer we're given to
+  // set the new value.
+  clear_data();
+  if (value) {
+    set_has_histogram();
+    _impl_.data_.histogram_ = reinterpret_cast<::google::protobuf::Message*>(value);
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:holons.v1.Metric.histogram)
+}
+inline ::holons::v1::Histogram* PROTOBUF_NONNULL Metric::_internal_mutable_histogram() {
+  if (data_case() != kHistogram) {
+    clear_data();
+    set_has_histogram();
+    _impl_.data_.histogram_ = reinterpret_cast<::google::protobuf::Message*>(
+        ::google::protobuf::Message::DefaultConstruct<::holons::v1::Histogram>(GetArena()));
+  }
+  return reinterpret_cast<::holons::v1::Histogram*>(_impl_.data_.histogram_);
+}
+inline ::holons::v1::Histogram* PROTOBUF_NONNULL Metric::mutable_histogram()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::holons::v1::Histogram* _msg = _internal_mutable_histogram();
+  // @@protoc_insertion_point(field_mutable:holons.v1.Metric.histogram)
+  return _msg;
+}
+
+inline bool Metric::has_data() const {
+  return data_case() != DATA_NOT_SET;
+}
+inline void Metric::clear_has_data() {
+  _impl_._oneof_case_[0] = DATA_NOT_SET;
+}
+inline Metric::DataCase Metric::data_case() const {
+  return Metric::DataCase(_impl_._oneof_case_[0]);
+}
+// -------------------------------------------------------------------
+
+// Gauge
+
+// repeated .holons.v1.NumberDataPoint data_points = 1;
+inline int Gauge::_internal_data_points_size() const {
+  return _internal_data_points().size();
+}
+inline int Gauge::data_points_size() const {
+  return _internal_data_points_size();
+}
+inline void Gauge::clear_data_points() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.data_points_.Clear();
+}
+inline ::holons::v1::NumberDataPoint* PROTOBUF_NONNULL Gauge::mutable_data_points(int index)
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_mutable:holons.v1.Gauge.data_points)
+  return _internal_mutable_data_points()->Mutable(index);
+}
+inline ::google::protobuf::RepeatedPtrField<::holons::v1::NumberDataPoint>* PROTOBUF_NONNULL Gauge::mutable_data_points()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_mutable_list:holons.v1.Gauge.data_points)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _internal_mutable_data_points();
+}
+inline const ::holons::v1::NumberDataPoint& Gauge::data_points(int index) const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:holons.v1.Gauge.data_points)
+  return _internal_data_points().Get(index);
+}
+inline ::holons::v1::NumberDataPoint* PROTOBUF_NONNULL Gauge::add_data_points()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::holons::v1::NumberDataPoint* _add = _internal_mutable_data_points()->Add();
+  // @@protoc_insertion_point(field_add:holons.v1.Gauge.data_points)
+  return _add;
+}
+inline const ::google::protobuf::RepeatedPtrField<::holons::v1::NumberDataPoint>& Gauge::data_points() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_list:holons.v1.Gauge.data_points)
+  return _internal_data_points();
+}
+inline const ::google::protobuf::RepeatedPtrField<::holons::v1::NumberDataPoint>&
+Gauge::_internal_data_points() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.data_points_;
+}
+inline ::google::protobuf::RepeatedPtrField<::holons::v1::NumberDataPoint>* PROTOBUF_NONNULL
+Gauge::_internal_mutable_data_points() {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return &_impl_.data_points_;
+}
+
+// -------------------------------------------------------------------
+
+// Sum
+
+// repeated .holons.v1.NumberDataPoint data_points = 1;
+inline int Sum::_internal_data_points_size() const {
+  return _internal_data_points().size();
+}
+inline int Sum::data_points_size() const {
+  return _internal_data_points_size();
+}
+inline void Sum::clear_data_points() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.data_points_.Clear();
+}
+inline ::holons::v1::NumberDataPoint* PROTOBUF_NONNULL Sum::mutable_data_points(int index)
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_mutable:holons.v1.Sum.data_points)
+  return _internal_mutable_data_points()->Mutable(index);
+}
+inline ::google::protobuf::RepeatedPtrField<::holons::v1::NumberDataPoint>* PROTOBUF_NONNULL Sum::mutable_data_points()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_mutable_list:holons.v1.Sum.data_points)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _internal_mutable_data_points();
+}
+inline const ::holons::v1::NumberDataPoint& Sum::data_points(int index) const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:holons.v1.Sum.data_points)
+  return _internal_data_points().Get(index);
+}
+inline ::holons::v1::NumberDataPoint* PROTOBUF_NONNULL Sum::add_data_points()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::holons::v1::NumberDataPoint* _add = _internal_mutable_data_points()->Add();
+  // @@protoc_insertion_point(field_add:holons.v1.Sum.data_points)
+  return _add;
+}
+inline const ::google::protobuf::RepeatedPtrField<::holons::v1::NumberDataPoint>& Sum::data_points() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_list:holons.v1.Sum.data_points)
+  return _internal_data_points();
+}
+inline const ::google::protobuf::RepeatedPtrField<::holons::v1::NumberDataPoint>&
+Sum::_internal_data_points() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.data_points_;
+}
+inline ::google::protobuf::RepeatedPtrField<::holons::v1::NumberDataPoint>* PROTOBUF_NONNULL
+Sum::_internal_mutable_data_points() {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return &_impl_.data_points_;
+}
+
+// .holons.v1.AggregationTemporality aggregation_temporality = 2;
+inline void Sum::clear_aggregation_temporality() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.aggregation_temporality_ = 0;
+  _impl_._has_bits_[0] &= ~0x00000001U;
+}
+inline ::holons::v1::AggregationTemporality Sum::aggregation_temporality() const {
+  // @@protoc_insertion_point(field_get:holons.v1.Sum.aggregation_temporality)
+  return _internal_aggregation_temporality();
+}
+inline void Sum::set_aggregation_temporality(::holons::v1::AggregationTemporality value) {
+  _internal_set_aggregation_temporality(value);
+  _impl_._has_bits_[0] |= 0x00000001U;
+  // @@protoc_insertion_point(field_set:holons.v1.Sum.aggregation_temporality)
+}
+inline ::holons::v1::AggregationTemporality Sum::_internal_aggregation_temporality() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return static_cast<::holons::v1::AggregationTemporality>(_impl_.aggregation_temporality_);
+}
+inline void Sum::_internal_set_aggregation_temporality(::holons::v1::AggregationTemporality value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.aggregation_temporality_ = value;
+}
+
+// bool is_monotonic = 3;
+inline void Sum::clear_is_monotonic() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.is_monotonic_ = false;
+  _impl_._has_bits_[0] &= ~0x00000002U;
+}
+inline bool Sum::is_monotonic() const {
+  // @@protoc_insertion_point(field_get:holons.v1.Sum.is_monotonic)
+  return _internal_is_monotonic();
+}
+inline void Sum::set_is_monotonic(bool value) {
+  _internal_set_is_monotonic(value);
+  _impl_._has_bits_[0] |= 0x00000002U;
+  // @@protoc_insertion_point(field_set:holons.v1.Sum.is_monotonic)
+}
+inline bool Sum::_internal_is_monotonic() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.is_monotonic_;
+}
+inline void Sum::_internal_set_is_monotonic(bool value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.is_monotonic_ = value;
+}
+
+// -------------------------------------------------------------------
+
+// Histogram
+
+// repeated .holons.v1.HistogramDataPoint data_points = 1;
+inline int Histogram::_internal_data_points_size() const {
+  return _internal_data_points().size();
+}
+inline int Histogram::data_points_size() const {
+  return _internal_data_points_size();
+}
+inline void Histogram::clear_data_points() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.data_points_.Clear();
+}
+inline ::holons::v1::HistogramDataPoint* PROTOBUF_NONNULL Histogram::mutable_data_points(int index)
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_mutable:holons.v1.Histogram.data_points)
+  return _internal_mutable_data_points()->Mutable(index);
+}
+inline ::google::protobuf::RepeatedPtrField<::holons::v1::HistogramDataPoint>* PROTOBUF_NONNULL Histogram::mutable_data_points()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_mutable_list:holons.v1.Histogram.data_points)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _internal_mutable_data_points();
+}
+inline const ::holons::v1::HistogramDataPoint& Histogram::data_points(int index) const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:holons.v1.Histogram.data_points)
+  return _internal_data_points().Get(index);
+}
+inline ::holons::v1::HistogramDataPoint* PROTOBUF_NONNULL Histogram::add_data_points()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::holons::v1::HistogramDataPoint* _add = _internal_mutable_data_points()->Add();
+  // @@protoc_insertion_point(field_add:holons.v1.Histogram.data_points)
+  return _add;
+}
+inline const ::google::protobuf::RepeatedPtrField<::holons::v1::HistogramDataPoint>& Histogram::data_points() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_list:holons.v1.Histogram.data_points)
+  return _internal_data_points();
+}
+inline const ::google::protobuf::RepeatedPtrField<::holons::v1::HistogramDataPoint>&
+Histogram::_internal_data_points() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.data_points_;
+}
+inline ::google::protobuf::RepeatedPtrField<::holons::v1::HistogramDataPoint>* PROTOBUF_NONNULL
+Histogram::_internal_mutable_data_points() {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return &_impl_.data_points_;
+}
+
+// .holons.v1.AggregationTemporality aggregation_temporality = 2;
+inline void Histogram::clear_aggregation_temporality() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.aggregation_temporality_ = 0;
+  _impl_._has_bits_[0] &= ~0x00000001U;
+}
+inline ::holons::v1::AggregationTemporality Histogram::aggregation_temporality() const {
+  // @@protoc_insertion_point(field_get:holons.v1.Histogram.aggregation_temporality)
+  return _internal_aggregation_temporality();
+}
+inline void Histogram::set_aggregation_temporality(::holons::v1::AggregationTemporality value) {
+  _internal_set_aggregation_temporality(value);
+  _impl_._has_bits_[0] |= 0x00000001U;
+  // @@protoc_insertion_point(field_set:holons.v1.Histogram.aggregation_temporality)
+}
+inline ::holons::v1::AggregationTemporality Histogram::_internal_aggregation_temporality() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return static_cast<::holons::v1::AggregationTemporality>(_impl_.aggregation_temporality_);
+}
+inline void Histogram::_internal_set_aggregation_temporality(::holons::v1::AggregationTemporality value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.aggregation_temporality_ = value;
+}
+
+// -------------------------------------------------------------------
+
+// NumberDataPoint
+
+// fixed64 start_time_unix_nano = 2;
+inline void NumberDataPoint::clear_start_time_unix_nano() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.start_time_unix_nano_ = ::uint64_t{0u};
+  _impl_._has_bits_[0] &= ~0x00000001U;
+}
+inline ::uint64_t NumberDataPoint::start_time_unix_nano() const {
+  // @@protoc_insertion_point(field_get:holons.v1.NumberDataPoint.start_time_unix_nano)
+  return _internal_start_time_unix_nano();
+}
+inline void NumberDataPoint::set_start_time_unix_nano(::uint64_t value) {
+  _internal_set_start_time_unix_nano(value);
+  _impl_._has_bits_[0] |= 0x00000001U;
+  // @@protoc_insertion_point(field_set:holons.v1.NumberDataPoint.start_time_unix_nano)
+}
+inline ::uint64_t NumberDataPoint::_internal_start_time_unix_nano() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.start_time_unix_nano_;
+}
+inline void NumberDataPoint::_internal_set_start_time_unix_nano(::uint64_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.start_time_unix_nano_ = value;
+}
+
+// fixed64 time_unix_nano = 3;
+inline void NumberDataPoint::clear_time_unix_nano() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.time_unix_nano_ = ::uint64_t{0u};
+  _impl_._has_bits_[0] &= ~0x00000002U;
+}
+inline ::uint64_t NumberDataPoint::time_unix_nano() const {
+  // @@protoc_insertion_point(field_get:holons.v1.NumberDataPoint.time_unix_nano)
+  return _internal_time_unix_nano();
+}
+inline void NumberDataPoint::set_time_unix_nano(::uint64_t value) {
+  _internal_set_time_unix_nano(value);
+  _impl_._has_bits_[0] |= 0x00000002U;
+  // @@protoc_insertion_point(field_set:holons.v1.NumberDataPoint.time_unix_nano)
+}
+inline ::uint64_t NumberDataPoint::_internal_time_unix_nano() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.time_unix_nano_;
+}
+inline void NumberDataPoint::_internal_set_time_unix_nano(::uint64_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.time_unix_nano_ = value;
+}
+
+// double as_double = 4;
+inline bool NumberDataPoint::has_as_double() const {
+  return value_case() == kAsDouble;
+}
+inline void NumberDataPoint::set_has_as_double() {
+  _impl_._oneof_case_[0] = kAsDouble;
+}
+inline void NumberDataPoint::clear_as_double() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value_case() == kAsDouble) {
+    _impl_.value_.as_double_ = 0;
+    clear_has_value();
+  }
+}
+inline double NumberDataPoint::as_double() const {
+  // @@protoc_insertion_point(field_get:holons.v1.NumberDataPoint.as_double)
+  return _internal_as_double();
+}
+inline void NumberDataPoint::set_as_double(double value) {
+  if (value_case() != kAsDouble) {
+    clear_value();
+    set_has_as_double();
+  }
+  _impl_.value_.as_double_ = value;
+  // @@protoc_insertion_point(field_set:holons.v1.NumberDataPoint.as_double)
+}
+inline double NumberDataPoint::_internal_as_double() const {
+  if (value_case() == kAsDouble) {
+    return _impl_.value_.as_double_;
+  }
+  return 0;
+}
+
+// int64 as_int = 6;
+inline bool NumberDataPoint::has_as_int() const {
+  return value_case() == kAsInt;
+}
+inline void NumberDataPoint::set_has_as_int() {
+  _impl_._oneof_case_[0] = kAsInt;
+}
+inline void NumberDataPoint::clear_as_int() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value_case() == kAsInt) {
+    _impl_.value_.as_int_ = ::int64_t{0};
+    clear_has_value();
+  }
+}
+inline ::int64_t NumberDataPoint::as_int() const {
+  // @@protoc_insertion_point(field_get:holons.v1.NumberDataPoint.as_int)
+  return _internal_as_int();
+}
+inline void NumberDataPoint::set_as_int(::int64_t value) {
+  if (value_case() != kAsInt) {
+    clear_value();
+    set_has_as_int();
+  }
+  _impl_.value_.as_int_ = value;
+  // @@protoc_insertion_point(field_set:holons.v1.NumberDataPoint.as_int)
+}
+inline ::int64_t NumberDataPoint::_internal_as_int() const {
+  if (value_case() == kAsInt) {
+    return _impl_.value_.as_int_;
+  }
+  return ::int64_t{0};
+}
+
+// repeated .holons.v1.KeyValue attributes = 7;
+inline int NumberDataPoint::_internal_attributes_size() const {
+  return _internal_attributes().size();
+}
+inline int NumberDataPoint::attributes_size() const {
+  return _internal_attributes_size();
+}
+inline void NumberDataPoint::clear_attributes() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.attributes_.Clear();
+}
+inline ::holons::v1::KeyValue* PROTOBUF_NONNULL NumberDataPoint::mutable_attributes(int index)
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_mutable:holons.v1.NumberDataPoint.attributes)
+  return _internal_mutable_attributes()->Mutable(index);
+}
+inline ::google::protobuf::RepeatedPtrField<::holons::v1::KeyValue>* PROTOBUF_NONNULL NumberDataPoint::mutable_attributes()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_mutable_list:holons.v1.NumberDataPoint.attributes)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _internal_mutable_attributes();
+}
+inline const ::holons::v1::KeyValue& NumberDataPoint::attributes(int index) const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:holons.v1.NumberDataPoint.attributes)
+  return _internal_attributes().Get(index);
+}
+inline ::holons::v1::KeyValue* PROTOBUF_NONNULL NumberDataPoint::add_attributes()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::holons::v1::KeyValue* _add = _internal_mutable_attributes()->Add();
+  // @@protoc_insertion_point(field_add:holons.v1.NumberDataPoint.attributes)
+  return _add;
+}
+inline const ::google::protobuf::RepeatedPtrField<::holons::v1::KeyValue>& NumberDataPoint::attributes() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_list:holons.v1.NumberDataPoint.attributes)
+  return _internal_attributes();
+}
+inline const ::google::protobuf::RepeatedPtrField<::holons::v1::KeyValue>&
+NumberDataPoint::_internal_attributes() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.attributes_;
+}
+inline ::google::protobuf::RepeatedPtrField<::holons::v1::KeyValue>* PROTOBUF_NONNULL
+NumberDataPoint::_internal_mutable_attributes() {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return &_impl_.attributes_;
+}
+
+inline bool NumberDataPoint::has_value() const {
+  return value_case() != VALUE_NOT_SET;
+}
+inline void NumberDataPoint::clear_has_value() {
+  _impl_._oneof_case_[0] = VALUE_NOT_SET;
+}
+inline NumberDataPoint::ValueCase NumberDataPoint::value_case() const {
+  return NumberDataPoint::ValueCase(_impl_._oneof_case_[0]);
+}
+// -------------------------------------------------------------------
+
+// HistogramDataPoint
+
+// fixed64 start_time_unix_nano = 2;
+inline void HistogramDataPoint::clear_start_time_unix_nano() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.start_time_unix_nano_ = ::uint64_t{0u};
+  _impl_._has_bits_[0] &= ~0x00000001U;
+}
+inline ::uint64_t HistogramDataPoint::start_time_unix_nano() const {
+  // @@protoc_insertion_point(field_get:holons.v1.HistogramDataPoint.start_time_unix_nano)
+  return _internal_start_time_unix_nano();
+}
+inline void HistogramDataPoint::set_start_time_unix_nano(::uint64_t value) {
+  _internal_set_start_time_unix_nano(value);
+  _impl_._has_bits_[0] |= 0x00000001U;
+  // @@protoc_insertion_point(field_set:holons.v1.HistogramDataPoint.start_time_unix_nano)
+}
+inline ::uint64_t HistogramDataPoint::_internal_start_time_unix_nano() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.start_time_unix_nano_;
+}
+inline void HistogramDataPoint::_internal_set_start_time_unix_nano(::uint64_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.start_time_unix_nano_ = value;
+}
+
+// fixed64 time_unix_nano = 3;
+inline void HistogramDataPoint::clear_time_unix_nano() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.time_unix_nano_ = ::uint64_t{0u};
+  _impl_._has_bits_[0] &= ~0x00000002U;
+}
+inline ::uint64_t HistogramDataPoint::time_unix_nano() const {
+  // @@protoc_insertion_point(field_get:holons.v1.HistogramDataPoint.time_unix_nano)
+  return _internal_time_unix_nano();
+}
+inline void HistogramDataPoint::set_time_unix_nano(::uint64_t value) {
+  _internal_set_time_unix_nano(value);
+  _impl_._has_bits_[0] |= 0x00000002U;
+  // @@protoc_insertion_point(field_set:holons.v1.HistogramDataPoint.time_unix_nano)
+}
+inline ::uint64_t HistogramDataPoint::_internal_time_unix_nano() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.time_unix_nano_;
+}
+inline void HistogramDataPoint::_internal_set_time_unix_nano(::uint64_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.time_unix_nano_ = value;
+}
+
+// uint64 count = 4;
+inline void HistogramDataPoint::clear_count() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.count_ = ::uint64_t{0u};
+  _impl_._has_bits_[0] &= ~0x00000004U;
+}
+inline ::uint64_t HistogramDataPoint::count() const {
+  // @@protoc_insertion_point(field_get:holons.v1.HistogramDataPoint.count)
+  return _internal_count();
+}
+inline void HistogramDataPoint::set_count(::uint64_t value) {
+  _internal_set_count(value);
+  _impl_._has_bits_[0] |= 0x00000004U;
+  // @@protoc_insertion_point(field_set:holons.v1.HistogramDataPoint.count)
+}
+inline ::uint64_t HistogramDataPoint::_internal_count() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.count_;
+}
+inline void HistogramDataPoint::_internal_set_count(::uint64_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.count_ = value;
+}
+
+// double sum = 5;
+inline void HistogramDataPoint::clear_sum() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.sum_ = 0;
+  _impl_._has_bits_[0] &= ~0x00000008U;
+}
+inline double HistogramDataPoint::sum() const {
+  // @@protoc_insertion_point(field_get:holons.v1.HistogramDataPoint.sum)
+  return _internal_sum();
+}
+inline void HistogramDataPoint::set_sum(double value) {
+  _internal_set_sum(value);
+  _impl_._has_bits_[0] |= 0x00000008U;
+  // @@protoc_insertion_point(field_set:holons.v1.HistogramDataPoint.sum)
+}
+inline double HistogramDataPoint::_internal_sum() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.sum_;
+}
+inline void HistogramDataPoint::_internal_set_sum(double value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.sum_ = value;
+}
+
+// repeated uint64 bucket_counts = 6;
+inline int HistogramDataPoint::_internal_bucket_counts_size() const {
+  return _internal_bucket_counts().size();
+}
+inline int HistogramDataPoint::bucket_counts_size() const {
+  return _internal_bucket_counts_size();
+}
+inline void HistogramDataPoint::clear_bucket_counts() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.bucket_counts_.Clear();
+}
+inline ::uint64_t HistogramDataPoint::bucket_counts(int index) const {
+  // @@protoc_insertion_point(field_get:holons.v1.HistogramDataPoint.bucket_counts)
+  return _internal_bucket_counts().Get(index);
+}
+inline void HistogramDataPoint::set_bucket_counts(int index, ::uint64_t value) {
+  _internal_mutable_bucket_counts()->Set(index, value);
+  // @@protoc_insertion_point(field_set:holons.v1.HistogramDataPoint.bucket_counts)
+}
+inline void HistogramDataPoint::add_bucket_counts(::uint64_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _internal_mutable_bucket_counts()->Add(value);
+  // @@protoc_insertion_point(field_add:holons.v1.HistogramDataPoint.bucket_counts)
+}
+inline const ::google::protobuf::RepeatedField<::uint64_t>& HistogramDataPoint::bucket_counts() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_list:holons.v1.HistogramDataPoint.bucket_counts)
+  return _internal_bucket_counts();
+}
+inline ::google::protobuf::RepeatedField<::uint64_t>* PROTOBUF_NONNULL HistogramDataPoint::mutable_bucket_counts()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_mutable_list:holons.v1.HistogramDataPoint.bucket_counts)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _internal_mutable_bucket_counts();
+}
+inline const ::google::protobuf::RepeatedField<::uint64_t>&
+HistogramDataPoint::_internal_bucket_counts() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.bucket_counts_;
+}
+inline ::google::protobuf::RepeatedField<::uint64_t>* PROTOBUF_NONNULL
+HistogramDataPoint::_internal_mutable_bucket_counts() {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return &_impl_.bucket_counts_;
+}
+
+// repeated double explicit_bounds = 7;
+inline int HistogramDataPoint::_internal_explicit_bounds_size() const {
+  return _internal_explicit_bounds().size();
+}
+inline int HistogramDataPoint::explicit_bounds_size() const {
+  return _internal_explicit_bounds_size();
+}
+inline void HistogramDataPoint::clear_explicit_bounds() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.explicit_bounds_.Clear();
+}
+inline double HistogramDataPoint::explicit_bounds(int index) const {
+  // @@protoc_insertion_point(field_get:holons.v1.HistogramDataPoint.explicit_bounds)
+  return _internal_explicit_bounds().Get(index);
+}
+inline void HistogramDataPoint::set_explicit_bounds(int index, double value) {
+  _internal_mutable_explicit_bounds()->Set(index, value);
+  // @@protoc_insertion_point(field_set:holons.v1.HistogramDataPoint.explicit_bounds)
+}
+inline void HistogramDataPoint::add_explicit_bounds(double value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _internal_mutable_explicit_bounds()->Add(value);
+  // @@protoc_insertion_point(field_add:holons.v1.HistogramDataPoint.explicit_bounds)
+}
+inline const ::google::protobuf::RepeatedField<double>& HistogramDataPoint::explicit_bounds() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_list:holons.v1.HistogramDataPoint.explicit_bounds)
+  return _internal_explicit_bounds();
+}
+inline ::google::protobuf::RepeatedField<double>* PROTOBUF_NONNULL HistogramDataPoint::mutable_explicit_bounds()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_mutable_list:holons.v1.HistogramDataPoint.explicit_bounds)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _internal_mutable_explicit_bounds();
+}
+inline const ::google::protobuf::RepeatedField<double>&
+HistogramDataPoint::_internal_explicit_bounds() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.explicit_bounds_;
+}
+inline ::google::protobuf::RepeatedField<double>* PROTOBUF_NONNULL
+HistogramDataPoint::_internal_mutable_explicit_bounds() {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return &_impl_.explicit_bounds_;
+}
+
+// repeated .holons.v1.KeyValue attributes = 9;
+inline int HistogramDataPoint::_internal_attributes_size() const {
+  return _internal_attributes().size();
+}
+inline int HistogramDataPoint::attributes_size() const {
+  return _internal_attributes_size();
+}
+inline void HistogramDataPoint::clear_attributes() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.attributes_.Clear();
+}
+inline ::holons::v1::KeyValue* PROTOBUF_NONNULL HistogramDataPoint::mutable_attributes(int index)
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_mutable:holons.v1.HistogramDataPoint.attributes)
+  return _internal_mutable_attributes()->Mutable(index);
+}
+inline ::google::protobuf::RepeatedPtrField<::holons::v1::KeyValue>* PROTOBUF_NONNULL HistogramDataPoint::mutable_attributes()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_mutable_list:holons.v1.HistogramDataPoint.attributes)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _internal_mutable_attributes();
+}
+inline const ::holons::v1::KeyValue& HistogramDataPoint::attributes(int index) const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:holons.v1.HistogramDataPoint.attributes)
+  return _internal_attributes().Get(index);
+}
+inline ::holons::v1::KeyValue* PROTOBUF_NONNULL HistogramDataPoint::add_attributes()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::holons::v1::KeyValue* _add = _internal_mutable_attributes()->Add();
+  // @@protoc_insertion_point(field_add:holons.v1.HistogramDataPoint.attributes)
+  return _add;
+}
+inline const ::google::protobuf::RepeatedPtrField<::holons::v1::KeyValue>& HistogramDataPoint::attributes() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_list:holons.v1.HistogramDataPoint.attributes)
+  return _internal_attributes();
+}
+inline const ::google::protobuf::RepeatedPtrField<::holons::v1::KeyValue>&
+HistogramDataPoint::_internal_attributes() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.attributes_;
+}
+inline ::google::protobuf::RepeatedPtrField<::holons::v1::KeyValue>* PROTOBUF_NONNULL
+HistogramDataPoint::_internal_mutable_attributes() {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return &_impl_.attributes_;
+}
+
+// double min = 11;
+inline void HistogramDataPoint::clear_min() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.min_ = 0;
+  _impl_._has_bits_[0] &= ~0x00000010U;
+}
+inline double HistogramDataPoint::min() const {
+  // @@protoc_insertion_point(field_get:holons.v1.HistogramDataPoint.min)
+  return _internal_min();
+}
+inline void HistogramDataPoint::set_min(double value) {
+  _internal_set_min(value);
+  _impl_._has_bits_[0] |= 0x00000010U;
+  // @@protoc_insertion_point(field_set:holons.v1.HistogramDataPoint.min)
+}
+inline double HistogramDataPoint::_internal_min() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.min_;
+}
+inline void HistogramDataPoint::_internal_set_min(double value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.min_ = value;
+}
+
+// double max = 12;
+inline void HistogramDataPoint::clear_max() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.max_ = 0;
+  _impl_._has_bits_[0] &= ~0x00000020U;
+}
+inline double HistogramDataPoint::max() const {
+  // @@protoc_insertion_point(field_get:holons.v1.HistogramDataPoint.max)
+  return _internal_max();
+}
+inline void HistogramDataPoint::set_max(double value) {
+  _internal_set_max(value);
+  _impl_._has_bits_[0] |= 0x00000020U;
+  // @@protoc_insertion_point(field_set:holons.v1.HistogramDataPoint.max)
+}
+inline double HistogramDataPoint::_internal_max() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.max_;
+}
+inline void HistogramDataPoint::_internal_set_max(double value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.max_ = value;
 }
 
 #ifdef __GNUC__
@@ -5495,16 +6208,16 @@ namespace google {
 namespace protobuf {
 
 template <>
-struct is_proto_enum<::holons::v1::LogLevel> : std::true_type {};
+struct is_proto_enum<::holons::v1::SeverityNumber> : std::true_type {};
 template <>
-inline const EnumDescriptor* PROTOBUF_NONNULL GetEnumDescriptor<::holons::v1::LogLevel>() {
-  return ::holons::v1::LogLevel_descriptor();
+inline const EnumDescriptor* PROTOBUF_NONNULL GetEnumDescriptor<::holons::v1::SeverityNumber>() {
+  return ::holons::v1::SeverityNumber_descriptor();
 }
 template <>
-struct is_proto_enum<::holons::v1::EventType> : std::true_type {};
+struct is_proto_enum<::holons::v1::AggregationTemporality> : std::true_type {};
 template <>
-inline const EnumDescriptor* PROTOBUF_NONNULL GetEnumDescriptor<::holons::v1::EventType>() {
-  return ::holons::v1::EventType_descriptor();
+inline const EnumDescriptor* PROTOBUF_NONNULL GetEnumDescriptor<::holons::v1::AggregationTemporality>() {
+  return ::holons::v1::AggregationTemporality_descriptor();
 }
 
 }  // namespace protobuf

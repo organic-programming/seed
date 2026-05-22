@@ -3,6 +3,7 @@
 //! Transport, serve, and identity utilities for building holons in Rust.
 
 mod command_channel;
+pub mod composite;
 pub mod connect;
 pub mod describe;
 pub mod discover;
@@ -14,9 +15,15 @@ pub mod gen {
             include!("gen/holons.v1.rs");
         }
     }
+    pub mod relay {
+        pub mod v1 {
+            include!("gen/relay.v1.rs");
+        }
+    }
 }
 pub mod identity;
 pub mod observability;
+pub mod relay;
 pub mod serve;
 pub mod transport;
 

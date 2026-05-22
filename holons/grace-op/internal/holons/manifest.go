@@ -498,6 +498,9 @@ func (m *LoadedManifest) HolonPackageDir() string {
 	if m == nil {
 		return ""
 	}
+	if primary := strings.TrimSpace(m.Manifest.Artifacts.Primary); isHolonPackagePath(primary) {
+		return m.mustResolveManifestPath(primary)
+	}
 	return filepath.Join(m.Dir, ".op", "build", m.Name+".holon")
 }
 
@@ -514,7 +517,11 @@ func (m *LoadedManifest) BinaryName() string {
 	}
 	trimmed := strings.TrimSpace(m.Manifest.Artifacts.Binary)
 	if trimmed == "" {
-		return ""
+		primary := strings.TrimSpace(m.Manifest.Artifacts.Primary)
+		if !isHolonPackagePath(primary) {
+			return ""
+		}
+		trimmed = strings.TrimSuffix(filepath.Base(primary), ".holon")
 	}
 	return strings.TrimSpace(filepath.Base(trimmed))
 }

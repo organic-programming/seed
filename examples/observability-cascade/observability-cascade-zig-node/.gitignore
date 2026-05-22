@@ -1,0 +1,5 @@
+.zig-cache/
+zig-out/
+.op/build/
+.op/doc/
+.op/pb/

@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package observability.cascade.rust.v1;
+
+import "holons/v1/manifest.proto";
+import "observability_cascade/v1/service.proto";
+
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "1002f937-9710-4fb2-834e-064025bd3e0a"
+    given_name: "Observability"
+    family_name: "Cascade-Rust"
+    motto: "Validates Rust observability cascade observability."
+    composer: "B. ALTER"
+    status: "draft"
+    born: "2026-05-13"
+    version: "0.1.0"
+  }
+  description: "A Rust composite program that validates observability-cascade observability across three modes and patterns."
+  lang: "rust"
+  kind: "composite"
+  transport: "tcp"
+  contract: {
+    proto: "observability_cascade/v1/service.proto"
+    service: "observability_cascade.v1.ObservabilityCascadeService"
+    rpcs: ["RunDefault", "RunLiveStream", "RunMultiPattern"]
+  }
+  build: {
+    runner: "cargo"
+    main: "./src/main.rs"
+    codegen: {
+      languages: ["rust"]
+    }
+    members: {
+      id: "rust-node"
+      path: "../observability-cascade-rust-node"
+      type: "holon"
+    }
+    members: {
+      id: "go-node"
+      path: "../observability-cascade-go-node"
+      type: "holon"
+    }
+  }
+  requires: {
+    commands: ["cargo"]
+    files: ["Cargo.toml"]
+    sdk_prebuilts: ["rust"]
+  }
+  artifacts: {
+    primary: ".op/build/observability-cascade-rust.holon"
+  }
+};

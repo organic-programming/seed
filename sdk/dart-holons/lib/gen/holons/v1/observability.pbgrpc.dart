@@ -20,9 +20,18 @@ import 'observability.pb.dart' as $0;
 
 export 'observability.pb.dart';
 
-/// HolonObservability is auto-registered by the SDK's serve runner
-/// when OP_OBS is set. Provides structured logs, metrics snapshots,
-/// and lifecycle events. See OBSERVABILITY.md.
+/// HolonObservability emits OTLP-shaped records through the SDK-managed
+/// observability service. Events are LogRecord values with event_name set.
+///
+/// Canonical event_name values for this wave:
+///   instance.spawned
+///   instance.ready
+///   instance.exited
+///   instance.crashed
+///   session.started
+///   session.ended
+///   handler.panic
+///   config.reloaded
 @$pb.GrpcServiceName('holons.v1.HolonObservability')
 class HolonObservabilityClient extends $grpc.Client {
   /// The hostname for this service.
@@ -35,10 +44,7 @@ class HolonObservabilityClient extends $grpc.Client {
 
   HolonObservabilityClient(super.channel, {super.options, super.interceptors});
 
-  /// Logs streams log entries. If follow=true, the stream stays open
-  /// and emits new entries as they arrive. If follow=false, drains
-  /// the current ring buffer and ends.
-  $grpc.ResponseStream<$0.LogEntry> logs(
+  $grpc.ResponseStream<$0.LogRecord> logs(
     $0.LogsRequest request, {
     $grpc.CallOptions? options,
   }) {
@@ -46,17 +52,16 @@ class HolonObservabilityClient extends $grpc.Client {
         options: options);
   }
 
-  /// Metrics returns a point-in-time snapshot of all current metrics.
-  /// Unary, not streaming — scraping cadence is the caller's concern.
-  $grpc.ResponseFuture<$0.MetricsSnapshot> metrics(
+  $grpc.ResponseStream<$0.Metric> metrics(
     $0.MetricsRequest request, {
     $grpc.CallOptions? options,
   }) {
-    return $createUnaryCall(_$metrics, request, options: options);
+    return $createStreamingCall(
+        _$metrics, $async.Stream.fromIterable([request]),
+        options: options);
   }
 
-  /// Events streams lifecycle events. If follow=true, stays open.
-  $grpc.ResponseStream<$0.EventInfo> events(
+  $grpc.ResponseStream<$0.LogRecord> events(
     $0.EventsRequest request, {
     $grpc.CallOptions? options,
   }) {
@@ -66,19 +71,18 @@ class HolonObservabilityClient extends $grpc.Client {
 
   // method descriptors
 
-  static final _$logs = $grpc.ClientMethod<$0.LogsRequest, $0.LogEntry>(
+  static final _$logs = $grpc.ClientMethod<$0.LogsRequest, $0.LogRecord>(
       '/holons.v1.HolonObservability/Logs',
       ($0.LogsRequest value) => value.writeToBuffer(),
-      $0.LogEntry.fromBuffer);
-  static final _$metrics =
-      $grpc.ClientMethod<$0.MetricsRequest, $0.MetricsSnapshot>(
-          '/holons.v1.HolonObservability/Metrics',
-          ($0.MetricsRequest value) => value.writeToBuffer(),
-          $0.MetricsSnapshot.fromBuffer);
-  static final _$events = $grpc.ClientMethod<$0.EventsRequest, $0.EventInfo>(
+      $0.LogRecord.fromBuffer);
+  static final _$metrics = $grpc.ClientMethod<$0.MetricsRequest, $0.Metric>(
+      '/holons.v1.HolonObservability/Metrics',
+      ($0.MetricsRequest value) => value.writeToBuffer(),
+      $0.Metric.fromBuffer);
+  static final _$events = $grpc.ClientMethod<$0.EventsRequest, $0.LogRecord>(
       '/holons.v1.HolonObservability/Events',
       ($0.EventsRequest value) => value.writeToBuffer(),
-      $0.EventInfo.fromBuffer);
+      $0.LogRecord.fromBuffer);
 }
 
 @$pb.GrpcServiceName('holons.v1.HolonObservability')
@@ -86,50 +90,50 @@ abstract class HolonObservabilityServiceBase extends $grpc.Service {
   $core.String get $name => 'holons.v1.HolonObservability';
 
   HolonObservabilityServiceBase() {
-    $addMethod($grpc.ServiceMethod<$0.LogsRequest, $0.LogEntry>(
+    $addMethod($grpc.ServiceMethod<$0.LogsRequest, $0.LogRecord>(
         'Logs',
         logs_Pre,
         false,
         true,
         ($core.List<$core.int> value) => $0.LogsRequest.fromBuffer(value),
-        ($0.LogEntry value) => value.writeToBuffer()));
-    $addMethod($grpc.ServiceMethod<$0.MetricsRequest, $0.MetricsSnapshot>(
+        ($0.LogRecord value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.MetricsRequest, $0.Metric>(
         'Metrics',
         metrics_Pre,
         false,
-        false,
+        true,
         ($core.List<$core.int> value) => $0.MetricsRequest.fromBuffer(value),
-        ($0.MetricsSnapshot value) => value.writeToBuffer()));
-    $addMethod($grpc.ServiceMethod<$0.EventsRequest, $0.EventInfo>(
+        ($0.Metric value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.EventsRequest, $0.LogRecord>(
         'Events',
         events_Pre,
         false,
         true,
         ($core.List<$core.int> value) => $0.EventsRequest.fromBuffer(value),
-        ($0.EventInfo value) => value.writeToBuffer()));
+        ($0.LogRecord value) => value.writeToBuffer()));
   }
 
-  $async.Stream<$0.LogEntry> logs_Pre(
+  $async.Stream<$0.LogRecord> logs_Pre(
       $grpc.ServiceCall $call, $async.Future<$0.LogsRequest> $request) async* {
     yield* logs($call, await $request);
   }
 
-  $async.Stream<$0.LogEntry> logs(
+  $async.Stream<$0.LogRecord> logs(
       $grpc.ServiceCall call, $0.LogsRequest request);
 
-  $async.Future<$0.MetricsSnapshot> metrics_Pre($grpc.ServiceCall $call,
-      $async.Future<$0.MetricsRequest> $request) async {
-    return metrics($call, await $request);
+  $async.Stream<$0.Metric> metrics_Pre($grpc.ServiceCall $call,
+      $async.Future<$0.MetricsRequest> $request) async* {
+    yield* metrics($call, await $request);
   }
 
-  $async.Future<$0.MetricsSnapshot> metrics(
+  $async.Stream<$0.Metric> metrics(
       $grpc.ServiceCall call, $0.MetricsRequest request);
 
-  $async.Stream<$0.EventInfo> events_Pre($grpc.ServiceCall $call,
+  $async.Stream<$0.LogRecord> events_Pre($grpc.ServiceCall $call,
       $async.Future<$0.EventsRequest> $request) async* {
     yield* events($call, await $request);
   }
 
-  $async.Stream<$0.EventInfo> events(
+  $async.Stream<$0.LogRecord> events(
       $grpc.ServiceCall call, $0.EventsRequest request);
 }

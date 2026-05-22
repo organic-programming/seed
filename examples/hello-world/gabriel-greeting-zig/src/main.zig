@@ -28,6 +28,11 @@ pub fn main(init: std.process.Init.Minimal) !void {
 
     var options = try holons.serve.parseOptions(args[1..]);
     options.methods = greetings.methods[0..];
+    _ = try holons.observability.configure(std.heap.c_allocator, .{
+        .slug = "gabriel-greeting-zig",
+        .default_log_level = .info,
+    });
+    defer holons.observability.reset();
     try holons.serve.runSingle(options);
 }
 

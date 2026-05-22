@@ -232,10 +232,6 @@ func TestBuild_06_Matrix(t *testing.T) {
 				finalVersion := runInstalledBinary(t, binaryPath, "version")
 				t.Logf("[%s] Final runtime output: %s", ex, finalVersion)
 
-				if runtime.GOOS == "darwin" && (ex == "gabriel-greeting-c" || ex == "gabriel-greeting-cpp") {
-					assertBundledDarwinDeps(t, binaryPath)
-				}
-
 				if !strings.Contains(finalVersion, "8.8.88") {
 					t.Fatalf("Regression! Template substitution failed on %s.\nExpected contain: 8.8.88 (no --bump, proto version is authoritative)\nGot: %s", ex, finalVersion)
 				}

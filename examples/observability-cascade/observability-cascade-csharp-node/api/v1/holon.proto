@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package relay.v1;
+
+import "holons/v1/manifest.proto";
+import "relay/v1/relay.proto";
+
+option csharp_namespace = "CascadeNode.Csharp.Api.V1";
+
+// C#-specific holon descriptor for observability-cascade-csharp-node.
+// Layers .NET runtime metadata and holon identity on top of the shared
+// observability-cascade contract.
+
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "6322c728-d5e7-4fc8-ba25-90b24e2fc2b0"
+    given_name: "Observability"
+    family_name: "Cascade-Csharp-Node"
+    motto: "Minimal observability cascade node."
+    composer: "B. ALTER"
+    status: "draft"
+    born: "2026-05-13"
+    version: "0.1.0"
+  }
+  description: "A minimal C# holon used to validate cross-holon observability relay chains."
+  lang: "csharp"
+  kind: "native"
+  build: {
+    runner: "dotnet"
+    main: "./cmd/Main.cs"
+    templates: ["api/Cli.cs"]
+    codegen: { languages: ["csharp"] }
+  }
+  requires: {
+    commands: ["dotnet"]
+    files: ["observability-cascade-csharp-node.csproj", "cmd/Main.cs"]
+    sdk_prebuilts: ["csharp"]
+  }
+  artifacts: {
+    binary: "observability-cascade-csharp-node"
+  }
+  sequences: [{
+    name: "tick"
+    description: "Emit one observability-cascade tick signal."
+    params: [
+      {name: "sender", description: "Tick sender label", required: true},
+      {name: "note", description: "Free-form tick note", required: false}
+    ]
+    steps: [
+      "op observability-cascade-csharp-node Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'"
+    ]
+  }]
+};

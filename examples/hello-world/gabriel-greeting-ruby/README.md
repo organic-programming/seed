@@ -53,6 +53,6 @@ BUNDLE_PATH="$OP_SDK_RUBY_PATH/vendor/bundle" bundle exec ruby -I. -e 'Dir["api/
 .op/build/bin/gabriel-greeting-ruby listLanguages --format json
 .op/build/bin/gabriel-greeting-ruby sayHello Bob fr
 .op/build/bin/gabriel-greeting-ruby serve --port 9090
-grpcurl -plaintext -import-path ../../_protos -proto v1/greeting.proto -d '{}' 127.0.0.1:9090 greeting.v1.GreetingService/ListLanguages
-grpcurl -plaintext -import-path ../../_protos -proto v1/greeting.proto -d '{"name":"Bob","lang_code":"fr"}' 127.0.0.1:9090 greeting.v1.GreetingService/SayHello
+grpcurl -plaintext -import-path ../_protos -proto v1/greeting.proto -d '{}' 127.0.0.1:9090 greeting.v1.GreetingService/ListLanguages
+grpcurl -plaintext -import-path ../_protos -proto v1/greeting.proto -d '{"name":"Bob","lang_code":"fr"}' 127.0.0.1:9090 greeting.v1.GreetingService/SayHello
 ```

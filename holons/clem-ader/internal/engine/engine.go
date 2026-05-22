@@ -303,7 +303,7 @@ func run(ctx context.Context, opts RunOptions, progress io.Writer) (*RunResult, 
 
 	if opts.KeepSnapshot {
 		if err := reporter.withPhase("preserving snapshot", "snapshot preserved", func() error {
-			_ = os.RemoveAll(preservedRunDir)
+			_ = removeAllWritable(preservedRunDir)
 			if err := os.MkdirAll(filepath.Dir(preservedRunDir), 0o755); err != nil {
 				return err
 			}
@@ -320,7 +320,7 @@ func run(ctx context.Context, opts RunOptions, progress io.Writer) (*RunResult, 
 		}
 	}
 	_ = reporter.withPhase("cleanup temp store", "cleanup complete", func() error {
-		return os.RemoveAll(tmpStore)
+		return removeAllWritable(tmpStore)
 	})
 
 	return result, nil
@@ -1302,108 +1302,101 @@ func extractTar(dst string, source io.Reader) error {
 	}
 }
 
-func copyWorkspaceTree(srcRoot string, dstRoot string, configRelDir string, excludeRoots ...string) error {
-	return filepath.WalkDir(srcRoot, func(path string, entry fs.DirEntry, err error) error {
+func copyWorkspaceTree(srcRoot string, dstRoot string, _ string, excludeRoots ...string) error {
+	rels, err := gitWorkspaceSnapshotFiles(srcRoot)
+	if err != nil {
+		return err
+	}
+	for _, rel := range rels {
+		relPath, err := cleanSnapshotRelPath(rel)
 		if err != nil {
 			return err
 		}
-		if path == srcRoot {
-			return nil
+		source := filepath.Join(srcRoot, relPath)
+		if isExcludedWorkspaceSource(source, excludeRoots) {
+			continue
 		}
-		for _, excluded := range excludeRoots {
-			if excluded == "" {
+		target := filepath.Join(dstRoot, relPath)
+		info, err := os.Lstat(source)
+		if err != nil {
+			if os.IsNotExist(err) {
+				// Deleted tracked files remain in git ls-files until staged.
+				// Workspace snapshots reflect the current working tree.
 				continue
 			}
-			if path == excluded || strings.HasPrefix(path, excluded+string(os.PathSeparator)) {
-				if entry.IsDir() {
-					return filepath.SkipDir
-				}
-				return nil
-			}
-		}
-		rel, err := filepath.Rel(srcRoot, path)
-		if err != nil {
-			return err
-		}
-		if shouldSkipWorkspacePath(rel, entry, configRelDir) {
-			if entry.IsDir() {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		target := filepath.Join(dstRoot, rel)
-		info, err := os.Lstat(path)
-		if err != nil {
 			return err
 		}
 		if info.Mode()&os.ModeSymlink != 0 {
-			linkTarget, err := os.Readlink(path)
+			linkTarget, err := os.Readlink(source)
 			if err != nil {
 				return err
 			}
 			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 				return err
 			}
-			return os.Symlink(linkTarget, target)
-		}
-		if entry.IsDir() {
-			return os.MkdirAll(target, info.Mode())
-		}
-		return copyFile(path, target, info.Mode())
-	})
-}
-
-func shouldSkipWorkspacePath(rel string, entry fs.DirEntry, configRelDir string) bool {
-	normalized := strings.TrimPrefix(filepath.ToSlash(rel), "./")
-	switch normalized {
-	case ".git":
-		return true
-	}
-	baseConfigDir := strings.TrimPrefix(filepath.ToSlash(configRelDir), "./")
-	for _, suffix := range []string{".artifacts", "reports", "archives"} {
-		if pathHasSegment(normalized, suffix) {
-			return true
-		}
-		target := suffix
-		if baseConfigDir != "" && baseConfigDir != "." {
-			target = baseConfigDir + "/" + suffix
-		}
-		if normalized == target {
-			return true
-		}
-	}
-	base := entry.Name()
-	switch base {
-	case ".git", ".gradle", ".kotlin", ".build", "target", "__pycache__", "node_modules":
-		return true
-	case "obj":
-		return isLikelyBuildObjDir(normalized)
-	}
-	return false
-}
-
-func isLikelyBuildObjDir(normalized string) bool {
-	parts := strings.Split(normalized, "/")
-	for i, part := range parts {
-		if part != "obj" {
+			if err := os.Symlink(linkTarget, target); err != nil {
+				return err
+			}
 			continue
 		}
-		if i == 0 {
-			return true
+		if info.IsDir() {
+			if err := os.MkdirAll(target, info.Mode()); err != nil {
+				return err
+			}
+			continue
 		}
-		if i <= 3 && (parts[0] == "examples" || parts[0] == "sdk" || parts[0] == "holons") {
-			return true
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("copy workspace path %s: unsupported file mode %s", rel, info.Mode())
+		}
+		if err := copyFile(source, target, info.Mode()); err != nil {
+			return err
 		}
 	}
-	return false
+	return nil
 }
 
-func pathHasSegment(path string, segment string) bool {
-	if path == segment {
-		return true
+func gitWorkspaceSnapshotFiles(repoRoot string) ([]string, error) {
+	cmd := exec.Command("git", "-C", repoRoot, "ls-files", "--cached", "--others", "--exclude-standard", "-z")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		message := strings.TrimSpace(string(output))
+		if message != "" {
+			return nil, fmt.Errorf("list workspace snapshot files: %w: %s", err, message)
+		}
+		return nil, fmt.Errorf("list workspace snapshot files: %w", err)
 	}
-	for _, part := range strings.Split(path, "/") {
-		if part == segment {
+	seen := make(map[string]bool)
+	var rels []string
+	for _, rel := range strings.Split(string(output), "\x00") {
+		if rel == "" || seen[rel] {
+			continue
+		}
+		seen[rel] = true
+		rels = append(rels, rel)
+	}
+	sort.Strings(rels)
+	return rels, nil
+}
+
+func cleanSnapshotRelPath(rel string) (string, error) {
+	if filepath.IsAbs(rel) {
+		return "", fmt.Errorf("copy workspace path %s: absolute paths are not allowed", rel)
+	}
+	clean := filepath.Clean(filepath.FromSlash(rel))
+	if clean == "." || clean == ".." || strings.HasPrefix(clean, ".."+string(os.PathSeparator)) {
+		return "", fmt.Errorf("copy workspace path %s: escapes snapshot root", rel)
+	}
+	return clean, nil
+}
+
+func isExcludedWorkspaceSource(path string, excludeRoots []string) bool {
+	cleanPath := filepath.Clean(path)
+	for _, root := range excludeRoots {
+		if root == "" {
+			continue
+		}
+		cleanRoot := filepath.Clean(root)
+		if cleanPath == cleanRoot || strings.HasPrefix(cleanPath, cleanRoot+string(os.PathSeparator)) {
 			return true
 		}
 	}
@@ -1438,7 +1431,7 @@ func copyTree(srcRoot string, dstRoot string) error {
 			return os.Symlink(linkTarget, target)
 		}
 		if entry.IsDir() {
-			return os.MkdirAll(target, info.Mode())
+			return os.MkdirAll(target, 0o755)
 		}
 		return copyFile(path, target, info.Mode())
 	})
@@ -1461,7 +1454,35 @@ func copyFile(src string, dst string, mode fs.FileMode) error {
 		out.Close()
 		return err
 	}
-	return out.Close()
+	if err := out.Close(); err != nil {
+		return err
+	}
+	return os.Chmod(dst, mode.Perm())
+}
+
+func removeAllWritable(path string) error {
+	if err := os.RemoveAll(path); err == nil || os.IsNotExist(err) {
+		return nil
+	}
+	_ = filepath.WalkDir(path, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		info, err := os.Lstat(path)
+		if err != nil || info.Mode()&os.ModeSymlink != 0 {
+			return nil
+		}
+		if info.IsDir() {
+			_ = os.Chmod(path, 0o755)
+			return nil
+		}
+		_ = os.Chmod(path, info.Mode().Perm()|0o600)
+		return nil
+	})
+	if err := os.RemoveAll(path); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
 }
 
 func dirExists(path string) bool {

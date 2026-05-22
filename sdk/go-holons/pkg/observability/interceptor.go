@@ -2,6 +2,7 @@ package observability
 
 import (
 	"context"
+	"fmt"
 	"sync/atomic"
 	"time"
 
@@ -60,7 +61,7 @@ func UnaryServerInterceptor() grpc.UnaryServerInterceptor {
 					map[string]string{"method": method}).Inc()
 				obs.Emit(ctx, EventHandlerPanic, map[string]string{
 					"method": method,
-					"panic":  stringify(r),
+					"panic":  fmt.Sprintf("%v", r),
 				})
 				// Re-panic so downstream recovery (if any) still runs.
 				panic(r)
@@ -71,8 +72,7 @@ func UnaryServerInterceptor() grpc.UnaryServerInterceptor {
 		resp, err = handler(ctx, req)
 		elapsed := time.Since(start)
 
-		// RPC count + duration. v1 reports only phase=total; the
-		// four-phase decomposition belongs to the v2 session metrics store.
+		// RPC count + duration currently report only phase=total.
 		obs.Counter("holon_session_rpc_total",
 			"Session RPC count by method, direction, phase.",
 			map[string]string{
@@ -90,9 +90,9 @@ func UnaryServerInterceptor() grpc.UnaryServerInterceptor {
 			},
 			nil).ObserveDuration(elapsed)
 
-		obs.Logger("rpc").InfoContext(ctx, "rpc handled",
+		obs.Logger("rpc").DebugContext(ctx, "rpc handled",
 			"status", status.Code(err).String(),
-			"duration_ms", elapsed.Milliseconds())
+			"duration_ns", elapsed.Nanoseconds())
 
 		return resp, err
 	}

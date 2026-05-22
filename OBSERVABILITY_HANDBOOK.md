@@ -66,7 +66,135 @@ four-phase latency (wire_out / queue / work / wire_in).
 
 ## 2. Organism composites
 
-### 2.1 Launching an organism with centralized logs
+### 2.1 Pattern: observing a multi-hop chain
+
+Every parent→child connection is transitive by default — see
+[OBSERVABILITY.md §Transitive Observability](OBSERVABILITY.md#transitive-observability)
+for the doctrine. In practice it means: dial the root, tail its
+`Logs(follow=true)` stream, and you see every signal produced anywhere
+in the tree, with a `chain` field that names the relay path.
+
+Scenario: a caller dials a holon A; A spawns B; B spawns C. The caller
+never opens a connection to B or C directly — it only ever sees A's
+streams.
+
+```
+caller (e.g. `op logs A --follow`)
+   │
+   ▼ dial A
+   A
+   │
+   ▼ inside A, composite.SpawnMember(B)   (default: transitive)
+   B
+   │
+   ▼ inside B, composite.SpawnMember(C)   (default: transitive)
+   C
+```
+
+A and B each tail their child transparently; a reader of A's stream
+inherits the whole chain. From outside, that reader can be any client
+of `HolonObservability.Logs(follow=true)` — `op logs` is the typical
+shortcut:
+
+```bash
+op logs A --follow --json \
+  | jq -r '"\(.ts) \(.level) [\(.chain | map(.slug) | join(" -> "))] \(.slug) \(.message)"'
+```
+
+In-process, the same view is available to any holon that spawned A
+with `composite.SpawnMember` (default transitive) — A's logs and its
+descendants land in the caller's local rings and disk writers
+automatically.
+
+Output, with one entry from each level of the tree:
+
+```
+2026-04-23T18:42:03.112Z INFO [C -> B] C rendered banner
+2026-04-23T18:42:03.200Z INFO [B]      B handled greeting
+2026-04-23T18:42:03.250Z INFO []       A tab changed
+```
+
+The `chain` for an entry from C is `[C, B]` — ordered originator-first,
+ending one hop short of the stream source the reader is consuming (per
+[OBSERVABILITY.md §Organism Relay](OBSERVABILITY.md#organism-relay));
+the multilog file at the root carries the enriched form with the root
+appended.
+
+When the multi-hop chain is exercised through the
+`observability-cascade` example, each phase records its wall-time:
+`PhaseResult.elapsed_us`, `CascadeReport.elapsed_us`, and
+`MultiPatternReport.total_elapsed_us` carry microseconds. The CLI
+prints them as a teaser useful for cross-language comparison, e.g.:
+
+```
+phase=default                 pass=12  fail=0   elapsed=14.2ms
+```
+
+#### Per-emission opt-out
+
+A log marked `private` at C stays inside C — it lands in C's local
+ring buffer and in C's `stdout.log` on disk, but never on its
+`Logs(follow=true)` stream, so B never sees it and A never sees it:
+
+```go
+// Inside holon C.
+logger := observability.Current().Logger("crypto")
+logger.InfoContext(ctx, "rotating session key",
+    "key_id", id,
+    observability.Private())
+```
+
+Equivalent in Dart:
+
+```dart
+logger.info('rotating session key',
+    {'key_id': id}, private: true);
+```
+
+`op logs C --follow` still shows the entry (local view); `op logs A
+--follow` does not.
+
+#### Per-connection opt-out
+
+Disabling transitivity on a single child silences that subtree without
+affecting siblings. `SpawnOptions.DialOptions` forwards dial-level
+options onto the connection the spawn opens:
+
+```go
+silent, err := composite.SpawnMember(ctx, composite.SpawnOptions{
+    Slug:       "B",
+    BinaryPath: "/abs/path/to/B",
+    DialOptions: []composite.DialOption{
+        composite.WithTransitiveObservability(false),
+    },
+})
+```
+
+Now A receives nothing from B (and nothing from C — silencing B cuts
+B's pump as well). A's own logs and other members' logs are unaffected.
+A `private` opt-out is the right tool for **a single record**; a
+`WithTransitiveObservability(false)` spawn is the right tool for **an
+entire subtree** the composite considers internal.
+
+#### Peer-to-peer dial: opt-in required
+
+A holon reached peer-to-peer (the caller did not spawn it) does **not**
+activate transitivity by default. `composite.Dial` is the peer-to-peer
+entry point; it takes a concrete address (`tcp://host:port`,
+`unix:///path`, or `host:port`), not a slug. Resolve the slug first
+via `connect.Connect` or a manifest lookup, then opt-in:
+
+```go
+peer, err := composite.Dial(ctx, "tcp://127.0.0.1:9090",
+    composite.WithTransitiveObservability(true))
+defer peer.Close()
+```
+
+This respects the spawn boundary — a parent owns its children's
+signals, but a peer does not. Closing the returned connection closes
+the relay streams.
+
+### 2.2 Launching an organism with centralized logs
 
 There are two distinct launch modes, with the same end result but
 very different UIs.
@@ -151,7 +279,7 @@ The console view reads the same ring buffers that `op run --observe`
 would scrape remotely in Case A. The behaviour is identical; only the
 UX differs.
 
-### 2.2 Debugging "which child emitted this?"
+### 2.3 Debugging "which child emitted this?"
 
 The `chain` field on every entry traces the relay path. One-liner to
 pretty-print it:
@@ -167,7 +295,7 @@ op logs gabriel-greeting-app --json --follow \
 The bracket contains the full lineage; the outermost is the nearest
 relay to the root.
 
-### 2.3 Three-level trees
+### 2.4 Three-level trees
 
 The model is recursive. A Flutter organism that itself is embedded
 inside a larger supervisor produces `chain` arrays of depth 3+. `jq`

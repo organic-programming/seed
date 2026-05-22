@@ -3,10 +3,11 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const grpc = require('@grpc/grpc-js');
+const { observability } = require('@organic-programming/holons');
 
 const pb = require('../gen/node/greeting/v1/greeting_pb.js');
 const grpcPb = require('../gen/node/greeting/v1/greeting_grpc_pb.js');
-const { GreetingService } = require('./server');
+const { GreetingService, listenAndServe } = require('./server');
 
 function startServer() {
   const server = new grpc.Server();
@@ -107,3 +108,78 @@ test('RPC SayHello falls back to English', async (t) => {
   assert.equal(response.getGreeting(), 'Hello Bob');
   assert.equal(response.getLangCode(), 'en');
 });
+
+test('SayHello emits observability signals with stdio transport', async (t) => {
+  const oldOpObs = process.env.OP_OBS;
+  process.env.OP_OBS = 'logs,metrics';
+  observability.reset();
+  const obs = observability.configure({ slug: 'gabriel-greeting-node' });
+  t.after(() => {
+    observability.reset();
+    if (oldOpObs === undefined) {
+      delete process.env.OP_OBS;
+    } else {
+      process.env.OP_OBS = oldOpObs;
+    }
+  });
+
+  const server = await listenAndServe('stdio://');
+  t.after(async () => {
+    if (server.__holonsRuntime) await server.stopHolon();
+  });
+
+  const request = new pb.SayHelloRequest();
+  request.setName(' Bob ');
+  request.setLangCode('en');
+
+  const response = await new Promise((resolve, reject) => {
+    new GreetingService().sayHello({ request }, (error, out) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve(out);
+    });
+  });
+
+  assert.equal(response.getGreeting(), 'Hello Bob');
+  const snapshot = obs.registry.snapshot();
+  const counter = snapshot.counters.find((sample) => sample.name === 'greeting_emitted_total');
+  assert.ok(counter);
+  assert.deepEqual(counter.labels, {
+    lang_code: 'en',
+    language: 'English',
+    transport: 'stdio',
+  });
+  assert.equal(counter.value, 1);
+
+  const entry = obs.logRing.drain().find((logEntry) => observability.bodyString(logEntry) === 'Greeted Bob in English (en)');
+  assert.ok(entry);
+  const attrs = ['duration_ns', 'greeting', 'lang_code', 'language', 'name', 'transport']
+    .map((key) => entry.attributes.find((attr) => attr.key === key));
+  assert.equal(attrs.every(Boolean), true);
+  assert.deepEqual(attrs.map((attr) => attr.key).sort(), [
+    'duration_ns',
+    'greeting',
+    'lang_code',
+    'language',
+    'name',
+    'transport',
+  ]);
+  assert.deepEqual(attr(entry, 'holons.slug').value, { string_value: 'gabriel-greeting-node' });
+  assert.deepEqual(attr(entry, 'service.name').value, { string_value: 'gabriel-greeting-node' });
+  assert.ok(attr(entry, 'holons.session_id').value.string_value);
+  assert.deepEqual(attr(entry, 'lang_code').value, { string_value: 'en' });
+  assert.deepEqual(attr(entry, 'language').value, { string_value: 'English' });
+  assert.deepEqual(attr(entry, 'name').value, { string_value: 'Bob' });
+  assert.deepEqual(attr(entry, 'greeting').value, { string_value: 'Hello Bob' });
+  assert.deepEqual(attr(entry, 'transport').value, { string_value: 'stdio' });
+  assert.equal(Object.prototype.hasOwnProperty.call(attr(entry, 'duration_ns').value, 'int_value'), true);
+  assert.ok(Number(attr(entry, 'duration_ns').value.int_value) >= 0);
+});
+
+function attr(record, key) {
+  const found = (record.attributes || []).find((item) => item.key === key);
+  assert.ok(found, `missing attribute ${key}`);
+  return found;
+}

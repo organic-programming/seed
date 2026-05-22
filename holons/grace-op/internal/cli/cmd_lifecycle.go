@@ -121,7 +121,6 @@ func newRunCmd() *cobra.Command {
 	cmd.Flags().Lookup("observe").NoOptDefVal = "logs,metrics,events"
 	cmd.Flags().String("prom", "", "enable metrics,prom and optionally set the Prometheus bind address")
 	cmd.Flags().Lookup("prom").NoOptDefVal = ":0"
-	cmd.Flags().String("otel", "", "reserved for observability v2")
 	cmd.Flags().Bool("json", false, "emit JSON UID and observability stream output")
 	return cmd
 }
@@ -241,9 +240,6 @@ func runArgsFromCommand(cmd *cobra.Command, holon string) []string {
 	if cmd.Flags().Changed("prom") {
 		prom, _ := cmd.Flags().GetString("prom")
 		args = append(args, "--prom="+prom)
-	}
-	if otel, _ := cmd.Flags().GetString("otel"); otel != "" {
-		args = append(args, "--otel="+otel)
 	}
 	if jsonOut, _ := cmd.Flags().GetBool("json"); jsonOut {
 		args = append(args, "--json")

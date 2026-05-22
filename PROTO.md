@@ -50,7 +50,7 @@ lives in a shared `_protos/` directory — never copied, never symlinked
 (**No Copy, No Symlink** principle).
 
 ```
-_protos/v1/greeting.proto          # domain: GreetingService + messages
+examples/hello-world/_protos/v1/greeting.proto  # domain: GreetingService + messages
 ```
 
 - Language-neutral — no `go_package`, no language options.
@@ -117,8 +117,8 @@ them using a three-level hierarchy:
 ```bash
 protoc \
   --proto_path=. \
-  --proto_path=../../_protos \
-  --proto_path=../../../_protos \
+  --proto_path=../_protos \
+  --proto_path=../../../holons/grace-op/_protos \
   api/v1/holon.proto \
   --descriptor_set_out=/dev/null
 ```
@@ -190,6 +190,13 @@ only CLI affordances outside `contract.rpcs` are `serve` and `help`.
 `version` is also not listed there because the SDK derives it from
 `identity.version` and surfaces it automatically across CLI, RPC, Code
 API, and tests.
+
+A composite test/validation holon declares each procedure (test mode,
+validation routine, demo sequence) as an RPC on its service, returning a
+structured result message. CLI flags and stdout parsing are forbidden for
+these procedures — they belong to the proto contract so they reach humans
+(`op invoke`), agents (`op mcp`), and other holons (programmatic RPC)
+identically.
 
 ### Identity
 
@@ -294,6 +301,12 @@ message Build {
   map<string, Target> targets = 5;
 }
 ```
+
+For recipe composites, `members.path` may point at an external sibling
+holon such as `../gabriel-greeting-go`, or at an internal sub-holon under
+`./holons/<sub>`. Internal sub-holons keep their own `api/v1/holon.proto`
+and manifest, but are scoped to the parent composite rather than surfaced
+as workspace-root source discoveries.
 
 ### Artifacts
 

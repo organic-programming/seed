@@ -198,6 +198,39 @@ func TestCodegenFilesToGenerateIncludesSharedServiceProto(t *testing.T) {
 	}
 }
 
+func TestGoCodegenParameterMapsExplicitGoPackageIntoHolonGenModule(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "cascade-node-go")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module cascade-node-go\n\ngo 1.24\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	files := map[string]*descriptorpb.FileDescriptorProto{
+		"relay/v1/relay.proto": {
+			Name:    proto.String("relay/v1/relay.proto"),
+			Package: proto.String("relay.v1"),
+			Options: &descriptorpb.FileOptions{
+				GoPackage: proto.String("examples/relay-cascade/_protos/relay/v1;relayv1"),
+			},
+			Service: []*descriptorpb.ServiceDescriptorProto{{
+				Name: proto.String("RelayService"),
+			}},
+		},
+	}
+
+	got, err := goCodegenParameter(&LoadedManifest{Dir: dir}, files, []string{"relay/v1/relay.proto"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "Mrelay/v1/relay.proto=cascade-node-go/gen/go/relay/v1;relayv1"
+	if !strings.Contains(got, want) {
+		t.Fatalf("go parameter = %q, want to contain %q", got, want)
+	}
+}
+
 func TestCodegenRequestBytesForPluginRewritesLegacySharedProtoPaths(t *testing.T) {
 	req := &pluginpb.CodeGeneratorRequest{
 		FileToGenerate: []string{"v1/greeting.proto"},

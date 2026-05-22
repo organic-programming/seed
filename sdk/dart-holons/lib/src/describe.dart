@@ -51,6 +51,22 @@ void useStaticResponse(DescribeResponse? response) {
   _staticDescribeResponse = _cloneDescribeResponse(response);
 }
 
+String registeredManifestSlug() {
+  final response = _registeredStaticResponse();
+  if (response == null) return '';
+  final binary = response.manifest.artifacts.binary.trim();
+  if (binary.isNotEmpty) return binary;
+  final given = response.manifest.identity.givenName.trim();
+  final family = response.manifest.identity.familyName.trim();
+  final joined = [given, family]
+      .where((part) => part.isNotEmpty)
+      .join('-')
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+      .replaceAll(RegExp(r'^-+|-+$'), '');
+  return joined;
+}
+
 Service register() {
   final response = _registeredStaticResponse();
   if (response == null) {

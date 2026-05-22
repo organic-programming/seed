@@ -9,9 +9,18 @@ using grpc = global::Grpc.Core;
 
 namespace Holons.V1 {
   /// <summary>
-  /// HolonObservability is auto-registered by the SDK's serve runner
-  /// when OP_OBS is set. Provides structured logs, metrics snapshots,
-  /// and lifecycle events. See OBSERVABILITY.md.
+  /// HolonObservability emits OTLP-shaped records through the SDK-managed
+  /// observability service. Events are LogRecord values with event_name set.
+  ///
+  /// Canonical event_name values for this wave:
+  ///   instance.spawned
+  ///   instance.ready
+  ///   instance.exited
+  ///   instance.crashed
+  ///   session.started
+  ///   session.ended
+  ///   handler.panic
+  ///   config.reloaded
   /// </summary>
   public static partial class HolonObservability
   {
@@ -53,39 +62,37 @@ namespace Holons.V1 {
     [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
     static readonly grpc::Marshaller<global::Holons.V1.LogsRequest> __Marshaller_holons_v1_LogsRequest = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::Holons.V1.LogsRequest.Parser));
     [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
-    static readonly grpc::Marshaller<global::Holons.V1.LogEntry> __Marshaller_holons_v1_LogEntry = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::Holons.V1.LogEntry.Parser));
+    static readonly grpc::Marshaller<global::Holons.V1.LogRecord> __Marshaller_holons_v1_LogRecord = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::Holons.V1.LogRecord.Parser));
     [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
     static readonly grpc::Marshaller<global::Holons.V1.MetricsRequest> __Marshaller_holons_v1_MetricsRequest = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::Holons.V1.MetricsRequest.Parser));
     [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
-    static readonly grpc::Marshaller<global::Holons.V1.MetricsSnapshot> __Marshaller_holons_v1_MetricsSnapshot = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::Holons.V1.MetricsSnapshot.Parser));
+    static readonly grpc::Marshaller<global::Holons.V1.Metric> __Marshaller_holons_v1_Metric = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::Holons.V1.Metric.Parser));
     [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
     static readonly grpc::Marshaller<global::Holons.V1.EventsRequest> __Marshaller_holons_v1_EventsRequest = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::Holons.V1.EventsRequest.Parser));
-    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
-    static readonly grpc::Marshaller<global::Holons.V1.EventInfo> __Marshaller_holons_v1_EventInfo = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::Holons.V1.EventInfo.Parser));
 
     [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
-    static readonly grpc::Method<global::Holons.V1.LogsRequest, global::Holons.V1.LogEntry> __Method_Logs = new grpc::Method<global::Holons.V1.LogsRequest, global::Holons.V1.LogEntry>(
+    static readonly grpc::Method<global::Holons.V1.LogsRequest, global::Holons.V1.LogRecord> __Method_Logs = new grpc::Method<global::Holons.V1.LogsRequest, global::Holons.V1.LogRecord>(
         grpc::MethodType.ServerStreaming,
         __ServiceName,
         "Logs",
         __Marshaller_holons_v1_LogsRequest,
-        __Marshaller_holons_v1_LogEntry);
+        __Marshaller_holons_v1_LogRecord);
 
     [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
-    static readonly grpc::Method<global::Holons.V1.MetricsRequest, global::Holons.V1.MetricsSnapshot> __Method_Metrics = new grpc::Method<global::Holons.V1.MetricsRequest, global::Holons.V1.MetricsSnapshot>(
-        grpc::MethodType.Unary,
+    static readonly grpc::Method<global::Holons.V1.MetricsRequest, global::Holons.V1.Metric> __Method_Metrics = new grpc::Method<global::Holons.V1.MetricsRequest, global::Holons.V1.Metric>(
+        grpc::MethodType.ServerStreaming,
         __ServiceName,
         "Metrics",
         __Marshaller_holons_v1_MetricsRequest,
-        __Marshaller_holons_v1_MetricsSnapshot);
+        __Marshaller_holons_v1_Metric);
 
     [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
-    static readonly grpc::Method<global::Holons.V1.EventsRequest, global::Holons.V1.EventInfo> __Method_Events = new grpc::Method<global::Holons.V1.EventsRequest, global::Holons.V1.EventInfo>(
+    static readonly grpc::Method<global::Holons.V1.EventsRequest, global::Holons.V1.LogRecord> __Method_Events = new grpc::Method<global::Holons.V1.EventsRequest, global::Holons.V1.LogRecord>(
         grpc::MethodType.ServerStreaming,
         __ServiceName,
         "Events",
         __Marshaller_holons_v1_EventsRequest,
-        __Marshaller_holons_v1_EventInfo);
+        __Marshaller_holons_v1_LogRecord);
 
     /// <summary>Service descriptor</summary>
     public static global::Google.Protobuf.Reflection.ServiceDescriptor Descriptor
@@ -97,43 +104,20 @@ namespace Holons.V1 {
     [grpc::BindServiceMethod(typeof(HolonObservability), "BindService")]
     public abstract partial class HolonObservabilityBase
     {
-      /// <summary>
-      /// Logs streams log entries. If follow=true, the stream stays open
-      /// and emits new entries as they arrive. If follow=false, drains
-      /// the current ring buffer and ends.
-      /// </summary>
-      /// <param name="request">The request received from the client.</param>
-      /// <param name="responseStream">Used for sending responses back to the client.</param>
-      /// <param name="context">The context of the server-side call handler being invoked.</param>
-      /// <returns>A task indicating completion of the handler.</returns>
       [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
-      public virtual global::System.Threading.Tasks.Task Logs(global::Holons.V1.LogsRequest request, grpc::IServerStreamWriter<global::Holons.V1.LogEntry> responseStream, grpc::ServerCallContext context)
+      public virtual global::System.Threading.Tasks.Task Logs(global::Holons.V1.LogsRequest request, grpc::IServerStreamWriter<global::Holons.V1.LogRecord> responseStream, grpc::ServerCallContext context)
       {
         throw new grpc::RpcException(new grpc::Status(grpc::StatusCode.Unimplemented, ""));
       }
 
-      /// <summary>
-      /// Metrics returns a point-in-time snapshot of all current metrics.
-      /// Unary, not streaming — scraping cadence is the caller's concern.
-      /// </summary>
-      /// <param name="request">The request received from the client.</param>
-      /// <param name="context">The context of the server-side call handler being invoked.</param>
-      /// <returns>The response to send back to the client (wrapped by a task).</returns>
       [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
-      public virtual global::System.Threading.Tasks.Task<global::Holons.V1.MetricsSnapshot> Metrics(global::Holons.V1.MetricsRequest request, grpc::ServerCallContext context)
+      public virtual global::System.Threading.Tasks.Task Metrics(global::Holons.V1.MetricsRequest request, grpc::IServerStreamWriter<global::Holons.V1.Metric> responseStream, grpc::ServerCallContext context)
       {
         throw new grpc::RpcException(new grpc::Status(grpc::StatusCode.Unimplemented, ""));
       }
 
-      /// <summary>
-      /// Events streams lifecycle events. If follow=true, stays open.
-      /// </summary>
-      /// <param name="request">The request received from the client.</param>
-      /// <param name="responseStream">Used for sending responses back to the client.</param>
-      /// <param name="context">The context of the server-side call handler being invoked.</param>
-      /// <returns>A task indicating completion of the handler.</returns>
       [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
-      public virtual global::System.Threading.Tasks.Task Events(global::Holons.V1.EventsRequest request, grpc::IServerStreamWriter<global::Holons.V1.EventInfo> responseStream, grpc::ServerCallContext context)
+      public virtual global::System.Threading.Tasks.Task Events(global::Holons.V1.EventsRequest request, grpc::IServerStreamWriter<global::Holons.V1.LogRecord> responseStream, grpc::ServerCallContext context)
       {
         throw new grpc::RpcException(new grpc::Status(grpc::StatusCode.Unimplemented, ""));
       }
@@ -167,107 +151,33 @@ namespace Holons.V1 {
       {
       }
 
-      /// <summary>
-      /// Logs streams log entries. If follow=true, the stream stays open
-      /// and emits new entries as they arrive. If follow=false, drains
-      /// the current ring buffer and ends.
-      /// </summary>
-      /// <param name="request">The request to send to the server.</param>
-      /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
-      /// <param name="deadline">An optional deadline for the call. The call will be cancelled if deadline is hit.</param>
-      /// <param name="cancellationToken">An optional token for canceling the call.</param>
-      /// <returns>The call object.</returns>
       [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
-      public virtual grpc::AsyncServerStreamingCall<global::Holons.V1.LogEntry> Logs(global::Holons.V1.LogsRequest request, grpc::Metadata headers = null, global::System.DateTime? deadline = null, global::System.Threading.CancellationToken cancellationToken = default(global::System.Threading.CancellationToken))
+      public virtual grpc::AsyncServerStreamingCall<global::Holons.V1.LogRecord> Logs(global::Holons.V1.LogsRequest request, grpc::Metadata headers = null, global::System.DateTime? deadline = null, global::System.Threading.CancellationToken cancellationToken = default(global::System.Threading.CancellationToken))
       {
         return Logs(request, new grpc::CallOptions(headers, deadline, cancellationToken));
       }
-      /// <summary>
-      /// Logs streams log entries. If follow=true, the stream stays open
-      /// and emits new entries as they arrive. If follow=false, drains
-      /// the current ring buffer and ends.
-      /// </summary>
-      /// <param name="request">The request to send to the server.</param>
-      /// <param name="options">The options for the call.</param>
-      /// <returns>The call object.</returns>
       [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
-      public virtual grpc::AsyncServerStreamingCall<global::Holons.V1.LogEntry> Logs(global::Holons.V1.LogsRequest request, grpc::CallOptions options)
+      public virtual grpc::AsyncServerStreamingCall<global::Holons.V1.LogRecord> Logs(global::Holons.V1.LogsRequest request, grpc::CallOptions options)
       {
         return CallInvoker.AsyncServerStreamingCall(__Method_Logs, null, options, request);
       }
-      /// <summary>
-      /// Metrics returns a point-in-time snapshot of all current metrics.
-      /// Unary, not streaming — scraping cadence is the caller's concern.
-      /// </summary>
-      /// <param name="request">The request to send to the server.</param>
-      /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
-      /// <param name="deadline">An optional deadline for the call. The call will be cancelled if deadline is hit.</param>
-      /// <param name="cancellationToken">An optional token for canceling the call.</param>
-      /// <returns>The response received from the server.</returns>
       [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
-      public virtual global::Holons.V1.MetricsSnapshot Metrics(global::Holons.V1.MetricsRequest request, grpc::Metadata headers = null, global::System.DateTime? deadline = null, global::System.Threading.CancellationToken cancellationToken = default(global::System.Threading.CancellationToken))
+      public virtual grpc::AsyncServerStreamingCall<global::Holons.V1.Metric> Metrics(global::Holons.V1.MetricsRequest request, grpc::Metadata headers = null, global::System.DateTime? deadline = null, global::System.Threading.CancellationToken cancellationToken = default(global::System.Threading.CancellationToken))
       {
         return Metrics(request, new grpc::CallOptions(headers, deadline, cancellationToken));
       }
-      /// <summary>
-      /// Metrics returns a point-in-time snapshot of all current metrics.
-      /// Unary, not streaming — scraping cadence is the caller's concern.
-      /// </summary>
-      /// <param name="request">The request to send to the server.</param>
-      /// <param name="options">The options for the call.</param>
-      /// <returns>The response received from the server.</returns>
       [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
-      public virtual global::Holons.V1.MetricsSnapshot Metrics(global::Holons.V1.MetricsRequest request, grpc::CallOptions options)
+      public virtual grpc::AsyncServerStreamingCall<global::Holons.V1.Metric> Metrics(global::Holons.V1.MetricsRequest request, grpc::CallOptions options)
       {
-        return CallInvoker.BlockingUnaryCall(__Method_Metrics, null, options, request);
+        return CallInvoker.AsyncServerStreamingCall(__Method_Metrics, null, options, request);
       }
-      /// <summary>
-      /// Metrics returns a point-in-time snapshot of all current metrics.
-      /// Unary, not streaming — scraping cadence is the caller's concern.
-      /// </summary>
-      /// <param name="request">The request to send to the server.</param>
-      /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
-      /// <param name="deadline">An optional deadline for the call. The call will be cancelled if deadline is hit.</param>
-      /// <param name="cancellationToken">An optional token for canceling the call.</param>
-      /// <returns>The call object.</returns>
       [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
-      public virtual grpc::AsyncUnaryCall<global::Holons.V1.MetricsSnapshot> MetricsAsync(global::Holons.V1.MetricsRequest request, grpc::Metadata headers = null, global::System.DateTime? deadline = null, global::System.Threading.CancellationToken cancellationToken = default(global::System.Threading.CancellationToken))
-      {
-        return MetricsAsync(request, new grpc::CallOptions(headers, deadline, cancellationToken));
-      }
-      /// <summary>
-      /// Metrics returns a point-in-time snapshot of all current metrics.
-      /// Unary, not streaming — scraping cadence is the caller's concern.
-      /// </summary>
-      /// <param name="request">The request to send to the server.</param>
-      /// <param name="options">The options for the call.</param>
-      /// <returns>The call object.</returns>
-      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
-      public virtual grpc::AsyncUnaryCall<global::Holons.V1.MetricsSnapshot> MetricsAsync(global::Holons.V1.MetricsRequest request, grpc::CallOptions options)
-      {
-        return CallInvoker.AsyncUnaryCall(__Method_Metrics, null, options, request);
-      }
-      /// <summary>
-      /// Events streams lifecycle events. If follow=true, stays open.
-      /// </summary>
-      /// <param name="request">The request to send to the server.</param>
-      /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
-      /// <param name="deadline">An optional deadline for the call. The call will be cancelled if deadline is hit.</param>
-      /// <param name="cancellationToken">An optional token for canceling the call.</param>
-      /// <returns>The call object.</returns>
-      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
-      public virtual grpc::AsyncServerStreamingCall<global::Holons.V1.EventInfo> Events(global::Holons.V1.EventsRequest request, grpc::Metadata headers = null, global::System.DateTime? deadline = null, global::System.Threading.CancellationToken cancellationToken = default(global::System.Threading.CancellationToken))
+      public virtual grpc::AsyncServerStreamingCall<global::Holons.V1.LogRecord> Events(global::Holons.V1.EventsRequest request, grpc::Metadata headers = null, global::System.DateTime? deadline = null, global::System.Threading.CancellationToken cancellationToken = default(global::System.Threading.CancellationToken))
       {
         return Events(request, new grpc::CallOptions(headers, deadline, cancellationToken));
       }
-      /// <summary>
-      /// Events streams lifecycle events. If follow=true, stays open.
-      /// </summary>
-      /// <param name="request">The request to send to the server.</param>
-      /// <param name="options">The options for the call.</param>
-      /// <returns>The call object.</returns>
       [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
-      public virtual grpc::AsyncServerStreamingCall<global::Holons.V1.EventInfo> Events(global::Holons.V1.EventsRequest request, grpc::CallOptions options)
+      public virtual grpc::AsyncServerStreamingCall<global::Holons.V1.LogRecord> Events(global::Holons.V1.EventsRequest request, grpc::CallOptions options)
       {
         return CallInvoker.AsyncServerStreamingCall(__Method_Events, null, options, request);
       }
@@ -297,9 +207,9 @@ namespace Holons.V1 {
     [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
     public static void BindService(grpc::ServiceBinderBase serviceBinder, HolonObservabilityBase serviceImpl)
     {
-      serviceBinder.AddMethod(__Method_Logs, serviceImpl == null ? null : new grpc::ServerStreamingServerMethod<global::Holons.V1.LogsRequest, global::Holons.V1.LogEntry>(serviceImpl.Logs));
-      serviceBinder.AddMethod(__Method_Metrics, serviceImpl == null ? null : new grpc::UnaryServerMethod<global::Holons.V1.MetricsRequest, global::Holons.V1.MetricsSnapshot>(serviceImpl.Metrics));
-      serviceBinder.AddMethod(__Method_Events, serviceImpl == null ? null : new grpc::ServerStreamingServerMethod<global::Holons.V1.EventsRequest, global::Holons.V1.EventInfo>(serviceImpl.Events));
+      serviceBinder.AddMethod(__Method_Logs, serviceImpl == null ? null : new grpc::ServerStreamingServerMethod<global::Holons.V1.LogsRequest, global::Holons.V1.LogRecord>(serviceImpl.Logs));
+      serviceBinder.AddMethod(__Method_Metrics, serviceImpl == null ? null : new grpc::ServerStreamingServerMethod<global::Holons.V1.MetricsRequest, global::Holons.V1.Metric>(serviceImpl.Metrics));
+      serviceBinder.AddMethod(__Method_Events, serviceImpl == null ? null : new grpc::ServerStreamingServerMethod<global::Holons.V1.EventsRequest, global::Holons.V1.LogRecord>(serviceImpl.Events));
     }
 
   }

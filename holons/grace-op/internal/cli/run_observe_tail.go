@@ -120,7 +120,7 @@ func streamObservedRun(ctx context.Context, slug, uid, runRoot string, jsonOut b
 	streamCtx, cancelStreams := context.WithCancel(ctx)
 	defer cancelStreams()
 
-	logs, err := client.Logs(streamCtx, &v1.LogsRequest{Follow: true, MinLevel: v1.LogLevel_TRACE})
+	logs, err := client.Logs(streamCtx, &v1.LogsRequest{Follow: true, MinSeverityNumber: v1.SeverityNumber_SEVERITY_NUMBER_TRACE})
 	if err != nil {
 		return fmt.Errorf("op run --observe logs: %w", err)
 	}
@@ -167,7 +167,7 @@ func streamObservedLogs(ctx context.Context, stream v1.HolonObservability_LogsCl
 			return err
 		}
 		printMu.Lock()
-		renderLogEntry(entry, jsonOut)
+		renderLogRecord(entry, jsonOut)
 		printMu.Unlock()
 	}
 }
@@ -187,7 +187,7 @@ func streamObservedEvents(ctx context.Context, stream v1.HolonObservability_Even
 		printMu.Lock()
 		renderEvent(event, jsonOut)
 		printMu.Unlock()
-		if event.Type == v1.EventType_INSTANCE_EXITED || event.Type == v1.EventType_INSTANCE_CRASHED {
+		if event.GetEventName() == observability.EventInstanceExited || event.GetEventName() == observability.EventInstanceCrashed {
 			cancelStreams()
 			return nil
 		}

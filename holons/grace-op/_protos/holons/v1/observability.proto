@@ -2,139 +2,145 @@ syntax = "proto3";
 
 package holons.v1;
 
-import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
-import "holons/v1/session.proto";
 
-// HolonObservability is auto-registered by the SDK's serve runner
-// when OP_OBS is set. Provides structured logs, metrics snapshots,
-// and lifecycle events. See OBSERVABILITY.md.
+// HolonObservability emits OTLP-shaped records through the SDK-managed
+// observability service. Events are LogRecord values with event_name set.
+//
+// Canonical event_name values for this wave:
+//   instance.spawned
+//   instance.ready
+//   instance.exited
+//   instance.crashed
+//   session.started
+//   session.ended
+//   handler.panic
+//   config.reloaded
 service HolonObservability {
-  // Logs streams log entries. If follow=true, the stream stays open
-  // and emits new entries as they arrive. If follow=false, drains
-  // the current ring buffer and ends.
-  rpc Logs(LogsRequest) returns (stream LogEntry);
-
-  // Metrics returns a point-in-time snapshot of all current metrics.
-  // Unary, not streaming — scraping cadence is the caller's concern.
-  rpc Metrics(MetricsRequest) returns (MetricsSnapshot);
-
-  // Events streams lifecycle events. If follow=true, stays open.
-  rpc Events(EventsRequest) returns (stream EventInfo);
+  rpc Logs(LogsRequest) returns (stream LogRecord);
+  rpc Metrics(MetricsRequest) returns (stream Metric);
+  rpc Events(EventsRequest) returns (stream LogRecord);
 }
 
 message LogsRequest {
-  LogLevel min_level = 1;
+  SeverityNumber min_severity_number = 1;
   repeated string session_ids = 2;
   repeated string rpc_methods = 3;
   google.protobuf.Duration since = 4;
   bool follow = 5;
 }
 
-message LogEntry {
-  google.protobuf.Timestamp ts = 1;
-  LogLevel level = 2;
-  string slug = 3;
-  string instance_uid = 4;
-  string session_id = 5;
-  string rpc_method = 6;
-  string message = 7;
-  map<string, string> fields = 8;
-  string caller = 9;
-
-  // Relay path: ordered hops from the originator up through each
-  // relay before arriving on the stream being read. Empty when the
-  // entry was emitted by the holon whose stream the reader is
-  // consuming. See OBSERVABILITY.md §Organism Relay.
-  repeated ChainHop chain = 10;
-}
-
-message ChainHop {
-  string slug = 1;
-  string instance_uid = 2;
-}
-
-enum LogLevel {
-  LOG_LEVEL_UNSPECIFIED = 0;
-  TRACE = 1;
-  DEBUG = 2;
-  INFO = 3;
-  WARN = 4;
-  ERROR = 5;
-  FATAL = 6;
-}
-
 message MetricsRequest {
   repeated string name_prefixes = 1;
-  bool include_session_rollup = 2;
-}
-
-message MetricsSnapshot {
-  google.protobuf.Timestamp captured_at = 1;
-  string slug = 2;
-  string instance_uid = 3;
-  repeated MetricSample samples = 4;
-
-  // Reserved for v2; always empty in v1.
-  SessionMetrics session_rollup = 5;
-}
-
-message MetricSample {
-  string name = 1;
-  map<string, string> labels = 2;
-  oneof value {
-    int64 counter = 3;
-    double gauge = 4;
-    HistogramSample histogram = 5;
-  }
-  string help = 6;
-
-  // Relay path (see LogEntry.chain). Typically empty for metrics:
-  // the caller asks `child.Metrics()` directly on each direct child,
-  // so the stream identifies the source. Populated only when a holon
-  // folds a direct child's cached samples into its own snapshot.
-  repeated ChainHop chain = 7;
-}
-
-message HistogramSample {
-  // Cumulative buckets — bucket.count includes all samples
-  // where value <= bucket.upper_bound. Prometheus semantics.
-  repeated Bucket buckets = 1;
-  int64 count = 2;
-  double sum = 3;
-}
-
-message Bucket {
-  double upper_bound = 1;
-  int64 count = 2;
 }
 
 message EventsRequest {
-  repeated EventType types = 1;
+  repeated string event_names = 1;
   google.protobuf.Duration since = 2;
   bool follow = 3;
 }
 
-message EventInfo {
-  google.protobuf.Timestamp ts = 1;
-  EventType type = 2;
-  string slug = 3;
-  string instance_uid = 4;
-  string session_id = 5;
-  map<string, string> payload = 6;
-
-  // Relay path (see LogEntry.chain, same semantics).
-  repeated ChainHop chain = 7;
+// Structurally mirrors opentelemetry.proto.common.v1.AnyValue.
+message AnyValue {
+  oneof value {
+    string string_value = 1;
+    bool bool_value = 2;
+    int64 int_value = 3;
+    double double_value = 4;
+  }
 }
 
-enum EventType {
-  EVENT_TYPE_UNSPECIFIED = 0;
-  INSTANCE_SPAWNED = 1;
-  INSTANCE_READY = 2;
-  INSTANCE_EXITED = 3;
-  INSTANCE_CRASHED = 4;
-  SESSION_STARTED = 5;
-  SESSION_ENDED = 6;
-  HANDLER_PANIC = 7;
-  CONFIG_RELOADED = 8;
+// Structurally mirrors opentelemetry.proto.common.v1.KeyValue.
+message KeyValue {
+  string key = 1;
+  AnyValue value = 2;
+}
+
+// Structurally mirrors opentelemetry.proto.resource.v1.Resource.
+message Resource {
+  repeated KeyValue attributes = 1;
+  uint32 dropped_attributes_count = 2;
+}
+
+// Structurally mirrors opentelemetry.proto.logs.v1.SeverityNumber.
+enum SeverityNumber {
+  SEVERITY_NUMBER_UNSPECIFIED = 0;
+  SEVERITY_NUMBER_TRACE = 1;
+  SEVERITY_NUMBER_DEBUG = 5;
+  SEVERITY_NUMBER_INFO = 9;
+  SEVERITY_NUMBER_WARN = 13;
+  SEVERITY_NUMBER_ERROR = 17;
+  SEVERITY_NUMBER_FATAL = 21;
+}
+
+// Structurally mirrors opentelemetry.proto.logs.v1.LogRecord.
+message LogRecord {
+  fixed64 time_unix_nano = 1;
+  SeverityNumber severity_number = 2;
+  string severity_text = 3;
+  AnyValue body = 5;
+  repeated KeyValue attributes = 6;
+  uint32 dropped_attributes_count = 7;
+  uint32 flags = 8;
+  bytes trace_id = 9;
+  bytes span_id = 10;
+  fixed64 observed_time_unix_nano = 11;
+
+  string event_name = 20;
+  repeated string chain = 21;
+}
+
+// Structurally mirrors opentelemetry.proto.metrics.v1.Metric.
+message Metric {
+  string name = 1;
+  string description = 2;
+  string unit = 3;
+  oneof data {
+    Gauge gauge = 5;
+    Sum sum = 7;
+    Histogram histogram = 9;
+  }
+}
+
+message Gauge {
+  repeated NumberDataPoint data_points = 1;
+}
+
+message Sum {
+  repeated NumberDataPoint data_points = 1;
+  AggregationTemporality aggregation_temporality = 2;
+  bool is_monotonic = 3;
+}
+
+message Histogram {
+  repeated HistogramDataPoint data_points = 1;
+  AggregationTemporality aggregation_temporality = 2;
+}
+
+message NumberDataPoint {
+  fixed64 start_time_unix_nano = 2;
+  fixed64 time_unix_nano = 3;
+  oneof value {
+    double as_double = 4;
+    int64 as_int = 6;
+  }
+  repeated KeyValue attributes = 7;
+}
+
+message HistogramDataPoint {
+  fixed64 start_time_unix_nano = 2;
+  fixed64 time_unix_nano = 3;
+  uint64 count = 4;
+  double sum = 5;
+  repeated uint64 bucket_counts = 6;
+  repeated double explicit_bounds = 7;
+  repeated KeyValue attributes = 9;
+  double min = 11;
+  double max = 12;
+}
+
+enum AggregationTemporality {
+  AGGREGATION_TEMPORALITY_UNSPECIFIED = 0;
+  AGGREGATION_TEMPORALITY_DELTA = 1;
+  AGGREGATION_TEMPORALITY_CUMULATIVE = 2;
 }

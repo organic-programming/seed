@@ -1,11 +1,16 @@
 package org.organicprogramming.holons;
 
+import com.google.protobuf.StringValue;
 import io.grpc.BindableService;
 import io.grpc.CallOptions;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.MethodDescriptor;
 import io.grpc.ServerServiceDefinition;
 import io.grpc.stub.ClientCalls;
+import io.grpc.stub.ServerCalls;
+import io.grpc.stub.StreamObserver;
+import io.grpc.protobuf.ProtoUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -17,6 +22,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -95,7 +101,7 @@ class ServeTest {
             Observability obs = Observability.current();
             obs.logger("serve-test").info("serve-log", Map.of("sdk", "java"));
             obs.counter("serve_requests_total", "", Map.of()).inc();
-            obs.emit(Observability.EventType.INSTANCE_READY, Map.of());
+            obs.emit(Observability.EVENT_INSTANCE_READY, Map.of());
 
             String target = running.publicUri().substring("tcp://".length());
             int idx = target.lastIndexOf(':');
@@ -106,34 +112,35 @@ class ServeTest {
                     .build();
 
             try {
-                List<holons.v1.Observability.LogEntry> logs = new ArrayList<>();
-                Iterator<holons.v1.Observability.LogEntry> logIterator = ClientCalls.blockingServerStreamingCall(
+                List<holons.v1.Observability.LogRecord> logs = new ArrayList<>();
+                Iterator<holons.v1.Observability.LogRecord> logIterator = ClientCalls.blockingServerStreamingCall(
                         channel,
                         Observability.logsMethod(),
                         CallOptions.DEFAULT,
                         holons.v1.Observability.LogsRequest.newBuilder()
-                                .setMinLevel(holons.v1.Observability.LogLevel.INFO)
+                                .setMinSeverityNumber(holons.v1.Observability.SeverityNumber.SEVERITY_NUMBER_INFO)
                                 .build());
                 logIterator.forEachRemaining(logs::add);
-                assertTrue(logs.stream().anyMatch(entry -> entry.getMessage().equals("serve-log")));
+                assertTrue(logs.stream().anyMatch(entry -> entry.getBody().getStringValue().equals("serve-log")));
 
-                holons.v1.Observability.MetricsSnapshot metrics = ClientCalls.blockingUnaryCall(
+                List<holons.v1.Observability.Metric> metrics = new ArrayList<>();
+                Iterator<holons.v1.Observability.Metric> metricIterator = ClientCalls.blockingServerStreamingCall(
                         channel,
                         Observability.metricsMethod(),
                         CallOptions.DEFAULT,
                         holons.v1.Observability.MetricsRequest.getDefaultInstance());
-                assertTrue(metrics.getSamplesList().stream()
-                        .anyMatch(sample -> sample.getName().equals("serve_requests_total")));
+                metricIterator.forEachRemaining(metrics::add);
+                assertTrue(metrics.stream().anyMatch(metric -> metric.getName().equals("serve_requests_total")));
 
-                List<holons.v1.Observability.EventInfo> events = new ArrayList<>();
-                Iterator<holons.v1.Observability.EventInfo> eventIterator = ClientCalls.blockingServerStreamingCall(
+                List<holons.v1.Observability.LogRecord> events = new ArrayList<>();
+                Iterator<holons.v1.Observability.LogRecord> eventIterator = ClientCalls.blockingServerStreamingCall(
                         channel,
                         Observability.eventsMethod(),
                         CallOptions.DEFAULT,
                         holons.v1.Observability.EventsRequest.getDefaultInstance());
                 eventIterator.forEachRemaining(events::add);
                 assertTrue(events.stream()
-                        .anyMatch(event -> event.getType() == holons.v1.Observability.EventType.INSTANCE_READY));
+                        .anyMatch(event -> event.getEventName().equals(Observability.EVENT_INSTANCE_READY)));
             } finally {
                 channel.shutdownNow();
                 channel.awaitTermination(5, TimeUnit.SECONDS);
@@ -149,6 +156,130 @@ class ServeTest {
             if (running != null) {
                 running.stop();
             }
+        }
+    }
+
+    @Test
+    void currentTransportTracksServeLifecycle() throws Exception {
+        Describe.useStaticResponse(staticDescribeResponse());
+        assertEquals("", Serve.currentTransport());
+        Serve.RunningServer running = null;
+        try {
+            running = Serve.startWithOptions(
+                    "stdio://",
+                    List.of(new EmptyService()),
+                    new Serve.Options().withOnListen(uri -> {
+                    }));
+            assertEquals("stdio", Serve.currentTransport());
+        } finally {
+            if (running != null) {
+                running.stop();
+            }
+            Describe.useStaticResponse(null);
+        }
+        assertEquals("", Serve.currentTransport());
+    }
+
+    @Test
+    void currentTransportIsVisibleInsideRpcHandlers() throws Exception {
+        Describe.useStaticResponse(staticDescribeResponse());
+        Serve.RunningServer running = null;
+        try {
+            running = Serve.startWithOptions(
+                    "tcp://127.0.0.1:0",
+                    List.of(new CurrentTransportService()),
+                    new Serve.Options().withOnListen(uri -> {
+                    }));
+
+            String target = running.publicUri().substring("tcp://".length());
+            int idx = target.lastIndexOf(':');
+            String host = target.substring(0, idx);
+            int port = Integer.parseInt(target.substring(idx + 1));
+
+            ManagedChannel channel = ManagedChannelBuilder.forAddress(host, port)
+                    .usePlaintext()
+                    .build();
+            try {
+                StringValue response = ClientCalls.blockingUnaryCall(
+                        channel,
+                        CurrentTransportService.METHOD,
+                        CallOptions.DEFAULT,
+                        StringValue.getDefaultInstance());
+                assertEquals("tcp", response.getValue());
+            } finally {
+                channel.shutdownNow();
+                channel.awaitTermination(5, TimeUnit.SECONDS);
+            }
+        } finally {
+            if (running != null) {
+                running.stop();
+            }
+            Describe.useStaticResponse(null);
+        }
+    }
+
+    @Test
+    void startWithOptionsRelaysMemberObservabilityAndWritesPrometheusAddress(@TempDir Path tmp) throws Exception {
+        Describe.useStaticResponse(staticDescribeResponse());
+        Observability.reset();
+        Path registryRoot = tmp.resolve("runs");
+
+        Serve.RunningServer child = null;
+        Serve.RunningServer parent = null;
+        try {
+            child = Serve.startWithOptions(
+                    "tcp://127.0.0.1:0",
+                    List.of(new EmptyService()),
+                    new Serve.Options()
+                            .withSlug("cascade-node-java-child")
+                            .withEnv(Map.of(
+                                    "OP_OBS", "logs,metrics,events",
+                                    "OP_RUN_DIR", registryRoot.toString(),
+                                    "OP_INSTANCE_UID", "java-child-1")));
+
+            Observability childObs = Observability.current();
+            childObs.logger("tick").info("tick received", Map.of("sender", "serve-test"));
+            childObs.emit(Observability.EVENT_CONFIG_RELOADED, Map.of("source", "serve-test"));
+
+            parent = Serve.startWithOptions(
+                    "tcp://127.0.0.1:0",
+                    List.of(new EmptyService()),
+                    new Serve.Options()
+                            .withSlug("cascade-node-java-parent")
+                            .withEnv(Map.of(
+                                    "OP_OBS", "logs,metrics,events,prom",
+                                    "OP_RUN_DIR", registryRoot.toString(),
+                                    "OP_INSTANCE_UID", "java-parent-1",
+                                    "OP_PROM_ADDR", ":0"))
+                            .withMemberEndpoints(List.of(new Serve.MemberRef(
+                                    "cascade-node-java-child",
+                                    "",
+                                    child.publicUri()))));
+
+            Observability parentObs = Observability.current();
+            awaitCondition(() -> parentObs.logRing.drain().stream()
+                    .anyMatch(entry -> entry.bodyString().equals("tick received")
+                            && entry.record.getChainCount() == 1
+                            && entry.record.getChain(0).equals("cascade-node-java-child")));
+            awaitCondition(() -> parentObs.eventBus.drain().stream()
+                    .anyMatch(event -> event.record.getEventName().equals(Observability.EVENT_CONFIG_RELOADED)
+                            && event.record.getChainCount() == 1
+                            && event.record.getChain(0).equals("cascade-node-java-child")));
+
+            String parentMeta = Files.readString(registryRoot
+                    .resolve("cascade-node-java-parent")
+                    .resolve("java-parent-1")
+                    .resolve("meta.json"));
+            assertTrue(parentMeta.contains("\"metrics_addr\""));
+        } finally {
+            if (parent != null) {
+                parent.stop();
+            }
+            if (child != null) {
+                child.stop();
+            }
+            Observability.reset();
+            Describe.useStaticResponse(null);
         }
     }
 
@@ -283,6 +414,28 @@ class ServeTest {
         }
     }
 
+    private static final class CurrentTransportService implements BindableService {
+        private static final MethodDescriptor<StringValue, StringValue> METHOD =
+                MethodDescriptor.<StringValue, StringValue>newBuilder()
+                        .setType(MethodDescriptor.MethodType.UNARY)
+                        .setFullMethodName(MethodDescriptor.generateFullMethodName("test.v1.Transport", "Current"))
+                        .setRequestMarshaller(ProtoUtils.marshaller(StringValue.getDefaultInstance()))
+                        .setResponseMarshaller(ProtoUtils.marshaller(StringValue.getDefaultInstance()))
+                        .build();
+
+        @Override
+        public ServerServiceDefinition bindService() {
+            return ServerServiceDefinition.builder("test.v1.Transport")
+                    .addMethod(METHOD, ServerCalls.asyncUnaryCall(this::current))
+                    .build();
+        }
+
+        private void current(StringValue request, StreamObserver<StringValue> responseObserver) {
+            responseObserver.onNext(StringValue.of(Serve.currentTransport()));
+            responseObserver.onCompleted();
+        }
+    }
+
     private static holons.v1.Describe.DescribeResponse staticDescribeResponse() {
         return holons.v1.Describe.DescribeResponse.newBuilder()
                 .setManifest(holons.v1.Manifest.HolonManifest.newBuilder()
@@ -294,5 +447,16 @@ class ServeTest {
                         .setLang("java")
                         .build())
                 .build();
+    }
+
+    private static void awaitCondition(BooleanSupplier condition) throws Exception {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (System.nanoTime() < deadline) {
+            if (condition.getAsBoolean()) {
+                return;
+            }
+            Thread.sleep(50);
+        }
+        assertTrue(condition.getAsBoolean());
     }
 }

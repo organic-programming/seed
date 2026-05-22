@@ -14,12 +14,13 @@
 # Tool state
 .op/
 .codex/
-.claude/settings.local.json
+.claude/settings.*
 .gemini/.env
 .runtime/
 .build/
 .dart_tool/
 .gradle/
+.swiftpm/
 
 # SDK prebuilt staging caches (transient build outputs)
 **/.codegen-prebuilt/

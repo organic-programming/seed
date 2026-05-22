@@ -1087,6 +1087,9 @@ func TestSyncDotnetArtifactsCreatesLauncherWhenOnlyDLLExists(t *testing.T) {
 	if !strings.Contains(string(contents), `export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin${PATH:+:$PATH}"`) {
 		t.Fatalf("launcher contents missing PATH bootstrap: %s", contents)
 	}
+	if !strings.Contains(string(contents), `OP_HOLON_EXECUTABLE="${OP_HOLON_EXECUTABLE:-$0}"`) {
+		t.Fatalf("launcher contents missing OP_HOLON_EXECUTABLE export: %s", contents)
+	}
 	if !strings.Contains(string(contents), `DOTNET_BIN=$(command -v dotnet 2>/dev/null || true)`) {
 		t.Fatalf("launcher contents missing dotnet lookup: %s", contents)
 	}

@@ -22,16 +22,21 @@ func Register(s *grpc.Server) {
 	v1.RegisterHolonObservabilityServer(s, NewService(obs, VisibilityFull))
 }
 
-// EmitReady publishes an INSTANCE_READY event through the active
+// EmitReady publishes an instance.ready event through the active
 // Observability. Serve runners should call this immediately after the
 // first listener binds.
-func EmitReady(ctx context.Context, listenerURI string) {
+func EmitReady(ctx context.Context, listenerURI string, metricsAddr ...string) {
+	addr := ""
+	if len(metricsAddr) > 0 {
+		addr = metricsAddr[0]
+	}
 	Current().Emit(ctx, EventInstanceReady, map[string]string{
-		"listener": listenerURI,
+		"listener":     listenerURI,
+		"metrics_addr": addr,
 	})
 }
 
-// EmitExited publishes an INSTANCE_EXITED event with the given exit
+// EmitExited publishes an instance.exited event with the given exit
 // reason. Serve runners should call this during graceful shutdown.
 func EmitExited(ctx context.Context, reason string) {
 	Current().Emit(ctx, EventInstanceExited, map[string]string{
@@ -39,7 +44,7 @@ func EmitExited(ctx context.Context, reason string) {
 	})
 }
 
-// EmitCrashed publishes an INSTANCE_CRASHED event with the given
+// EmitCrashed publishes an instance.crashed event with the given
 // exit code / cause. Use during panic recovery or when a fatal
 // condition prevents clean exit.
 func EmitCrashed(ctx context.Context, cause string) {

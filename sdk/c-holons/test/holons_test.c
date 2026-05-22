@@ -2,6 +2,7 @@
 
 #include "holons/holons.h"
 #include "holons/observability.h"
+#include "holons/v1/observability.pb-c.h"
 
 #include <assert.h>
 #include <arpa/inet.h>
@@ -58,6 +59,14 @@ static int dial_unix(const char *path) {
 static int noop_handler(const holons_conn_t *conn, void *ctx) {
   (void)conn;
   (void)ctx;
+  ++handler_calls;
+  return 0;
+}
+
+static int current_transport_handler(const holons_conn_t *conn, void *ctx) {
+  char *seen = (char *)ctx;
+  (void)conn;
+  snprintf(seen, 16, "%s", holons_current_transport());
   ++handler_calls;
   return 0;
 }
@@ -757,6 +766,55 @@ static void write_package_binary(const char *dir, const char *binary_name) {
                        "  cat >/dev/null\n"
                        "fi\n",
                        0755);
+}
+
+static void test_composite_member_resolution(void) {
+  char root[1024] = "/tmp/holons_member_c_XXXXXX";
+  char arch_dir[64];
+  char parent_dir[1024];
+  char parent_path[1024];
+  char member_dir[1024];
+  char member_path[1024];
+  char ignored_path[1024];
+  char resolved[PATH_MAX];
+  char err[256];
+  char cleanup_cmd[1200];
+
+  check_int(make_temp_dir(root) == 0, "member temp dir");
+  canonicalize_temp_dir(root, sizeof(root));
+  test_package_arch_dir(arch_dir, sizeof(arch_dir));
+  assert(snprintf(parent_dir, sizeof(parent_dir), "%s/bin/%s", root, arch_dir) < (int)sizeof(parent_dir));
+  assert(snprintf(parent_path, sizeof(parent_path), "%s/composite", parent_dir) < (int)sizeof(parent_path));
+  assert(snprintf(member_dir, sizeof(member_dir), "%s/holons/c-node", parent_dir) < (int)sizeof(member_dir));
+  assert(snprintf(member_path, sizeof(member_path), "%s/observability-cascade-c-node", member_dir) < (int)sizeof(member_path));
+  assert(snprintf(ignored_path, sizeof(ignored_path), "%s/libdependency.dylib", member_dir) < (int)sizeof(ignored_path));
+
+  check_int(ensure_dir_with_system(member_dir) == 0, "member fixture dirs");
+  write_text_file_mode(parent_path, "#!/bin/sh\n", 0755);
+  write_text_file_mode(member_path, "#!/bin/sh\n", 0755);
+  write_text_file_mode(ignored_path, "", 0644);
+
+  err[0] = '\0';
+  check_int(holons_member_from_executable(parent_path,
+                                          "c-node",
+                                          resolved,
+                                          sizeof(resolved),
+                                          err,
+                                          sizeof(err)) == 0,
+            "member resolves executable");
+  check_int(strcmp(resolved, member_path) == 0, "member resolved path");
+
+  err[0] = '\0';
+  check_int(holons_member_from_executable(parent_path,
+                                          "missing",
+                                          resolved,
+                                          sizeof(resolved),
+                                          err,
+                                          sizeof(err)) != 0,
+            "member missing errors");
+
+  snprintf(cleanup_cmd, sizeof(cleanup_cmd), "rm -rf '%s'", root);
+  (void)system(cleanup_cmd);
 }
 
 static void write_package_holon_json(const char *dir,
@@ -2769,6 +2827,51 @@ static void test_serve_stdio(void) {
   check_int(handler_calls == 1, "serve handler call count");
 }
 
+static void test_current_transport_stdio_lifecycle(void) {
+  char err[256];
+  char seen[16] = "";
+
+  holons_clear_current_transport();
+  check_int(strcmp(holons_current_transport(), "") == 0, "current transport starts empty");
+  handler_calls = 0;
+  check_int(holons_serve("stdio://", current_transport_handler, seen, 1, 0, err, sizeof(err)) == 0,
+            "current transport serve stdio");
+  check_int(strcmp(seen, "stdio") == 0, "current transport inside serve");
+  check_int(strcmp(holons_current_transport(), "") == 0, "current transport clears after serve");
+}
+
+static const Holons__V1__AnyValue *log_attr(const Holons__V1__LogRecord *record,
+                                            const char *key) {
+  size_t i;
+  if (record == NULL || key == NULL) {
+    return NULL;
+  }
+  for (i = 0; i < record->n_attributes; ++i) {
+    if (record->attributes[i] != NULL &&
+        record->attributes[i]->key != NULL &&
+        strcmp(record->attributes[i]->key, key) == 0) {
+      return record->attributes[i]->value;
+    }
+  }
+  return NULL;
+}
+
+static const Holons__V1__AnyValue *point_attr(const Holons__V1__NumberDataPoint *point,
+                                              const char *key) {
+  size_t i;
+  if (point == NULL || key == NULL) {
+    return NULL;
+  }
+  for (i = 0; i < point->n_attributes; ++i) {
+    if (point->attributes[i] != NULL &&
+        point->attributes[i]->key != NULL &&
+        strcmp(point->attributes[i]->key, key) == 0) {
+      return point->attributes[i]->value;
+    }
+  }
+  return NULL;
+}
+
 static void test_observability_env(void) {
   char token[HOLON_OBS_TOKEN_MAX];
   uint32_t all = HOLON_FAMILY_LOGS | HOLON_FAMILY_METRICS | HOLON_FAMILY_EVENTS | HOLON_FAMILY_PROM;
@@ -2855,9 +2958,205 @@ static void test_observability_disk_outputs(void) {
   (void)system(cleanup);
 }
 
+static void test_observability_typed_log_record_wire(void) {
+  char *old_obs = getenv("OP_OBS") ? strdup(getenv("OP_OBS")) : NULL;
+  holon_obs_config_t cfg;
+  holons_field_t fields[3];
+  unsigned char *bytes = NULL;
+  size_t bytes_len = 0;
+  Holons__V1__LogRecord *record;
+  const Holons__V1__AnyValue *value;
+
+  setenv("OP_OBS", "logs", 1);
+  memset(&cfg, 0, sizeof(cfg));
+  cfg.slug = "gabriel-greeting-c";
+  cfg.instance_uid = "uid-typed";
+  cfg.session_id = "session-typed";
+  cfg.default_log_level = HOLON_LEVEL_INFO;
+  holon_obs_reset();
+  check_int(holon_obs_configure(&cfg) == 1, "typed log configure");
+
+  fields[0] = holons_field_string("transport", "stdio");
+  fields[1] = holons_field_int("duration_ns", 42);
+  fields[2] = holons_field_bool("ok", 1);
+  check_int(holon_obs_pack_log_record(HOLON_LEVEL_INFO,
+                                      "Greeted Ana in Spanish (es)",
+                                      fields,
+                                      3,
+                                      &bytes,
+                                      &bytes_len) == 0,
+            "typed log pack");
+  record = holons__v1__log_record__unpack(NULL, bytes_len, bytes);
+  check_int(record != NULL, "typed log unpack");
+  if (record != NULL) {
+    check_int(record->body != NULL &&
+                  record->body->value_case == HOLONS__V1__ANY_VALUE__VALUE_STRING_VALUE &&
+                  strcmp(record->body->string_value, "Greeted Ana in Spanish (es)") == 0,
+              "typed log body stringValue");
+    value = log_attr(record, "holons.slug");
+    check_int(value != NULL && value->value_case == HOLONS__V1__ANY_VALUE__VALUE_STRING_VALUE &&
+                  strcmp(value->string_value, "gabriel-greeting-c") == 0,
+              "typed log holons.slug");
+    value = log_attr(record, "service.name");
+    check_int(value != NULL && value->value_case == HOLONS__V1__ANY_VALUE__VALUE_STRING_VALUE &&
+                  strcmp(value->string_value, "gabriel-greeting-c") == 0,
+              "typed log service.name");
+    value = log_attr(record, "holons.instance_uid");
+    check_int(value != NULL && value->value_case == HOLONS__V1__ANY_VALUE__VALUE_STRING_VALUE &&
+                  strcmp(value->string_value, "uid-typed") == 0,
+              "typed log instance uid");
+    value = log_attr(record, "service.instance.id");
+    check_int(value != NULL && value->value_case == HOLONS__V1__ANY_VALUE__VALUE_STRING_VALUE &&
+                  strcmp(value->string_value, "uid-typed") == 0,
+              "typed log service instance id");
+    value = log_attr(record, "holons.session_id");
+    check_int(value != NULL && value->value_case == HOLONS__V1__ANY_VALUE__VALUE_STRING_VALUE &&
+                  strcmp(value->string_value, "session-typed") == 0,
+              "typed log session id");
+    value = log_attr(record, "transport");
+    check_int(value != NULL && value->value_case == HOLONS__V1__ANY_VALUE__VALUE_STRING_VALUE &&
+                  strcmp(value->string_value, "stdio") == 0,
+              "typed log transport stringValue");
+    value = log_attr(record, "duration_ns");
+    check_int(value != NULL && value->value_case == HOLONS__V1__ANY_VALUE__VALUE_INT_VALUE &&
+                  value->int_value == 42,
+              "typed log duration_ns intValue");
+    value = log_attr(record, "ok");
+    check_int(value != NULL && value->value_case == HOLONS__V1__ANY_VALUE__VALUE_BOOL_VALUE &&
+                  value->bool_value,
+              "typed log boolValue");
+    holons__v1__log_record__free_unpacked(record, NULL);
+  }
+  free(bytes);
+  holon_obs_reset();
+  restore_env("OP_OBS", old_obs);
+}
+
+static void test_observability_event_log_record_wire(void) {
+  char *old_obs = getenv("OP_OBS") ? strdup(getenv("OP_OBS")) : NULL;
+  holon_obs_config_t cfg;
+  holons_field_t payload[1];
+  unsigned char *bytes = NULL;
+  size_t bytes_len = 0;
+  Holons__V1__LogRecord *record;
+
+  setenv("OP_OBS", "events", 1);
+  memset(&cfg, 0, sizeof(cfg));
+  cfg.slug = "gabriel-greeting-c";
+  cfg.instance_uid = "uid-event";
+  cfg.session_id = "session-event";
+  cfg.default_log_level = HOLON_LEVEL_INFO;
+  holon_obs_reset();
+  check_int(holon_obs_configure(&cfg) == 1, "typed event configure");
+  payload[0] = holons_field_string("listener", "stdio://");
+  check_int(holon_obs_pack_event_record(HOLON_EVENT_INSTANCE_READY,
+                                        payload,
+                                        1,
+                                        &bytes,
+                                        &bytes_len) == 0,
+            "typed event pack");
+  record = holons__v1__log_record__unpack(NULL, bytes_len, bytes);
+  check_int(record != NULL, "typed event unpack");
+  if (record != NULL) {
+    check_int(strcmp(record->event_name, HOLON_EVENT_NAME_INSTANCE_READY) == 0,
+              "typed event canonical name");
+    check_int(record->body != NULL &&
+                  record->body->value_case == HOLONS__V1__ANY_VALUE__VALUE_STRING_VALUE &&
+                  strcmp(record->body->string_value, HOLON_EVENT_NAME_INSTANCE_READY) == 0,
+              "typed event body stringValue");
+    holons__v1__log_record__free_unpacked(record, NULL);
+  }
+  free(bytes);
+  holon_obs_reset();
+  restore_env("OP_OBS", old_obs);
+}
+
+static void test_observability_metric_wire(void) {
+  char *old_obs = getenv("OP_OBS") ? strdup(getenv("OP_OBS")) : NULL;
+  holon_obs_config_t cfg;
+  holons_packed_message_t *messages = NULL;
+  size_t message_count = 0;
+  const char *labels[] = {"lang_code", "es", "transport", "stdio", NULL};
+  int saw_counter = 0;
+  int saw_gauge = 0;
+  int saw_histogram = 0;
+
+  setenv("OP_OBS", "metrics", 1);
+  memset(&cfg, 0, sizeof(cfg));
+  cfg.slug = "gabriel-greeting-c";
+  cfg.instance_uid = "uid-metric";
+  cfg.session_id = "session-metric";
+  cfg.default_log_level = HOLON_LEVEL_INFO;
+  holon_obs_reset();
+  check_int(holon_obs_configure(&cfg) == 1, "typed metric configure");
+  check_int(holon_obs_counter_inc_with_help("greeting_emitted_total",
+                                            "Greetings emitted.",
+                                            labels) == 1,
+            "typed metric counter inc");
+  holon_obs_gauge_set("c_live_gauge", labels, 2.5);
+  holon_obs_histogram_observe("c_latency_seconds", "Latency.", labels, 0.25);
+  check_int(holon_obs_snapshot_metrics(&messages, &message_count) == 0,
+            "typed metric snapshot");
+  check_int(message_count == 3, "typed metric count");
+  for (size_t i = 0; i < message_count; ++i) {
+    Holons__V1__Metric *metric =
+        holons__v1__metric__unpack(NULL, messages[i].len, messages[i].data);
+    check_int(metric != NULL, "typed metric unpack");
+    if (metric == NULL) {
+      continue;
+    }
+    if (strcmp(metric->name, "greeting_emitted_total") == 0) {
+      const Holons__V1__NumberDataPoint *point = metric->sum->data_points[0];
+      const Holons__V1__AnyValue *value = point_attr(point, "holons.slug");
+      saw_counter = 1;
+      check_int(metric->data_case == HOLONS__V1__METRIC__DATA_SUM,
+                "counter emits Sum");
+      check_int(metric->sum->is_monotonic == 1, "counter sum monotonic");
+      check_int(metric->sum->aggregation_temporality ==
+                    HOLONS__V1__AGGREGATION_TEMPORALITY__AGGREGATION_TEMPORALITY_CUMULATIVE,
+                "counter sum cumulative");
+      check_int(point->value_case == HOLONS__V1__NUMBER_DATA_POINT__VALUE_AS_INT &&
+                    point->as_int == 1,
+                "counter value as_int");
+      check_int(value != NULL && value->value_case == HOLONS__V1__ANY_VALUE__VALUE_STRING_VALUE &&
+                    strcmp(value->string_value, "gabriel-greeting-c") == 0,
+                "counter resource attrs");
+    } else if (strcmp(metric->name, "c_live_gauge") == 0) {
+      const Holons__V1__NumberDataPoint *point = metric->gauge->data_points[0];
+      saw_gauge = 1;
+      check_int(metric->data_case == HOLONS__V1__METRIC__DATA_GAUGE,
+                "gauge emits Gauge");
+      check_int(point->value_case == HOLONS__V1__NUMBER_DATA_POINT__VALUE_AS_DOUBLE &&
+                    point->as_double == 2.5,
+                "gauge value as_double");
+    } else if (strcmp(metric->name, "c_latency_seconds") == 0) {
+      const Holons__V1__HistogramDataPoint *point = metric->histogram->data_points[0];
+      saw_histogram = 1;
+      check_int(metric->data_case == HOLONS__V1__METRIC__DATA_HISTOGRAM,
+                "histogram emits Histogram");
+      check_int(metric->histogram->aggregation_temporality ==
+                    HOLONS__V1__AGGREGATION_TEMPORALITY__AGGREGATION_TEMPORALITY_CUMULATIVE,
+                "histogram cumulative");
+      check_int(point->count == 1 && point->sum == 0.25,
+                "histogram count and sum");
+    }
+    holons__v1__metric__free_unpacked(metric, NULL);
+  }
+  check_int(saw_counter, "saw counter metric");
+  check_int(saw_gauge, "saw gauge metric");
+  check_int(saw_histogram, "saw histogram metric");
+  holon_obs_free_packed_messages(messages, message_count);
+  holon_obs_reset();
+  restore_env("OP_OBS", old_obs);
+}
+
 int main(void) {
   test_observability_env();
   test_observability_disk_outputs();
+  test_observability_typed_log_record_wire();
+  test_observability_event_log_record_wire();
+  test_observability_metric_wire();
+  test_composite_member_resolution();
   test_discover();
   test_connect_direct_dial();
   test_connect_starts_slug_ephemerally();
@@ -2879,6 +3178,7 @@ int main(void) {
   test_ws_transport();
   test_wss_transport();
   test_serve_stdio();
+  test_current_transport_stdio_lifecycle();
 
   printf("%d passed, %d failed\n", passed, failed);
   return failed > 0 ? 1 : 0;

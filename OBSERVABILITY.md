@@ -108,8 +108,8 @@ leaf-language SDKs. Each tier has explicit responsibilities:
 
 | Tier | Components | Obligations |
 |---|---|---|
-| **Tier 1 — full chain** | `sdk/go-holons` (reference), `organism_kits/flutter`, `organism_kits/swiftui`, `op` | Logger + Counter + Gauge + Histogram + EventBus + chain + auto-register `HolonObservability` + `HolonMeta.Describe` exclusions + `.op/run/` disk writers + `meta.json` + **Prometheus `/metrics` HTTP endpoint** + **OTLP push (v2 reserved)** + **Organism Relay** (parent ↔ child streams, ChainHop append) + **Multilog writer** at the root + **total-phase RPC interceptor in v1** + four-phase session decomposition and session rollup when the v2 session layer ships + **runtime toggle UI** (kits only) |
-| **Tier 2 — minimal emitter** | `sdk/python-holons`, `sdk/js-holons`, `sdk/dart-holons`, `sdk/swift-holons`, `sdk/rust-holons`, `sdk/java-holons`, `sdk/kotlin-holons`, `sdk/csharp-holons`, `sdk/ruby-holons`, `sdk/c-holons`, `sdk/cpp-holons` | Logger + Counter + Gauge + Histogram + EventBus + chain propagation + auto-register `HolonObservability` + `.op/run/` disk writers + `meta.json`. **No Prometheus HTTP server, no OTLP push, no multilog writer, no relay.** The root in tier 1 pulls from these SDKs via their auto-registered service. |
+| **Tier 1 — full chain** | `sdk/go-holons` (reference), `organism_kits/flutter`, `organism_kits/swiftui`, `op` | Logger + Counter + Gauge + Histogram + EventBus + chain + auto-register `HolonObservability` + `HolonMeta.Describe` exclusions + `.op/run/` disk writers + `meta.json` + **Prometheus `/metrics` HTTP endpoint** + **OTLP push (v2 reserved)** + **Organism Relay** (parent ↔ child streams, ChainHop append, transitive pull on `SpawnMember`-issued connections when `logs` / `events` are enabled) + **Multilog writer** at the root + **total-phase RPC interceptor in v1** + four-phase session decomposition and session rollup when the v2 session layer ships + **runtime toggle UI** (kits only) |
+| **Tier 2 — minimal emitter** | `sdk/python-holons`, `sdk/js-holons`, `sdk/dart-holons`, `sdk/swift-holons`, `sdk/rust-holons`, `sdk/java-holons`, `sdk/kotlin-holons`, `sdk/csharp-holons`, `sdk/ruby-holons`, `sdk/c-holons`, `sdk/cpp-holons` | Logger + Counter + Gauge + Histogram + EventBus + chain propagation + auto-register `HolonObservability` + `.op/run/` disk writers + `meta.json` + **Organism Relay client side** (transitive pull on `SpawnMember`-issued connections when `logs` / `events` families are enabled, matching Tier 1). **No Prometheus HTTP server, no OTLP push, no multilog writer.** The root in tier 1 pulls from these SDKs via their auto-registered service. |
 | **Tier 3 — dial-only** | `sdk/js-web-holons` | Logger + Counter + Gauge + Histogram + EventBus + chain. **Served over the existing WebSocket channel to the Hub**, not a local gRPC listener. No disk writers (browser sandbox). The Hub pulls via Holon-RPC using the bidirectional WS semantics of COMMUNICATION.md §4.1. |
 
 Rationale: centralising Prometheus / OTLP / multilog in tier 1 keeps
@@ -492,6 +492,327 @@ context: `SESSION_STARTED` carries `{"session_id", "remote_slug",
 
 ---
 
+## Transitive Observability
+
+Status: implemented in Go and Dart SDKs (v1); other SDKs follow in v1.5.
+
+A parent that has spawned a child needs to see the child's logs and
+events as if they were its own. The SDK makes this the **default**
+behaviour of every parent→child connection: the moment a parent dials
+a child it spawned, the SDK opens long-lived
+`HolonObservability.Logs(follow=true)` and `Events(follow=true)`
+streams on that connection in the background, appends a `ChainHop`
+identifying the child to every received entry, and pushes the result
+into the parent's local log ring and event bus. The child does not
+push anything — the parent pulls over the existing connection, in
+line with [INSTANCES.md §Design Decisions — No Child-Initiated Dial](INSTANCES.md#design-decisions-frozen).
+
+Transitive Observability is the doctrine; [§Organism Relay](#organism-relay)
+below describes its on-the-wire mechanics, including the `ChainHop`
+append rules and the multilog enrichment performed at the root.
+
+### Doctrine
+
+1. **Default: ON for spawned children.** A parent→child connection is
+   transitive by default. The SDK opens
+   `HolonObservability.Logs(follow=true)` and
+   `Events(follow=true)` on the child's connection during dial and
+   republishes every received entry into the parent's rings, appending
+   `ChainHop{slug, instance_uid}` for the child as described in
+   [§Organism Relay](#organism-relay). The default is conditional on
+   the corresponding families (`logs`, `events`) being enabled on the
+   parent — see [§Activation](#activation) and [Design Principle 1](#design-principles).
+   When the parent has neither family on, the SDK has nowhere to
+   republish and the streams are not opened; the doctrine is "if a
+   parent observes at all, it observes its children by default."
+
+2. **Opt-out is explicit, never implicit.** The option that disables
+   transitivity is named `WithTransitiveObservability(false)` (per
+   language; see [§Per-language API](#per-language-api) below). The SDK
+   never silently disables it based on transport, latency, or buffer
+   pressure — silent suppression would violate the
+   [no-magic discipline](CLAUDE.md) the spec inherits.
+
+3. **Parent→child only, not peer-to-peer.** Transitivity follows the
+   spawn relationship, never the sibling one. A holon dialed
+   peer-to-peer — `connect(slug)` to an already-running instance the
+   caller did not spawn, or `composite.Dial(address)` to an explicit
+   endpoint — does **not** activate transitivity by default; the
+   caller must opt-in `WithTransitiveObservability(true)` explicitly.
+   The default-ON path is bound to the spawn-aware entrypoint
+   (`composite.SpawnMember`); both the peer-to-peer `composite.Dial`
+   and the generic `connect.Connect` default to OFF. This preserves
+   [INSTANCES.md §Design Decisions — No Child-Initiated Dial](INSTANCES.md#design-decisions-frozen):
+   children never reach back toward parents on their own; only the
+   parent reads from a child it already holds a connection to.
+
+4. **Per-emission opt-out (`private`).** When emitting a log or
+   event, the caller may mark it `private`. The SDK keeps the record
+   in the local ring/bus (so it is still visible on `op logs <self>`
+   and on the local disk writers) but does **not** publish it on the
+   server-side `Logs(follow=true)` / `Events(follow=true)` streams,
+   so parents never see it. The wire format is unchanged: the
+   `private` bit is consumed at emission time and never appears in
+   `LogEntry`/`EventInfo` on the wire.
+
+5. **Metrics are NOT covered by transitivity in v1.** Prometheus-style
+   metrics remain locally exposed (each hop serves its own
+   `/metrics`); only logs and events traverse via Transitive
+   Observability. Discovery of per-hop metric endpoints across a
+   chain is intended to happen via the `metrics_addr` field carried
+   in `INSTANCE_READY` event payloads (which **do** traverse
+   transitively). v2 may introduce a separate mechanism for
+   transitive metric aggregation — pull-through fold,
+   periodic push, or Prometheus scrape via discovery — but the
+   choice is deliberately left open. v1 readers should not assume
+   metrics will go silent: they remain reachable, just not aggregated
+   automatically.
+
+6. **Compatibility with INSTANCES.md and SESSIONS.md.** This doctrine
+   implements [INSTANCES.md §Organism Hierarchy](INSTANCES.md#organism-hierarchy)
+   and [INSTANCES.md §Design Decisions — No Child-Initiated Dial](INSTANCES.md#design-decisions-frozen).
+   It preserves every join key the future session layer needs:
+   `OP_INSTANCE_UID`, `OP_ORGANISM_UID`, and the `x-holon-slug` gRPC
+   metadata header all continue to flow through inherited env and
+   per-call metadata. Sessions tracing is orthogonal — when it lands
+   in v2, every entry already carries `instance_uid`, so session
+   correlation joins on the existing field with no proto change.
+
+### Activation matrix
+
+| Relationship | Entrypoint | Default | Override |
+|---|---|---|---|
+| Parent → spawned child | `composite.SpawnMember` | ON | `SpawnOptions.DialOptions` with `WithTransitiveObservability(false)` |
+| Peer → peer | `composite.Dial` (address), `connect.Connect` (slug) | OFF | `WithTransitiveObservability(true)` |
+| Child → parent | — | not permitted | — (see [INSTANCES.md §Design Decisions](INSTANCES.md#design-decisions-frozen)) |
+
+The split is intentional: the spawn-aware entry point knows the
+caller owns the child's lifecycle (and therefore its signals);
+peer-to-peer dial does not. Defaulting transitivity to ON on the
+wrong entrypoint would cause an arbitrary peer to start tailing a
+holon it does not own. `composite.Dial` takes a concrete address
+(`tcp://host:port`, `unix:///path`, `host:port`) — slug-based
+discovery is left to the caller, who resolves it via `connect.Connect`
+or a manifest lookup and passes the resulting address.
+
+### Chain visualisation
+
+A 3-hop chain `A → B → C` (A spawned B, B spawned C) emits a single
+log entry from C:
+
+```
+C emits "rendered banner" (originator slug=C, chain=[])
+   │
+   │ Logs(follow=true) stream that B opened on C during dial
+   ▼
+B receives the entry; appends ChainHop{C} → wire chain on B = [C]
+B re-emits on its own Logs stream
+   │
+   │ Logs(follow=true) stream that A opened on B during dial
+   ▼
+A receives the entry; appends ChainHop{B} → wire chain on A = [C, B]
+   │
+   ▼
+A's caller (e.g. `op logs A --follow`) sees the entry as
+originating in C and reads the relay path from chain.
+Order: originator-first (C), then each relay in traversal order (B).
+If A writes to its multilog, enrichment appends A itself,
+producing chain = [C, B, A].
+```
+
+Wire- vs enriched-chain semantics are owned by [§Organism Relay](#organism-relay)
+and [§Multilog chain enrichment](#multilog-chain-enrichment); the
+present section describes the doctrine, not the chain arithmetic.
+
+### Per-language API
+
+Names are canonical across SDKs; idiomatic form follows each language.
+
+Go:
+
+```go
+import (
+    "github.com/organic-programming/go-holons/pkg/composite"
+    "github.com/organic-programming/go-holons/pkg/observability"
+)
+
+// Default: transitive. SpawnMember owns the child's lifecycle, so the
+// parent's rings automatically pick up the child's logs and events
+// with ChainHop append handled by the SDK.
+member, err := composite.SpawnMember(ctx, composite.SpawnOptions{
+    Slug:       "gabriel-greeting-go",
+    BinaryPath: "/abs/path/to/gabriel-greeting-go",
+})
+defer member.Stop(ctx)
+
+// Opt-out: silent member. Logs and events stay inside the child.
+// DialOptions forwards composite-level options (here, transitivity OFF)
+// onto the connection SpawnMember opens.
+silent, err := composite.SpawnMember(ctx, composite.SpawnOptions{
+    Slug:        "gabriel-greeting-go",
+    BinaryPath:  "/abs/path/to/gabriel-greeting-go",
+    DialOptions: []composite.DialOption{
+        composite.WithTransitiveObservability(false),
+    },
+})
+defer silent.Stop(ctx)
+
+// Peer-to-peer dial: transitivity is OFF by default. composite.Dial
+// takes a concrete address (tcp://, unix://, or host:port), never a
+// slug — resolve the slug first via connect.Connect or a manifest
+// lookup and pass the resulting address.
+peer, err := composite.Dial(ctx, "tcp://127.0.0.1:9090",
+    composite.WithTransitiveObservability(true))
+```
+
+Per-emission `private` opt-out:
+
+```go
+logger := observability.Current().Logger("recipe.runner")
+logger.InfoContext(ctx, "recipe started",
+    "recipe", name,
+    "members", len(members))                // visible to parents
+
+logger.InfoContext(ctx, "internal probe",
+    "probe_id", id,
+    observability.Private())                 // stays local to this holon
+```
+
+Dart:
+
+```dart
+import 'package:holons/holons.dart';
+
+// Default: transitive. SpawnMember owns the child's lifecycle, so the
+// parent's rings automatically pick up its logs and events.
+final member = await spawnMember(
+  binaryPath: '/abs/path/to/gabriel-greeting-dart',
+  slug: 'gabriel-greeting-dart',
+);
+
+// Opt-out: silent member. The named parameter is on spawnMember
+// itself; it travels through to the relay attached on the connection.
+final silent = await spawnMember(
+  binaryPath: '/abs/path/to/gabriel-greeting-dart',
+  slug: 'gabriel-greeting-dart',
+  withTransitiveObservability: false,
+);
+
+// Peer-to-peer dial: connect takes a ConnectOptions object as its
+// positional second argument. Transitivity is OFF by default; opt-in
+// to tail a remote holon.
+final remote = await connect(
+  'gabriel-greeting-rust',
+  const ConnectOptions(withTransitiveObservability: true),
+);
+```
+
+Per-emission `private` opt-out in Dart:
+
+```dart
+final logger = observability.logger('recipe.runner');
+logger.info('recipe started',
+    {'recipe': name, 'members': '${members.length}'});
+
+logger.info('internal probe',
+    {'probe_id': id},
+    private: true);
+```
+
+Other languages map the doctrine to their idioms while keeping the
+canonical names:
+
+- Swift (v2 SDK): builder-style — `.withTransitiveObservability(.disabled)`.
+- Rust (v2 SDK): builder-style — `.with_transitive_observability(false)`.
+
+### Wire and proto invariants
+
+- The `private` bit is **emission-side only**. `LogEntry` and
+  `EventInfo` in [§Proto Definition](#proto-definition) carry no
+  `private` field; the SDK consumes the marker before pushing to
+  any server-side stream subscriber.
+- Transitive Observability does not introduce any new RPC, message
+  type, or proto field. Logs and events traverse over the existing
+  `HolonObservability.Logs(follow=true)` /
+  `Events(follow=true)` streams already specified above.
+- Chain append is mechanical, per [§Organism Relay — Chain semantics](#chain-semantics):
+  on every relay, the SDK appends one `ChainHop{child_slug,
+  child_instance_uid}` to the chain it received. No re-ordering, no
+  deduplication.
+
+### Relationship to other specs
+
+- [INSTANCES.md §Organism Hierarchy](INSTANCES.md#organism-hierarchy)
+  defines the registry layout and the `OP_ORGANISM_UID` /
+  `OP_ORGANISM_SLUG` env-var invariants. Transitive Observability is
+  the runtime behaviour the registry layout assumes.
+- [INSTANCES.md §Design Decisions — No Child-Initiated Dial](INSTANCES.md#design-decisions-frozen)
+  is implemented by point 3 above: only the parent dials, and only
+  the parent opens `Logs` / `Events` on the connection it owns.
+- [SESSIONS.md](SESSIONS.md) is orthogonal. Session correlation
+  reuses `instance_uid` (already stamped on every log and event by
+  the SDK on emission) — when the v2 session store ships, no proto
+  change is required for sessions to join transitively-propagated
+  signals.
+- [§Organism Relay](#organism-relay) below specifies the
+  ChainHop append rules, the multilog enrichment performed by the
+  root, and the failure modes (member crash, transient network).
+
+### Subscription replay
+
+`HolonObservability.Logs(follow=true)` and `Events(follow=true)` are
+**replay-then-live** on every Tier-1 and Tier-2 SDK that ships the
+service:
+
+- When a subscriber opens the stream, the server first sends a
+  snapshot of the local ring buffer (logs) or event bus (events) to
+  the subscriber, in emission order, then transitions to live
+  streaming on the same stream.
+- The replay-then-live transition is **atomic**. The snapshot is
+  taken under the same lock as subscriber registration, so no entry
+  is duplicated (entries already in the snapshot are not also
+  delivered live) and no entry is dropped at the seam (a new entry
+  emitted during the snapshot read is delivered live, never lost).
+- `follow=false` is unchanged: it returns a snapshot only and closes.
+  When a `since` cutoff is set, both modes filter the snapshot to
+  entries with `timestamp >= cutoff`.
+
+This makes the doctrine "transitive observability works by default"
+deterministic even when the parent's relay subscribes slightly after
+the child has already emitted boot events. In particular,
+`INSTANCE_READY` — which a child publishes the moment its first
+listener binds — is recovered by the parent on subscribe, never
+missed because of a few milliseconds of dial latency.
+
+### Metrics in v1 — explicit non-coverage
+
+Transitive Observability covers logs and events only. A reader of
+`op logs <root>` sees a complete tree-wide narrative; a reader of
+`op metrics <root>` sees the root's own metrics and nothing else.
+
+Today's discovery path for per-hop metric endpoints:
+
+- Every member's `meta.json` records `metrics_addr` (the bound
+  Prometheus endpoint) — see [INSTANCES.md §Registry](INSTANCES.md#registry).
+- `INSTANCE_READY` event payloads carry `metrics_addr` alongside
+  `listener` in the payload map. A reader of the root's
+  `Events(follow=true)` stream discovers every member's Prometheus
+  endpoint as members come up (and, thanks to
+  [§Subscription replay](#subscription-replay), recovers the boot
+  payload even on a late subscribe). The payload keys are `listener`
+  (the bound transport URI) and `metrics_addr` (the Prometheus HTTP
+  address, or empty when `prom` is not active). Readers walk the
+  discovered endpoints with their existing Prometheus tooling.
+- An external scraper aggregates per-endpoint exposition into a
+  single dashboard.
+
+v2 may add a transitive metric mechanism — pull-through fold inside
+the parent, periodic push from each hop, or Prometheus scrape driven
+by event-based discovery. The design is deliberately left open; see
+[§Phasing](#phasing).
+
+---
+
 ## Organism Relay
 
 A composite app — a Flutter macOS binary hosting five Go/Rust/Python
@@ -505,8 +826,14 @@ The observability layer reuses **existing bidirectional connections**
 No new RPC, no new dial direction, no `Ingest`:
 
 - Each holon opens `child.Logs(follow=true)` and `child.Events(follow=true)`
-  on every direct child it knows — typically the ones it spawned, or
-  declared organism members from the mesh.
+  on every spawned child by default (transitive observability is on by
+  default for `SpawnMember`-issued connections; see
+  [§Transitive Observability](#transitive-observability)) and on any
+  declared organism member from the mesh that the holon dials with
+  transitivity explicitly opted in. The leaf's boot events
+  (notably `INSTANCE_READY`) are not lost when the parent subscribes
+  slightly after emission: see
+  [§Transitive Observability — Subscription replay](#subscription-replay).
 - It polls `child.Metrics()` on a configurable interval (default 15s).
 - The child's stream handler is a long-lived emitter: it pushes local
   signals as they happen **and** re-emits signals it received from
@@ -1075,7 +1402,7 @@ human table), `--prefix <name>`, `--include-session-rollup`, `--all`.
 ```
 $ op events gabriel-greeting-go --follow
 2026-04-23T18:42:01.000Z INSTANCE_SPAWNED     instance_uid=ea346efb pid=12341
-2026-04-23T18:42:01.102Z INSTANCE_READY       instance_uid=ea346efb listener=tcp://127.0.0.1:9090
+2026-04-23T18:42:01.102Z INSTANCE_READY       instance_uid=ea346efb listener=tcp://127.0.0.1:9090 metrics_addr=http://127.0.0.1:54321
 2026-04-23T18:42:03.111Z SESSION_STARTED      instance_uid=ea346efb session_id=d9e0f1a2 remote_slug=grace-op
 ```
 

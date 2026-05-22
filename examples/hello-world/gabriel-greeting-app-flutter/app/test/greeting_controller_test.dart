@@ -75,6 +75,48 @@ void main() {
       expect(connection.sayHelloCalls.last, ('Alice', 'en'));
     });
 
+    test('stops relay hook before closing the previous connection', () async {
+      final swiftConnection = FakeGreetingHolonConnection(
+        languages: [language(code: 'en', name: 'English', native: 'English')],
+        greetingBuilder: ({required name, required langCode}) =>
+            'Hello $name from Swift',
+      );
+      final zigConnection = FakeGreetingHolonConnection(
+        languages: [language(code: 'en', name: 'English', native: 'English')],
+        greetingBuilder: ({required name, required langCode}) =>
+            'Hello $name from Zig',
+      );
+      final controller = GreetingController(
+        catalog: FakeHolonCatalog(<GabrielHolonIdentity>[
+          holon('gabriel-greeting-swift'),
+          holon('gabriel-greeting-zig'),
+        ]),
+        connector: FakeHolonConnector(
+          factories: <String, FakeGreetingHolonConnection Function(String)>{
+            'gabriel-greeting-swift': (_) => swiftConnection,
+            'gabriel-greeting-zig': (_) => zigConnection,
+          },
+        ),
+      );
+      final closeEvents = <String>[];
+      controller.beforeConnectionClose = () async {
+        closeEvents.add(
+          '${controller.selectedHolon?.slug}:${swiftConnection.closed}',
+        );
+      };
+
+      await controller.initialize();
+      await waitForCoaxUpdate();
+      await controller.selectHolonBySlug('gabriel-greeting-zig');
+
+      expect(closeEvents, ['gabriel-greeting-zig:false']);
+      expect(swiftConnection.closed, isTrue);
+      expect(controller.selectedHolon?.slug, 'gabriel-greeting-zig');
+      expect(controller.isRunning, isTrue);
+      expect(controller.greeting, 'Hello World from Zig');
+      expect(zigConnection.sayHelloCalls.last, ('World', 'en'));
+    });
+
     test(
       'rejects unix transport when the platform capability disables it',
       () async {
@@ -105,29 +147,32 @@ void main() {
       },
     );
 
-    test('surfaces language-load failures and drops the bad connection', () async {
-      final controller = GreetingController(
-        catalog: FakeHolonCatalog(<GabrielHolonIdentity>[
-          holon('gabriel-greeting-swift'),
-        ]),
-        connector: FakeHolonConnector(
-          factories: <String, FakeGreetingHolonConnection Function(String)>{
-            'gabriel-greeting-swift': (_) => FakeGreetingHolonConnection(
-              languages: const [],
-              greetingBuilder: ({required name, required langCode}) =>
-                  'ignored',
-              listLanguagesError: StateError('boot failure'),
-            ),
-          },
-        ),
-      );
+    test(
+      'surfaces language-load failures and drops the bad connection',
+      () async {
+        final controller = GreetingController(
+          catalog: FakeHolonCatalog(<GabrielHolonIdentity>[
+            holon('gabriel-greeting-swift'),
+          ]),
+          connector: FakeHolonConnector(
+            factories: <String, FakeGreetingHolonConnection Function(String)>{
+              'gabriel-greeting-swift': (_) => FakeGreetingHolonConnection(
+                languages: const [],
+                greetingBuilder: ({required name, required langCode}) =>
+                    'ignored',
+                listLanguagesError: StateError('boot failure'),
+              ),
+            },
+          ),
+        );
 
-      await controller.initialize();
+        await controller.initialize();
 
-      expect(controller.connectionError, isNull);
-      expect(controller.error, contains('Failed to load languages'));
-      expect(controller.isRunning, isFalse);
-    });
+        expect(controller.connectionError, isNull);
+        expect(controller.error, contains('Failed to load languages'));
+        expect(controller.isRunning, isFalse);
+      },
+    );
 
     test('transport change invalidates an in-flight start', () async {
       final stdioCompleter = Completer<GreetingHolonConnection>();

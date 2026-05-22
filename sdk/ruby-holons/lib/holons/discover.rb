@@ -21,10 +21,12 @@ module Holons
     class StdioDialProxy
       attr_reader :pid, :target, :wait_thread
 
-      def initialize(command_path, args: [], chdir: nil)
+      def initialize(command_path, args: [], serve_args: [], chdir: nil, env: nil)
         @command_path = command_path
         @args = Array(args)
+        @serve_args = Array(serve_args)
         @chdir = chdir
+        @env = env
         @mutex = Mutex.new
         @pending_stdout = []
         @closed = false
@@ -51,8 +53,12 @@ module Holons
 
         [stdin_read, stdin_write, stdout_read, stdout_write, stderr_read, stderr_write].each(&:binmode)
 
-        spawn_args = [@command_path, *@args, "serve", "--listen", "stdio://"]
-        @pid = Process.spawn(*spawn_args, in: stdin_read, out: stdout_write, err: stderr_write, chdir: @chdir)
+        spawn_args = [@command_path, *@args, "serve", "--listen", "stdio://", *@serve_args]
+        @pid = if @env.nil?
+                 Process.spawn(*spawn_args, in: stdin_read, out: stdout_write, err: stderr_write, chdir: @chdir)
+               else
+                 Process.spawn(@env, *spawn_args, in: stdin_read, out: stdout_write, err: stderr_write, chdir: @chdir)
+               end
         @wait_thread = Process.detach(@pid)
 
         stdin_read.close

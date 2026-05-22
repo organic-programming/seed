@@ -33,6 +33,40 @@ func TestProtoStageWritesDescriptor(t *testing.T) {
 	}
 }
 
+func TestStageHolonProtosSkipsInternalHolonMembers(t *testing.T) {
+	root := t.TempDir()
+	parentDir := filepath.Join(root, "composite")
+	childDir := filepath.Join(parentDir, "holons", "node")
+	writeProtoFileForStageTest(t, filepath.Join(parentDir, "api", "v1", "holon.proto"), "parent.v1")
+	writeProtoFileForStageTest(t, filepath.Join(childDir, "api", "v1", "holon.proto"), "child.v1")
+
+	staged, err := stageHolonProtos(&LoadedManifest{Dir: parentDir}, filepath.Join(root, "staged"))
+	if err != nil {
+		t.Fatalf("stageHolonProtos failed: %v", err)
+	}
+	if len(staged) != 1 || staged[0] != filepath.Join("api", "v1", "holon.proto") {
+		t.Fatalf("staged protos = %v, want only parent holon.proto", staged)
+	}
+	if _, err := os.Stat(filepath.Join(root, "staged", "holons", "node", "api", "v1", "holon.proto")); !os.IsNotExist(err) {
+		t.Fatalf("internal child proto should not be staged, stat err: %v", err)
+	}
+}
+
+func TestStageAncestorProtosFindsSharedProtosForInternalHolon(t *testing.T) {
+	root := t.TempDir()
+	childDir := filepath.Join(root, "composite", "holons", "node")
+	sharedProto := filepath.Join(root, "_protos", "shared", "v1", "shared.proto")
+	writeProtoFileForStageTest(t, sharedProto, "shared.v1")
+
+	destDir := filepath.Join(root, "staged")
+	if err := stageAncestorProtos(childDir, destDir); err != nil {
+		t.Fatalf("stageAncestorProtos failed: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(destDir, "shared", "v1", "shared.proto")); err != nil {
+		t.Fatalf("shared proto was not staged for internal holon: %v", err)
+	}
+}
+
 func TestProtoStageWritesReferenceDoc(t *testing.T) {
 	if _, err := execLookPath("go"); err != nil {
 		t.Skip("go command not available")
@@ -55,6 +89,17 @@ func TestProtoStageWritesReferenceDoc(t *testing.T) {
 	}
 	if !strings.Contains(content, "op build") {
 		t.Fatal("REFERENCE.md missing commands section")
+	}
+}
+
+func writeProtoFileForStageTest(t *testing.T, path string, pkg string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	data := "syntax = \"proto3\";\npackage " + pkg + ";\nmessage Marker {}\n"
+	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
+		t.Fatal(err)
 	}
 }
 
