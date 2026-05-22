@@ -1,4 +1,4 @@
-seed_release: "0.9.1"
+seed_release: "0.9.2"
 
 protoc:
   upstream_tag: "v32.0"
