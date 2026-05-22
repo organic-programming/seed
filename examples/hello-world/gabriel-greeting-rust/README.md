@@ -31,7 +31,7 @@ The holon's `api/v1/holon.proto` imports from two shared `_protos` directories (
 | Path | Scope | Content |
 |------|-------|---------|
 | `../../../_protos/` | Platform | System types (`holons/v1/manifest.proto`, `describe.proto`) |
-| `../../_protos/` | Domain | Shared contract (`v1/greeting.proto` — service + messages) |
+| `../_protos/` | Domain | Shared contract (`v1/greeting.proto` — service + messages) |
 | `api/v1/holon.proto` | Local | Holon identity manifest + Rust-specific metadata |
 
 ## Facets
@@ -189,6 +189,6 @@ op gabriel-greeting-rust SayHello '{"name":"Maria","lang_code":"fr"}'
 
 ```bash
 cd examples/hello-world/gabriel-greeting-rust
-protoc --proto_path=api --proto_path=../../_protos --proto_path=../../../_protos v1/holon.proto --descriptor_set_out=/dev/null
+protoc --proto_path=api --proto_path=../_protos --proto_path=../../../holons/grace-op/_protos v1/holon.proto --descriptor_set_out=/dev/null
 ```
 <!-- don't modify preeceeding section -->

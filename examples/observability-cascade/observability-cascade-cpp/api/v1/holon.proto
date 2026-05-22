@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package observability.cascade.cpp.v1;
+
+import "holons/v1/manifest.proto";
+import "observability_cascade/v1/service.proto";
+
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "f638734a-0055-40f5-88e7-e4f85921fd43"
+    given_name: "Observability"
+    family_name: "Cascade-Cpp"
+    motto: "Validates C++ observability cascade observability."
+    composer: "B. ALTER"
+    status: "draft"
+    born: "2026-05-13"
+    version: "0.1.0"
+  }
+  description: "A C++ composite program that validates observability-cascade observability across three modes and patterns."
+  lang: "cpp"
+  kind: "composite"
+  transport: "tcp"
+  contract: {
+    proto: "observability_cascade/v1/service.proto"
+    service: "observability_cascade.v1.ObservabilityCascadeService"
+    rpcs: ["RunDefault", "RunLiveStream", "RunMultiPattern"]
+  }
+  build: {
+    runner: "cmake"
+    codegen: {
+      languages: ["cpp"]
+    }
+    members: {
+      id: "cpp-node"
+      path: "../observability-cascade-cpp-node"
+      type: "holon"
+    }
+    members: {
+      id: "go-node"
+      path: "../observability-cascade-go-node"
+      type: "holon"
+    }
+  }
+  requires: {
+    commands: ["cmake"]
+    files: ["CMakeLists.txt", "src/main.cpp"]
+    sdk_prebuilts: ["cpp"]
+  }
+  artifacts: {
+    primary: ".op/build/observability-cascade-cpp.holon"
+  }
+};

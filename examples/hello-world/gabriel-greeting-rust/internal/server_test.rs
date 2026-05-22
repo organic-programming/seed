@@ -1,7 +1,11 @@
 use crate::gen::rust::greeting::v1 as pb;
+use holons::gen::holons::v1::any_value;
+use holons::observability::{self, Field};
+use std::collections::HashMap;
 use tokio::net::TcpListener;
 use tokio::sync::oneshot;
 use tokio_stream::wrappers::TcpListenerStream;
+use tonic::Request;
 
 struct TestServer {
     client: pb::greeting_service_client::GreetingServiceClient<tonic::transport::Channel>,
@@ -137,4 +141,73 @@ async fn say_hello_falls_back_to_english() {
 
     assert_eq!(response.greeting, "Hello Bob");
     assert_eq!(response.lang_code, "en");
+}
+
+#[tokio::test]
+async fn say_hello_emits_otlp_shaped_log_record() {
+    observability::reset();
+    let mut env = HashMap::new();
+    env.insert("OP_OBS".to_string(), "logs,metrics".to_string());
+    let obs = observability::configure_from_env(
+        observability::Config {
+            slug: "gabriel-greeting-rust".to_string(),
+            instance_uid: "greeting-test-uid".to_string(),
+            ..observability::Config::default()
+        },
+        &env,
+    )
+    .unwrap();
+
+    use pb::greeting_service_server::GreetingService;
+    let response = crate::internal::server::GreetingServer
+        .say_hello(Request::new(pb::SayHelloRequest {
+            name: "Ana".to_string(),
+            lang_code: "es".to_string(),
+        }))
+        .await
+        .unwrap()
+        .into_inner();
+    assert_eq!(response.greeting, "Hola Ana");
+
+    let record = obs
+        .log_ring
+        .as_ref()
+        .unwrap()
+        .drain()
+        .into_iter()
+        .find(|entry| entry.message == "Greeted Ana in Spanish (es)")
+        .expect("missing greeting log");
+    let wire = observability::to_proto_log_record(&record);
+    assert_eq!(
+        wire.body.as_ref().unwrap().value.as_ref(),
+        Some(&any_value::Value::StringValue(
+            "Greeted Ana in Spanish (es)".to_string()
+        ))
+    );
+    assert_eq!(
+        record.fields.get("transport"),
+        Some(&Field::String("unknown".to_string()))
+    );
+    assert!(matches!(
+        record.fields.get("duration_ns"),
+        Some(Field::Int64(value)) if *value >= 0
+    ));
+    assert_eq!(
+        observability::string_attribute(&wire.attributes, observability::ATTR_HOLONS_SLUG),
+        "gabriel-greeting-rust"
+    );
+    assert_eq!(
+        observability::string_attribute(&wire.attributes, observability::ATTR_SERVICE_NAME),
+        "gabriel-greeting-rust"
+    );
+    assert_eq!(
+        observability::string_attribute(&wire.attributes, observability::ATTR_HOLONS_INSTANCE_UID),
+        "greeting-test-uid"
+    );
+    assert_eq!(
+        observability::string_attribute(&wire.attributes, observability::ATTR_SERVICE_INSTANCE_ID),
+        "greeting-test-uid"
+    );
+
+    observability::reset();
 }

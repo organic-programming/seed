@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package observability.cascade.node.v1;
+
+import "holons/v1/manifest.proto";
+import "observability_cascade/v1/service.proto";
+
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "db549442-f097-4691-9677-1708a03bd1e8"
+    given_name: "Observability"
+    family_name: "Cascade-Node"
+    motto: "Validates Node observability cascade observability."
+    composer: "B. ALTER"
+    status: "draft"
+    born: "2026-05-13"
+    version: "0.1.0"
+  }
+  description: "A Node.js composite program that validates observability-cascade observability across three modes and patterns."
+  lang: "js"
+  kind: "composite"
+  transport: "tcp"
+  contract: {
+    proto: "observability_cascade/v1/service.proto"
+    service: "observability_cascade.v1.ObservabilityCascadeService"
+    rpcs: ["RunDefault", "RunLiveStream", "RunMultiPattern"]
+  }
+  build: {
+    runner: "npm"
+    main: "./cmd/main.js"
+    codegen: { languages: ["js"] }
+    members: {
+      id: "node-node"
+      path: "../observability-cascade-node-node"
+      type: "holon"
+    }
+    members: {
+      id: "go-node"
+      path: "../observability-cascade-go-node"
+      type: "holon"
+    }
+  }
+  requires: {
+    commands: ["node", "npm"]
+    files: ["cmd/main.js", "package.json"]
+    sdk_prebuilts: ["js"]
+  }
+  artifacts: {
+    primary: ".op/build/observability-cascade-node.holon"
+  }
+};

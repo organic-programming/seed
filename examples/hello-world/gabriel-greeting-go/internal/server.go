@@ -5,7 +5,9 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
+	"github.com/organic-programming/go-holons/pkg/observability"
 	"github.com/organic-programming/go-holons/pkg/serve"
 
 	pb "gabriel-greeting-go/gen/go/greeting/v1"
@@ -32,14 +34,36 @@ func (s *Server) ListLanguages(_ context.Context, _ *pb.ListLanguagesRequest) (*
 }
 
 // SayHello greets the user in the requested language.
-func (s *Server) SayHello(_ context.Context, req *pb.SayHelloRequest) (*pb.SayHelloResponse, error) {
+func (s *Server) SayHello(ctx context.Context, req *pb.SayHelloRequest) (*pb.SayHelloResponse, error) {
+	start := time.Now()
 	g := Lookup(req.LangCode)
 	name := strings.TrimSpace(req.Name)
 	if name == "" {
 		name = g.DefaultName
 	}
+	transport := serve.CurrentTransport()
+	if transport == "" {
+		transport = "unknown"
+	}
+	greeting := fmt.Sprintf(g.Template, name)
+	msg := fmt.Sprintf("Greeted %s in %s (%s)", name, g.LangEnglish, g.LangCode)
+	elapsed := time.Since(start)
+	obs := observability.Current()
+	obs.Logger("greeting").InfoContext(ctx, msg,
+		"lang_code", req.LangCode,
+		"language", g.LangEnglish,
+		"name", name,
+		"greeting", greeting,
+		"transport", transport,
+		"duration_ns", elapsed.Nanoseconds(),
+	)
+	obs.Counter("greeting_emitted_total", "Greetings emitted, partitioned by language and transport.", map[string]string{
+		"lang_code": g.LangCode,
+		"language":  g.LangEnglish,
+		"transport": transport,
+	}).Inc()
 	return &pb.SayHelloResponse{
-		Greeting: fmt.Sprintf(g.Template, name),
+		Greeting: greeting,
 		Language: g.LangEnglish,
 		LangCode: g.LangCode,
 	}, nil

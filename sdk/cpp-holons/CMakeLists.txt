@@ -42,7 +42,7 @@ else()
   target_include_directories(holons INTERFACE /opt/homebrew/include /usr/local/include)
 endif()
 
-add_executable(test_runner test/holons_test.cpp)
+add_executable(test_runner test/holons_test.cpp src/serve.cpp)
 target_link_libraries(test_runner PRIVATE holons)
 
 if (HOLONS_USING_CPP_PREBUILT)
@@ -209,8 +209,12 @@ holons_generate_grpc_cpp(holons_proto_grpc
     "${HOLONS_CANONICAL_PROTO_ROOT}/holons/v1/manifest.proto"
     "${HOLONS_CANONICAL_PROTO_ROOT}/holons/v1/describe.proto"
     "${HOLONS_CANONICAL_PROTO_ROOT}/holons/v1/coax.proto"
+    "${HOLONS_CANONICAL_PROTO_ROOT}/holons/v1/session.proto"
+    "${HOLONS_CANONICAL_PROTO_ROOT}/holons/v1/observability.proto"
   IMPORT_DIRS "${HOLONS_CANONICAL_PROTO_ROOT}"
 )
+
+target_include_directories(holons BEFORE INTERFACE "${HOLONS_GENERATED_DIR}")
 
 holons_generate_grpc_cpp(echo_grpc
   OUT_DIR "${HOLONS_GENERATED_DIR}"

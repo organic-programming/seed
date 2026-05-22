@@ -4,71 +4,31 @@ import (
 	"context"
 	"sync"
 	"time"
-)
 
-// EventType mirrors the proto EventType enum.
-type EventType int32
+	v1 "github.com/organic-programming/go-holons/gen/go/holons/v1"
+)
 
 const (
-	EventTypeUnspecified    EventType = 0
-	EventInstanceSpawned    EventType = 1
-	EventInstanceReady      EventType = 2
-	EventInstanceExited     EventType = 3
-	EventInstanceCrashed    EventType = 4
-	EventSessionStarted     EventType = 5
-	EventSessionEnded       EventType = 6
-	EventHandlerPanic       EventType = 7
-	EventConfigReloaded     EventType = 8
+	EventInstanceSpawned = "instance.spawned"
+	EventInstanceReady   = "instance.ready"
+	EventInstanceExited  = "instance.exited"
+	EventInstanceCrashed = "instance.crashed"
+	EventSessionStarted  = "session.started"
+	EventSessionEnded    = "session.ended"
+	EventHandlerPanic    = "handler.panic"
+	EventConfigReloaded  = "config.reloaded"
 )
 
-// String returns the enum name.
-func (t EventType) String() string {
-	switch t {
-	case EventInstanceSpawned:
-		return "INSTANCE_SPAWNED"
-	case EventInstanceReady:
-		return "INSTANCE_READY"
-	case EventInstanceExited:
-		return "INSTANCE_EXITED"
-	case EventInstanceCrashed:
-		return "INSTANCE_CRASHED"
-	case EventSessionStarted:
-		return "SESSION_STARTED"
-	case EventSessionEnded:
-		return "SESSION_ENDED"
-	case EventHandlerPanic:
-		return "HANDLER_PANIC"
-	case EventConfigReloaded:
-		return "CONFIG_RELOADED"
-	default:
-		return "UNSPECIFIED"
-	}
-}
-
-// Event is the in-memory representation of an EventInfo.
-type Event struct {
-	Timestamp   time.Time
-	Type        EventType
-	Slug        string
-	InstanceUID string
-	SessionID   string
-	Payload     map[string]string
-	Chain       []Hop
-}
-
-// EventBus is a bounded buffer + fan-out for events. Emit pushes into
-// the buffer and broadcasts to live subscribers. Drain returns a
-// snapshot (oldest first).
+// EventBus is a bounded buffer + fan-out for event LogRecords.
 type EventBus struct {
-	mu      sync.Mutex
-	buf     []Event
-	next    int
-	filled  bool
-	cap     int
-	closed  bool
+	mu     sync.Mutex
+	buf    []LogRecord
+	next   int
+	filled bool
+	cap    int
+	closed bool
 
-	subsMu sync.Mutex
-	subs   []chan Event
+	subs []chan LogRecord
 }
 
 // NewEventBus constructs an EventBus with the given buffer capacity.
@@ -78,14 +38,13 @@ func NewEventBus(capacity int) *EventBus {
 		capacity = 256
 	}
 	return &EventBus{
-		buf: make([]Event, capacity),
+		buf: make([]LogRecord, capacity),
 		cap: capacity,
 	}
 }
 
-// Emit pushes a new event. Evicts the oldest when full. Drops silently
-// if the bus was closed.
-func (b *EventBus) Emit(e Event) {
+// Emit pushes a new event record. Evicts the oldest when full.
+func (b *EventBus) Emit(e LogRecord) {
 	if b == nil {
 		return
 	}
@@ -99,20 +58,18 @@ func (b *EventBus) Emit(e Event) {
 	if !b.filled && b.next == 0 {
 		b.filled = true
 	}
-	b.mu.Unlock()
 
-	b.subsMu.Lock()
 	for _, ch := range b.subs {
 		select {
 		case ch <- e:
 		default:
 		}
 	}
-	b.subsMu.Unlock()
+	b.mu.Unlock()
 }
 
-// Drain returns a snapshot of all resident events in chronological order.
-func (b *EventBus) Drain() []Event {
+// Drain returns a snapshot of all resident event records in chronological order.
+func (b *EventBus) Drain() []LogRecord {
 	if b == nil {
 		return nil
 	}
@@ -121,29 +78,29 @@ func (b *EventBus) Drain() []Event {
 	return b.snapshotLocked()
 }
 
-// DrainSince returns events with timestamp >= cutoff, in order.
-func (b *EventBus) DrainSince(cutoff time.Time) []Event {
+// DrainSince returns event records with timestamp >= cutoff, in order.
+func (b *EventBus) DrainSince(cutoff time.Time) []LogRecord {
 	if b == nil {
 		return nil
 	}
 	b.mu.Lock()
 	all := b.snapshotLocked()
 	b.mu.Unlock()
-	out := make([]Event, 0, len(all))
+	out := make([]LogRecord, 0, len(all))
 	for _, e := range all {
-		if !e.Timestamp.Before(cutoff) {
+		if !e.timestamp().Before(cutoff) {
 			out = append(out, e)
 		}
 	}
 	return out
 }
 
-func (b *EventBus) snapshotLocked() []Event {
+func (b *EventBus) snapshotLocked() []LogRecord {
 	n := b.cap
 	if !b.filled {
 		n = b.next
 	}
-	out := make([]Event, n)
+	out := make([]LogRecord, n)
 	if !b.filled {
 		copy(out, b.buf[:n])
 		return out
@@ -153,24 +110,23 @@ func (b *EventBus) snapshotLocked() []Event {
 	return out
 }
 
-// Watch returns a channel that receives live events. The channel is
-// buffered; a slow consumer drops. Call stop to release the subscription.
-func (b *EventBus) Watch(bufSize int) (<-chan Event, func()) {
+// Watch returns a buffered channel that receives live event records.
+func (b *EventBus) Watch(bufSize int) (<-chan LogRecord, func()) {
 	if b == nil {
-		ch := make(chan Event)
+		ch := make(chan LogRecord)
 		close(ch)
 		return ch, func() {}
 	}
 	if bufSize <= 0 {
 		bufSize = 32
 	}
-	ch := make(chan Event, bufSize)
-	b.subsMu.Lock()
+	ch := make(chan LogRecord, bufSize)
+	b.mu.Lock()
 	b.subs = append(b.subs, ch)
-	b.subsMu.Unlock()
+	b.mu.Unlock()
 	stop := func() {
-		b.subsMu.Lock()
-		defer b.subsMu.Unlock()
+		b.mu.Lock()
+		defer b.mu.Unlock()
 		for i, c := range b.subs {
 			if c == ch {
 				b.subs = append(b.subs[:i], b.subs[i+1:]...)
@@ -182,6 +138,50 @@ func (b *EventBus) Watch(bufSize int) (<-chan Event, func()) {
 	return ch, stop
 }
 
+func (b *EventBus) replayAndWatch(cutoff time.Time, bufSize int) ([]LogRecord, <-chan LogRecord, func()) {
+	if b == nil {
+		ch := make(chan LogRecord)
+		close(ch)
+		return nil, ch, func() {}
+	}
+	if bufSize <= 0 {
+		bufSize = 32
+	}
+	ch := make(chan LogRecord, bufSize)
+	b.mu.Lock()
+	if b.closed {
+		close(ch)
+		b.mu.Unlock()
+		return nil, ch, func() {}
+	}
+	replay := b.snapshotLocked()
+	if !cutoff.IsZero() {
+		out := replay[:0]
+		for _, e := range replay {
+			if !e.timestamp().Before(cutoff) {
+				out = append(out, e)
+			}
+		}
+		replay = out
+	}
+	cpy := make([]LogRecord, len(replay))
+	copy(cpy, replay)
+	b.subs = append(b.subs, ch)
+	b.mu.Unlock()
+	stop := func() {
+		b.mu.Lock()
+		defer b.mu.Unlock()
+		for i, c := range b.subs {
+			if c == ch {
+				b.subs = append(b.subs[:i], b.subs[i+1:]...)
+				close(ch)
+				return
+			}
+		}
+	}
+	return cpy, ch, stop
+}
+
 // Close disables future emits and closes every subscriber channel.
 func (b *EventBus) Close() {
 	if b == nil {
@@ -189,28 +189,28 @@ func (b *EventBus) Close() {
 	}
 	b.mu.Lock()
 	b.closed = true
-	b.mu.Unlock()
-
-	b.subsMu.Lock()
 	for _, ch := range b.subs {
 		close(ch)
 	}
 	b.subs = nil
-	b.subsMu.Unlock()
+	b.mu.Unlock()
 }
 
-// Accessors on Observability.
-
-// Emit is a convenience that fills in well-known fields from the
-// Observability instance before publishing on the event bus. Payload
-// fields listed in RedactedFields are replaced with "<redacted>".
-func (o *Observability) Emit(ctx context.Context, typ EventType, payload map[string]string) {
+// Emit publishes an event LogRecord through the active event bus.
+func (o *Observability) Emit(ctx context.Context, eventName string, payload map[string]string, opts ...any) {
 	if o == nil || !o.families[FamilyEvents] {
 		return
 	}
+	private := false
+	for _, opt := range opts {
+		if isPrivateMarker(opt) {
+			private = true
+		}
+	}
 	sessionID, _ := fromContext(ctx)
-	// Apply redaction to payload.
-	if len(o.redact) > 0 && len(payload) > 0 {
+	attrs := resourceAttributes(o.cfg.Slug, o.cfg.InstanceUID)
+	attrs = append(attrs, keyValue(AttrHolonsSessionID, sessionID))
+	if len(payload) > 0 {
 		pcopy := make(map[string]string, len(payload))
 		for k, v := range payload {
 			if _, ok := o.redact[k]; ok {
@@ -219,16 +219,18 @@ func (o *Observability) Emit(ctx context.Context, typ EventType, payload map[str
 				pcopy[k] = v
 			}
 		}
-		payload = pcopy
+		attrs = append(attrs, sortedMapAttributes(pcopy)...)
 	}
-	o.bus.Emit(Event{
-		Timestamp:   time.Now(),
-		Type:        typ,
-		Slug:        o.cfg.Slug,
-		InstanceUID: o.cfg.InstanceUID,
-		SessionID:   sessionID,
-		Payload:     payload,
-	})
+	now := time.Now()
+	o.bus.Emit(newLogRecord(&v1.LogRecord{
+		TimeUnixNano:         uint64(now.UnixNano()),
+		ObservedTimeUnixNano: uint64(now.UnixNano()),
+		SeverityNumber:       v1.SeverityNumber_SEVERITY_NUMBER_INFO,
+		SeverityText:         "INFO",
+		Body:                 ToAnyValue(eventName),
+		Attributes:           attrs,
+		EventName:            eventName,
+	}, private))
 }
 
 // EventBus returns the active bus, or nil when events are off.

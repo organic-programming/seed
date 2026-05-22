@@ -4,6 +4,7 @@
 //! wrappers. The C ABI exported from `cabi.zig` uses opaque handles only.
 
 pub const cabi = @import("cabi.zig");
+pub const composite = @import("composite.zig");
 pub const connect = @import("connect.zig");
 pub const describe = @import("describe.zig");
 pub const discover = @import("discover.zig");
@@ -16,7 +17,9 @@ pub const grpc = struct {
 pub const holonrpc = @import("holonrpc.zig");
 pub const hub = @import("hub.zig");
 pub const identity = @import("identity.zig");
+pub const member_relay = @import("member_relay.zig");
 pub const observability = @import("observability.zig");
+pub const relay = @import("relay.zig");
 pub const protobuf = struct {
     pub const runtime = @import("protobuf/runtime.zig");
 };

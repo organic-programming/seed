@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	aderv1 "github.com/organic-programming/clem-ader/gen/go/v1"
+	aderv1 "github.com/organic-programming/clem-ader/gen/go/ader/v1"
 	"github.com/organic-programming/clem-ader/internal/testrepo"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"

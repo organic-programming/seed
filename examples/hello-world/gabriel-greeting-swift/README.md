@@ -235,6 +235,6 @@ op gabriel-greeting-swift SayHello '{"name":"Maria","lang_code":"fr"}'
 
 ```bash
 cd examples/hello-world/gabriel-greeting-swift/api/v1
-protoc --proto_path=. --proto_path=../../../../../_protos --proto_path=../../../../_protos holon.proto --descriptor_set_out=/dev/null
+protoc --proto_path=. --proto_path=../../../../../holons/grace-op/_protos --proto_path=../../../_protos holon.proto --descriptor_set_out=/dev/null
 ```
 <!-- don't modify preeceeding section -->

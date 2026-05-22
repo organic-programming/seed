@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package observability_cascade.v1;
+
+option go_package = "observability-cascade-go/gen/go/observability_cascade/v1;observabilitycascadev1";
+
+service ObservabilityCascadeService {
+  // Run the default 4-deep chain in this composite's own language.
+  // @example {}
+  rpc RunDefault(RunRequest) returns (CascadeReport);
+
+  // Run with long-lived Follow:true streams.
+  // @example {}
+  rpc RunLiveStream(RunRequest) returns (CascadeReport);
+
+  // Run the full alter-language pattern matrix (3 patterns x 12 ticks = 36 ticks).
+  // @example {}
+  rpc RunMultiPattern(RunRequest) returns (MultiPatternReport);
+}
+
+message RunRequest {}
+
+message PhaseResult {
+  string name = 1;
+  int32 pass = 2;
+  int32 fail = 3;
+  repeated string failures = 4;
+  int64 elapsed_us = 5;
+}
+
+message CascadeReport {
+  int32 ticks = 1;
+  int32 pass = 2;
+  int32 fail = 3;
+  repeated PhaseResult phases = 4;
+  string name = 5;
+  int64 elapsed_us = 6;
+}
+
+message MultiPatternReport {
+  repeated CascadeReport patterns = 1;
+  int32 total_pass = 2;
+  int32 total_fail = 3;
+  int64 total_elapsed_us = 4;
+}

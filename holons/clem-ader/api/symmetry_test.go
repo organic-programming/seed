@@ -10,7 +10,7 @@ import (
 	"sort"
 	"testing"
 
-	aderv1 "github.com/organic-programming/clem-ader/gen/go/v1"
+	aderv1 "github.com/organic-programming/clem-ader/gen/go/ader/v1"
 )
 
 func TestSurfaceSymmetry(t *testing.T) {

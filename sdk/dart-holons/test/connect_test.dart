@@ -13,6 +13,7 @@ void main() {
   final sdkRoot = Directory.current.path;
 
   tearDown(() {
+    reset();
     discover_impl.resetDiscoveryTestOverrides();
     connect_impl.resetConnectTestOverrides();
   });
@@ -242,6 +243,59 @@ exec ${_shellQuote(helper)} --slug connect-entrypoint "\$@"
           '${Directory.systemTemp.path}/.op/run/gabriel-greeting-go.tcp.port',
         ),
       );
+    });
+
+    test('launch environment preserves OP_OBS when observability is unset', () {
+      connect_impl.connectEnvironmentProvider = () => <String, String>{
+            'HOME': '/Users/example',
+          };
+
+      final env = connect_impl.launchEnvironmentForTest();
+
+      expect(env, isNot(contains('OP_OBS')));
+      expect(env['HOLONS_PARENT_PID'], isNotEmpty);
+    });
+
+    test('launch environment propagates active observability families', () {
+      connect_impl.connectEnvironmentProvider = () => <String, String>{
+            'HOME': '/Users/example',
+          };
+      configure(
+        const Config(slug: 'parent'),
+        env: const {'OP_OBS': 'logs,metrics'},
+      );
+
+      final env = connect_impl.launchEnvironmentForTest();
+
+      expect(env['OP_OBS'], equals('logs,metrics'));
+    });
+
+    test('launch environment lets configured observability override OP_OBS',
+        () {
+      connect_impl.connectEnvironmentProvider = () => <String, String>{
+            'HOME': '/Users/example',
+            'OP_OBS': 'logs',
+          };
+      configure(
+        const Config(slug: 'parent'),
+        env: const {'OP_OBS': 'events,logs,metrics'},
+      );
+
+      final env = connect_impl.launchEnvironmentForTest();
+
+      expect(env['OP_OBS'], equals('logs,metrics,events'));
+    });
+
+    test('launch environment keeps OP_OBS when observability is disabled', () {
+      connect_impl.connectEnvironmentProvider = () => <String, String>{
+            'HOME': '/Users/example',
+            'OP_OBS': 'events',
+          };
+      configure(const Config(slug: 'parent'), env: const {});
+
+      final env = connect_impl.launchEnvironmentForTest();
+
+      expect(env['OP_OBS'], equals('events'));
     });
 
     test('default port file path uses system temp when running from a bundle',

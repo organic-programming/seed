@@ -2,9 +2,19 @@
 #define HOLONS_H
 
 #include <stdbool.h>
+#include <dirent.h>
+#include <limits.h>
 #include <signal.h>
 #include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h>
+#ifdef __APPLE__
+#include <mach-o/dyld.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -188,6 +198,25 @@ typedef struct {
   void *ctx;
 } holons_grpc_unary_registration_t;
 
+typedef struct holons_grpc_call_ctx {
+  const unsigned char *request_data;
+  size_t request_len;
+  void *stream_writer;
+  void *server_context;
+  char *err;
+  size_t err_len;
+} holons_grpc_call_ctx_t;
+
+typedef int (*holons_grpc_stream_handler_t)(
+    const holons_grpc_call_ctx_t *ctx,
+    void *user_data);
+
+typedef struct {
+  const char *full_method;
+  holons_grpc_stream_handler_t handler;
+  void *ctx;
+} holons_grpc_stream_registration_t;
+
 typedef struct {
   int announce;
   int enable_reflection;
@@ -195,10 +224,81 @@ typedef struct {
 } holons_grpc_serve_options_t;
 
 typedef struct {
+  const char *slug;
+  const char *address;
+} holons_grpc_member_ref_t;
+
+typedef struct {
+  const char *slug;
+  const holons_grpc_member_ref_t *member_endpoints;
+  size_t member_endpoint_count;
+} holons_grpc_observability_options_t;
+
+typedef struct {
   char service_name[HOLONS_MAX_FIELD_LEN];
   char method_name[HOLONS_MAX_FIELD_LEN];
   const holons_describe_response_t *response;
 } holons_describe_registration_t;
+
+typedef struct {
+  const char *slug;
+  const char *binary;
+} holons_composite_child_spec_t;
+
+typedef struct holons_composite_spawned_member holons_composite_spawned_member_t;
+typedef struct holons_composite_cascade holons_composite_cascade_t;
+typedef struct holons_composite_channel holons_composite_channel_t;
+
+typedef struct {
+  int has_transitive_observability;
+  int transitive_observability;
+} holons_composite_dial_options_t;
+
+typedef struct {
+  const char *slug;
+  const char *binary_path;
+  const char *transport;
+  const char *instance_uid;
+  const holons_composite_child_spec_t *downstream_chain;
+  size_t downstream_chain_count;
+  const char *const *extra_env;
+  const holons_composite_dial_options_t *dial_options;
+  size_t dial_option_count;
+} holons_composite_spawn_options_t;
+
+typedef struct {
+  const char *transport;
+  const holons_composite_child_spec_t *members;
+  size_t member_count;
+  const char *const *extra_env;
+} holons_composite_cascade_options_t;
+
+typedef struct {
+  holons_composite_channel_t *channel;
+  const char *sender;
+  const char *leaf_uid;
+  const holons_composite_child_spec_t *expected_chain;
+  size_t expected_chain_count;
+  int timeout_ms;
+  int poll_interval_ms;
+  int live;
+} holons_composite_log_check_options_t;
+
+typedef struct {
+  holons_composite_channel_t *channel;
+  int event_type;
+  const char *leaf_uid;
+  const holons_composite_child_spec_t *expected_chain;
+  size_t expected_chain_count;
+  int timeout_ms;
+  int poll_interval_ms;
+  int live;
+} holons_composite_event_check_options_t;
+
+typedef struct {
+  int pass;
+  char evidence[HOLONS_MAX_DOC_LEN];
+} holons_composite_check_result_t;
 
 typedef struct {
   char *given_name;
@@ -251,6 +351,9 @@ typedef struct {
 const char *holons_default_uri(void);
 holons_scheme_t holons_scheme_from_uri(const char *uri);
 const char *holons_scheme_name(holons_scheme_t scheme);
+const char *holons_current_transport(void);
+int holons_set_current_transport_from_uri(const char *uri, char *err, size_t err_len);
+void holons_clear_current_transport(void);
 
 int holons_parse_flags(int argc, char **argv, char *out_uri, size_t out_uri_len);
 int holons_parse_uri(const char *uri, holons_uri_t *out, char *err, size_t err_len);
@@ -282,6 +385,79 @@ int holons_serve_grpc(const char *listen_uri,
                       const holons_grpc_serve_options_t *options,
                       char *err,
                       size_t err_len);
+int holons_serve_grpc_with_streams(
+    const char *listen_uri,
+    const holons_grpc_unary_registration_t *unary_registrations,
+    size_t unary_registration_count,
+    const holons_grpc_stream_registration_t *stream_registrations,
+    size_t stream_registration_count,
+    const holons_grpc_serve_options_t *options,
+    char *err,
+    size_t err_len);
+int holons_grpc_stream_write(const holons_grpc_call_ctx_t *ctx,
+                             const void *buf,
+                             size_t len);
+int holons_grpc_stream_check_cancel(const holons_grpc_call_ctx_t *ctx);
+int holons_grpc_set_observability_options(
+    const holons_grpc_observability_options_t *options);
+void holons_grpc_clear_observability_options(void);
+
+void holons_composite_with_transitive_observability(
+    holons_composite_dial_options_t *out,
+    int enabled);
+int holons_composite_spawn_member(
+    const holons_composite_spawn_options_t *options,
+    holons_composite_spawned_member_t **out,
+    char *err,
+    size_t err_len);
+void holons_composite_spawned_member_stop(
+    holons_composite_spawned_member_t *member);
+void holons_composite_spawned_member_free(
+    holons_composite_spawned_member_t *member);
+holons_composite_channel_t *holons_composite_spawned_member_channel(
+    holons_composite_spawned_member_t *member);
+const char *holons_composite_spawned_member_uid(
+    const holons_composite_spawned_member_t *member);
+const char *holons_composite_spawned_member_listen_uri(
+    const holons_composite_spawned_member_t *member);
+int holons_composite_build_cascade(
+    const holons_composite_cascade_options_t *options,
+    holons_composite_cascade_t **out,
+    char *err,
+    size_t err_len);
+void holons_composite_cascade_stop(holons_composite_cascade_t *cascade);
+void holons_composite_cascade_free(holons_composite_cascade_t *cascade);
+holons_composite_channel_t *holons_composite_cascade_top_channel(
+    holons_composite_cascade_t *cascade);
+const char *holons_composite_cascade_top_uid(
+    const holons_composite_cascade_t *cascade);
+int holons_composite_dial(const char *address,
+                          const holons_composite_dial_options_t *options,
+                          size_t option_count,
+                          holons_composite_channel_t **out,
+                          char *err,
+                          size_t err_len);
+void holons_composite_channel_free(holons_composite_channel_t *channel);
+int holons_composite_check_relayed_log(
+    const holons_composite_log_check_options_t *options,
+    holons_composite_check_result_t *out);
+int holons_composite_check_relayed_event(
+    const holons_composite_event_check_options_t *options,
+    holons_composite_check_result_t *out);
+int holons_composite_parse_child_flags(
+    int argc,
+    char **argv,
+    holons_composite_child_spec_t **out_children,
+    size_t *out_child_count,
+    char ***out_remaining,
+    size_t *out_remaining_count,
+    char *err,
+    size_t err_len);
+void holons_composite_free_child_flags(
+    holons_composite_child_spec_t *children,
+    size_t child_count,
+    char **remaining,
+    size_t remaining_count);
 
 int holons_resolve_manifest(const char *path,
                             holons_manifest_t *out,
@@ -326,6 +502,109 @@ void holons_disconnect(HolonsConnectResult *result);
 void holons_discover_result_free(HolonsDiscoverResult *result);
 void holons_resolve_result_free(HolonsResolveResult *result);
 void holons_connect_result_free(HolonsConnectResult *result);
+
+static inline int holons_member_from_executable(const char *executable,
+                                                const char *id,
+                                                char *out,
+                                                size_t out_len,
+                                                char *err,
+                                                size_t err_len) {
+  char exe[PATH_MAX];
+  char member_dir[PATH_MAX];
+  const char *slash;
+  size_t parent_len;
+  DIR *dir;
+  struct dirent *entry;
+
+  if (out == NULL || out_len == 0) {
+    if (err != NULL && err_len > 0) snprintf(err, err_len, "invalid destination buffer");
+    return -1;
+  }
+  out[0] = '\0';
+  if (executable == NULL || executable[0] == '\0') {
+    if (err != NULL && err_len > 0) snprintf(err, err_len, "executable path is required");
+    return -1;
+  }
+  if (id == NULL || id[0] == '\0') {
+    if (err != NULL && err_len > 0) snprintf(err, err_len, "member id is required");
+    return -1;
+  }
+  if (snprintf(exe, sizeof(exe), "%s", executable) >= (int)sizeof(exe)) {
+    if (err != NULL && err_len > 0) snprintf(err, err_len, "executable path is too long");
+    return -1;
+  }
+  slash = strrchr(exe, '/');
+  if (slash == NULL) {
+    if (err != NULL && err_len > 0) snprintf(err, err_len, "executable path has no parent: %s", executable);
+    return -1;
+  }
+  parent_len = (size_t)(slash - exe);
+  exe[parent_len] = '\0';
+  if (snprintf(member_dir, sizeof(member_dir), "%s/holons/%s", exe, id) >= (int)sizeof(member_dir)) {
+    if (err != NULL && err_len > 0) snprintf(err, err_len, "member path is too long");
+    return -1;
+  }
+
+  dir = opendir(member_dir);
+  if (dir == NULL) {
+    if (err != NULL && err_len > 0) snprintf(err, err_len, "member directory not found: %s", member_dir);
+    return -1;
+  }
+  while ((entry = readdir(dir)) != NULL) {
+    char candidate[PATH_MAX];
+    struct stat st;
+    const char *dot;
+    if (entry->d_name[0] == '.') continue;
+    dot = strrchr(entry->d_name, '.');
+    if (dot != NULL && strcmp(dot, ".exe") != 0) continue;
+    if (snprintf(candidate, sizeof(candidate), "%s/%s", member_dir, entry->d_name) >=
+        (int)sizeof(candidate)) {
+      continue;
+    }
+    if (stat(candidate, &st) == 0 && S_ISREG(st.st_mode) && (st.st_mode & 0111) != 0) {
+      closedir(dir);
+      if (snprintf(out, out_len, "%s", candidate) >= (int)out_len) {
+        if (err != NULL && err_len > 0) snprintf(err, err_len, "member executable path is too long");
+        out[0] = '\0';
+        return -1;
+      }
+      return 0;
+    }
+  }
+  closedir(dir);
+  if (err != NULL && err_len > 0) snprintf(err, err_len, "no executable found in %s", member_dir);
+  return -1;
+}
+
+static inline int holons_member(const char *id, char *out, size_t out_len, char *err, size_t err_len) {
+  const char *env = getenv("OP_HOLON_EXECUTABLE");
+  char executable[PATH_MAX];
+  if (env != NULL && env[0] != '\0') {
+    return holons_member_from_executable(env, id, out, out_len, err, err_len);
+  }
+#ifdef __APPLE__
+  {
+    uint32_t size = (uint32_t)sizeof(executable);
+    if (_NSGetExecutablePath(executable, &size) != 0) {
+      if (err != NULL && err_len > 0) snprintf(err, err_len, "OP_HOLON_EXECUTABLE is not set");
+      return -1;
+    }
+  }
+#elif defined(__linux__)
+  {
+    ssize_t n = readlink("/proc/self/exe", executable, sizeof(executable) - 1);
+    if (n <= 0) {
+      if (err != NULL && err_len > 0) snprintf(err, err_len, "OP_HOLON_EXECUTABLE is not set");
+      return -1;
+    }
+    executable[n] = '\0';
+  }
+#else
+  if (err != NULL && err_len > 0) snprintf(err, err_len, "OP_HOLON_EXECUTABLE is not set");
+  return -1;
+#endif
+  return holons_member_from_executable(executable, id, out, out_len, err, err_len);
+}
 
 volatile sig_atomic_t *holons_stop_token(void);
 void holons_request_stop(void);

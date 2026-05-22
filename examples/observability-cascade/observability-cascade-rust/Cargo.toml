@@ -1,0 +1,22 @@
+[package]
+name = "observability-cascade-rust"
+version = "0.1.0"
+edition = "2021"
+build = "build.rs"
+
+[dependencies]
+anyhow = "1"
+observability-cascade-rust-node = { path = "../observability-cascade-rust-node" }
+holons = { path = "../../../sdk/rust-holons" }
+hyper-util = { version = "0.1", features = ["tokio"] }
+libc = "0.2"
+prost = "0.13"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+tonic = { version = "0.12", features = ["transport"] }
+tower-service = "0.3"
+
+[build-dependencies]
+tonic-build = "0.12"

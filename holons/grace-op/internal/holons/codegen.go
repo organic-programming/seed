@@ -454,7 +454,7 @@ func goCodegenParameter(manifest *LoadedManifest, files map[string]*descriptorpb
 	}
 	for _, path := range toGenerate {
 		file := files[path]
-		if file == nil || strings.TrimSpace(file.GetOptions().GetGoPackage()) != "" {
+		if file == nil {
 			continue
 		}
 		importPath, packageName, err := inferredGoPackage(genModule, file)

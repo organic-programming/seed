@@ -4,7 +4,7 @@ package ader.v1;
 
 import "holons/v1/manifest.proto";
 
-option go_package = "github.com/organic-programming/clem-ader/gen/go/v1;aderv1";
+option go_package = "github.com/organic-programming/clem-ader/gen/go/ader/v1;aderv1";
 
 option (holons.v1.manifest) = {
   identity: {
@@ -16,7 +16,7 @@ option (holons.v1.manifest) = {
     composer: "B. ALTER"
     status: "draft"
     born: "2026-04-01"
-    version: "0.3.0"
+    version: "0.9.0"
     aliases: ["ader"]
   }
   description: "Clem Ader is the local proof holon of the seed. It loads catalogue-local checks and suites, freezes committed or workspace snapshots, runs progression or regression lanes, archives useful evidence by commit hash, orchestrates bouquets across several catalogues, and keeps promotion scoped to each suite scenario."

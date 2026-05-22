@@ -5,6 +5,8 @@
 #include "../include/holons/observability.hpp"
 #include "../include/holons/serve.hpp"
 
+#include <cassert>
+
 namespace {
 
 std::filesystem::path make_temp_dir(const std::string &prefix) {
@@ -112,6 +114,50 @@ void restore_env(const char *name, const std::optional<std::string> &value) {
 #endif
 }
 
+void test_composite_member_resolution(int &passed) {
+  auto root = make_temp_dir("holons_cpp_member_");
+  auto parent_dir = root / "bin" / "darwin_arm64";
+  auto member_dir = parent_dir / "holons" / "cpp-node";
+#ifdef _WIN32
+  auto parent = parent_dir / "composite.exe";
+  auto member = member_dir / "observability-cascade-cpp-node.exe";
+#else
+  auto parent = parent_dir / "composite";
+  auto member = member_dir / "observability-cascade-cpp-node";
+#endif
+  auto ignored = member_dir / "libdependency.dylib";
+
+  std::filesystem::create_directories(member_dir);
+  {
+    std::ofstream out(parent);
+    out << "#!/bin/sh\n";
+  }
+  {
+    std::ofstream out(member);
+    out << "#!/bin/sh\n";
+  }
+  {
+    std::ofstream out(ignored);
+    out << "";
+  }
+  std::filesystem::permissions(parent, std::filesystem::perms::owner_exec,
+                               std::filesystem::perm_options::add);
+  std::filesystem::permissions(member, std::filesystem::perms::owner_exec,
+                               std::filesystem::perm_options::add);
+
+  assert(holons::member_from_executable(parent, "cpp-node") == member);
+  ++passed;
+  bool missing_failed = false;
+  try {
+    (void)holons::member_from_executable(parent, "missing");
+  } catch (const std::runtime_error &) {
+    missing_failed = true;
+  }
+  assert(missing_failed);
+  ++passed;
+  std::filesystem::remove_all(root);
+}
+
 } // namespace
 
 #ifdef _WIN32
@@ -152,6 +198,8 @@ int connect_tcp(const std::string &host, int port) {
 
 int main() {
   int passed = 0;
+
+  test_composite_member_resolution(passed);
 
   assert(holons::scheme("tcp://:9090") == "tcp");
   ++passed;
@@ -1705,6 +1753,8 @@ int main() {
   std::string bind_reason;
   bool bind_restricted = loopback_bind_restricted(bind_reason);
 
+  test_composite_member_resolution(passed);
+
   // --- observability env parsing ---
   {
     namespace obs = holons::observability;
@@ -1741,6 +1791,12 @@ int main() {
       try { obs::check_env({{"OP_SESSIONS", "metrics"}}); } catch (const obs::InvalidTokenError &) { return true; }
       return false;
     })());
+    ++passed;
+    assert(holons::serve::CurrentTransport().empty());
+    holons::serve::detail::set_current_transport("stdio");
+    assert(holons::serve::CurrentTransport() == "stdio");
+    holons::serve::detail::clear_current_transport();
+    assert(holons::serve::CurrentTransport().empty());
     ++passed;
   }
 
@@ -1788,7 +1844,7 @@ int main() {
     assert(stdout_log.find("\"message\":\"service-log\"") != std::string::npos);
     ++passed;
     auto events_log = read_file_text((std::filesystem::path(inst.cfg.run_dir) / "events.jsonl").string());
-    assert(events_log.find("\"type\":\"INSTANCE_READY\"") != std::string::npos);
+    assert(events_log.find("\"event_name\":\"instance.ready\"") != std::string::npos);
     ++passed;
     auto meta_json = read_file_text((std::filesystem::path(inst.cfg.run_dir) / "meta.json").string());
     assert(meta_json.find("\"uid\":\"uid-1\"") != std::string::npos);
@@ -1797,6 +1853,62 @@ int main() {
     obs::reset();
     restore_env("OP_SESSIONS", previous_sessions);
     std::filesystem::remove_all(root);
+  }
+
+  // TestLogsFollowReplaysRingOnSubscribe
+  {
+    namespace obs = holons::observability;
+    obs::LogRing ring(8);
+    obs::LogRecord first;
+    first.timestamp = std::chrono::system_clock::now();
+    first.body = std::string("before");
+    ring.push(first);
+
+    std::vector<obs::LogRecord> live;
+    auto replay = ring.replay_and_subscribe(
+        std::chrono::system_clock::time_point{},
+        [&live](const obs::LogRecord &entry) { live.push_back(entry); });
+    assert(replay.first.size() == 1);
+    assert(obs::any_value_string(replay.first.front().body) == "before");
+    ++passed;
+
+    obs::LogRecord second;
+    second.timestamp = std::chrono::system_clock::now();
+    second.body = std::string("after");
+    ring.push(second);
+    assert(live.size() == 1);
+    assert(obs::any_value_string(live.front().body) == "after");
+    replay.second();
+    ++passed;
+  }
+
+  // TestEventsFollowReplaysRingOnSubscribe
+  {
+    namespace obs = holons::observability;
+    obs::EventBus bus(8);
+    obs::Event first;
+    first.timestamp = std::chrono::system_clock::now();
+    first.event_name = obs::event_name(obs::EventType::InstanceReady);
+    first.attributes.push_back({"holons.instance_uid", "before"});
+    bus.emit(first);
+
+    std::vector<obs::Event> live;
+    auto replay = bus.replay_and_subscribe(
+        std::chrono::system_clock::time_point{},
+        [&live](const obs::Event &event) { live.push_back(event); });
+    assert(replay.first.size() == 1);
+    assert(obs::attribute_string(replay.first.front(), "holons.instance_uid") == "before");
+    ++passed;
+
+    obs::Event second;
+    second.timestamp = std::chrono::system_clock::now();
+    second.event_name = obs::event_name(obs::EventType::InstanceReady);
+    second.attributes.push_back({"holons.instance_uid", "after"});
+    bus.emit(second);
+    assert(live.size() == 1);
+    assert(obs::attribute_string(live.front(), "holons.instance_uid") == "after");
+    replay.second();
+    ++passed;
   }
 
   // --- echo wrapper scripts ---

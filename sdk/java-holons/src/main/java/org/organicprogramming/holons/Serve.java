@@ -1,7 +1,13 @@
 package org.organicprogramming.holons;
 
 import io.grpc.BindableService;
+import io.grpc.ForwardingServerCallListener;
+import io.grpc.Metadata;
 import io.grpc.Server;
+import io.grpc.ServerCall;
+import io.grpc.ServerCallHandler;
+import io.grpc.ServerInterceptor;
+import io.grpc.ServerInterceptors;
 import io.grpc.ServerServiceDefinition;
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder;
 import io.grpc.protobuf.services.ProtoReflectionService;
@@ -16,6 +22,7 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -28,8 +35,17 @@ import java.util.function.Consumer;
 
 /** Standard gRPC server runner utilities. */
 public final class Serve {
+    private static final ThreadLocal<String> CURRENT_TRANSPORT = ThreadLocal.withInitial(() -> "");
 
     private Serve() {
+    }
+
+    public record MemberRef(String slug, String uid, String address) {
+        public MemberRef {
+            slug = slug == null ? "" : slug.trim();
+            uid = uid == null ? "" : uid.trim();
+            address = address == null ? "" : address.trim();
+        }
     }
 
     public static final class Options {
@@ -40,6 +56,8 @@ public final class Serve {
         private long shutdownGracePeriodSeconds = 10;
         private Path protoDir;
         private Map<String, String> env;
+        private String slug = "";
+        private List<MemberRef> memberEndpoints = List.of();
 
         public boolean describe() {
             return describe;
@@ -103,6 +121,24 @@ public final class Serve {
             this.env = env;
             return this;
         }
+
+        public String slug() {
+            return slug;
+        }
+
+        public Options withSlug(String slug) {
+            this.slug = slug != null ? slug.trim() : "";
+            return this;
+        }
+
+        public List<MemberRef> memberEndpoints() {
+            return memberEndpoints;
+        }
+
+        public Options withMemberEndpoints(List<MemberRef> memberEndpoints) {
+            this.memberEndpoints = memberEndpoints == null ? List.of() : List.copyOf(memberEndpoints);
+            return this;
+        }
     }
 
     public static final class RunningServer {
@@ -110,17 +146,20 @@ public final class Serve {
         private final String publicUri;
         private final Consumer<String> logger;
         private final Runnable auxiliaryStop;
+        private final String transport;
         private final AtomicBoolean stopped = new AtomicBoolean(false);
 
         private RunningServer(
                 Server server,
                 String publicUri,
                 Consumer<String> logger,
-                Runnable auxiliaryStop) {
+                Runnable auxiliaryStop,
+                String transport) {
             this.server = server;
             this.publicUri = publicUri;
             this.logger = logger;
             this.auxiliaryStop = auxiliaryStop;
+            this.transport = transport == null ? "" : transport;
         }
 
         public String publicUri() {
@@ -143,6 +182,7 @@ public final class Serve {
             if (auxiliaryStop != null) {
                 auxiliaryStop.run();
             }
+            CURRENT_TRANSPORT.remove();
 
             server.shutdown();
             if (!server.awaitTermination(gracePeriodSeconds, TimeUnit.SECONDS)) {
@@ -157,6 +197,10 @@ public final class Serve {
     }
 
     public record ParsedFlags(String listenUri, boolean reflect) {
+    }
+
+    public static String currentTransport() {
+        return CURRENT_TRANSPORT.get();
     }
 
     /**
@@ -249,15 +293,17 @@ public final class Serve {
 
         return switch (parsed.scheme()) {
             case "tcp" -> {
+                CURRENT_TRANSPORT.set("tcp");
                 String host = parsed.host() != null ? parsed.host() : "0.0.0.0";
                 int port = parsed.port() != null ? parsed.port() : 9090;
-                BoundServer bound = bindTcpServer(host, port, bindableServices, extraDefinitions);
-                startObservabilityRuntime(obs, bound.publicUri(), "tcp");
+                BoundServer bound = bindTcpServer(host, port, bindableServices, extraDefinitions, "tcp");
+                AuxiliaryRuntime auxiliary = startAuxiliaryRuntime(obs, bound.publicUri(), "tcp", resolvedOptions);
                 announce(bound.publicUri(), describeEnabled, reflectionEnabled, resolvedOptions);
-                yield new RunningServer(bound.server(), bound.publicUri(), resolvedOptions.logger(), null);
+                yield new RunningServer(bound.server(), bound.publicUri(), resolvedOptions.logger(), auxiliary, "tcp");
             }
             case "stdio" -> {
-                BoundServer bound = bindTcpServer("127.0.0.1", 0, bindableServices, extraDefinitions);
+                CURRENT_TRANSPORT.set("stdio");
+                BoundServer bound = bindTcpServer("127.0.0.1", 0, bindableServices, extraDefinitions, "stdio");
                 String[] target = parseTarget(bound.publicUri());
                 RunningServer[] runningRef = new RunningServer[1];
                 StdioServerBridge bridge = new StdioServerBridge(target[0], Integer.parseInt(target[1]), () -> {
@@ -274,15 +320,16 @@ public final class Serve {
                         bound.server(),
                         "stdio://",
                         resolvedOptions.logger(),
-                        bridge::close);
+                        combineStops(bridge::close, startAuxiliaryRuntime(obs, "stdio://", "stdio", resolvedOptions)),
+                        "stdio");
                 runningRef[0] = running;
                 bridge.start();
-                startObservabilityRuntime(obs, "stdio://", "stdio");
                 announce("stdio://", describeEnabled, reflectionEnabled, resolvedOptions);
                 yield running;
             }
             case "unix" -> {
-                BoundServer bound = bindTcpServer("127.0.0.1", 0, bindableServices, extraDefinitions);
+                CURRENT_TRANSPORT.set("unix");
+                BoundServer bound = bindTcpServer("127.0.0.1", 0, bindableServices, extraDefinitions, "unix");
                 String[] target = parseTarget(bound.publicUri());
                 String publicUri = "unix://" + Objects.requireNonNull(parsed.path());
                 UnixServerBridge bridge = new UnixServerBridge(Objects.requireNonNull(parsed.path()), target[0], Integer.parseInt(target[1]));
@@ -290,9 +337,9 @@ public final class Serve {
                         bound.server(),
                         publicUri,
                         resolvedOptions.logger(),
-                        bridge::close);
+                        combineStops(bridge::close, startAuxiliaryRuntime(obs, publicUri, "unix", resolvedOptions)),
+                        "unix");
                 bridge.start();
-                startObservabilityRuntime(obs, publicUri, "unix");
                 announce(publicUri, describeEnabled, reflectionEnabled, resolvedOptions);
                 yield running;
             }
@@ -305,17 +352,92 @@ public final class Serve {
             String host,
             int port,
             Iterable<? extends BindableService> services,
-            Iterable<ServerServiceDefinition> definitions) throws IOException {
+            Iterable<ServerServiceDefinition> definitions,
+            String transport) throws IOException {
         NettyServerBuilder builder = NettyServerBuilder.forAddress(new InetSocketAddress(host, port));
+        ServerInterceptor transportContext = transportContextInterceptor(transport);
         for (BindableService service : services) {
-            builder.addService(service);
+            builder.addService(ServerInterceptors.intercept(service, transportContext));
         }
         for (ServerServiceDefinition definition : definitions) {
-            builder.addService(definition);
+            builder.addService(ServerInterceptors.intercept(definition, transportContext));
         }
         Server server = builder.build().start();
         String publicUri = "tcp://" + advertisedHost(host) + ":" + server.getPort();
         return new BoundServer(server, publicUri);
+    }
+
+    private static ServerInterceptor transportContextInterceptor(String transport) {
+        String scheme = transport == null ? "" : transport;
+        return new ServerInterceptor() {
+            @Override
+            public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(
+                    ServerCall<ReqT, RespT> call,
+                    Metadata headers,
+                    ServerCallHandler<ReqT, RespT> next) {
+                ServerCall.Listener<ReqT> listener = withCurrentTransport(scheme, () -> next.startCall(call, headers));
+                return new ForwardingServerCallListener.SimpleForwardingServerCallListener<>(listener) {
+                    @Override
+                    public void onMessage(ReqT message) {
+                        withCurrentTransport(scheme, () -> {
+                            super.onMessage(message);
+                            return null;
+                        });
+                    }
+
+                    @Override
+                    public void onHalfClose() {
+                        withCurrentTransport(scheme, () -> {
+                            super.onHalfClose();
+                            return null;
+                        });
+                    }
+
+                    @Override
+                    public void onCancel() {
+                        withCurrentTransport(scheme, () -> {
+                            super.onCancel();
+                            return null;
+                        });
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        withCurrentTransport(scheme, () -> {
+                            super.onComplete();
+                            return null;
+                        });
+                    }
+
+                    @Override
+                    public void onReady() {
+                        withCurrentTransport(scheme, () -> {
+                            super.onReady();
+                            return null;
+                        });
+                    }
+                };
+            }
+        };
+    }
+
+    private static <T> T withCurrentTransport(String transport, CheckedSupplier<T> supplier) {
+        String previous = CURRENT_TRANSPORT.get();
+        CURRENT_TRANSPORT.set(transport == null ? "" : transport);
+        try {
+            return supplier.get();
+        } finally {
+            if (previous == null || previous.isBlank()) {
+                CURRENT_TRANSPORT.remove();
+            } else {
+                CURRENT_TRANSPORT.set(previous);
+            }
+        }
+    }
+
+    @FunctionalInterface
+    private interface CheckedSupplier<T> {
+        T get();
     }
 
     private static void announce(String publicUri, boolean describeEnabled, boolean reflectionEnabled, Options options) {
@@ -353,7 +475,16 @@ public final class Serve {
         if (raw.isEmpty()) {
             return null;
         }
-        Observability obs = Observability.fromEnvMap(new Observability.Config(), env);
+        Observability current = Observability.current();
+        String wantedSlug = resolvedSlug(options);
+        if (!current.families.isEmpty()
+                && (wantedSlug.isEmpty() || wantedSlug.equals(current.cfg.slug))) {
+            definitions.add(Observability.service(current));
+            return current;
+        }
+        Observability.Config config = new Observability.Config();
+        config.slug = wantedSlug;
+        Observability obs = Observability.fromEnvMap(config, env);
         if (obs.families.isEmpty()) {
             return null;
         }
@@ -361,13 +492,86 @@ public final class Serve {
         return obs;
     }
 
-    private static void startObservabilityRuntime(Observability obs, String publicUri, String transport) {
+    private static String resolvedSlug(Options options) {
+        String configured = options.slug() == null ? "" : options.slug().trim();
+        if (!configured.isEmpty()) {
+            return configured;
+        }
+        return Describe.registeredSlug();
+    }
+
+    private static AuxiliaryRuntime startAuxiliaryRuntime(
+            Observability obs,
+            String publicUri,
+            String transport,
+            Options options) {
+        Observability.PromServer promServer = startPromServer(obs, options);
+        String metricsAddr = promServer != null ? promServer.addrUrl() : "";
+        startObservabilityRuntime(obs, publicUri, transport, metricsAddr);
+        List<Observability.MemberRelay> relays = startMemberRelays(obs, options.memberEndpoints(), options);
+        return new AuxiliaryRuntime(promServer, relays);
+    }
+
+    private static Observability.PromServer startPromServer(Observability obs, Options options) {
+        if (obs == null || !obs.enabled(Observability.Family.PROM)) {
+            return null;
+        }
+        Observability.PromServer promServer = new Observability.PromServer(obs.cfg.promAddr);
+        try {
+            promServer.start();
+            return promServer;
+        } catch (IOException error) {
+            options.logger().accept("warning: prom HTTP bind failed: " + error.getMessage());
+            return null;
+        }
+    }
+
+    private static List<Observability.MemberRelay> startMemberRelays(
+            Observability obs,
+            List<MemberRef> members,
+            Options options) {
+        if (obs == null
+                || (!obs.enabled(Observability.Family.LOGS) && !obs.enabled(Observability.Family.EVENTS))) {
+            return List.of();
+        }
+
+        List<Observability.MemberRelay> relays = new ArrayList<>();
+        for (MemberRef raw : members) {
+            MemberRef member = raw == null ? new MemberRef("", "", "") : raw;
+            if (member.slug().isEmpty() || member.address().isEmpty()) {
+                options.logger().accept("warning: observability relay skipped incomplete member ref: slug=\""
+                        + member.slug() + "\" uid=\"" + member.uid() + "\" address=\"" + member.address() + "\"");
+                continue;
+            }
+            try {
+                io.grpc.ManagedChannel channel = Connect.connect(
+                        member.address(),
+                        new Connect.ConnectOptions(Duration.ofSeconds(5), "tcp", false, null));
+                Observability.MemberIdentity identity = Observability.resolveMemberIdentity(channel, member.slug(), member.uid());
+                Observability.MemberRelay relay = new Observability.MemberRelay(
+                        identity.slug(),
+                        identity.uid(),
+                        channel,
+                        obs);
+                relay.start();
+                relays.add(relay);
+            } catch (Exception error) {
+                options.logger().accept("warning: observability relay start "
+                        + member.slug() + "/" + member.uid() + ": " + error.getMessage());
+            }
+        }
+        return relays;
+    }
+
+    private static void startObservabilityRuntime(Observability obs, String publicUri, String transport, String metricsAddr) {
         if (obs == null || obs.cfg.runDir == null || obs.cfg.runDir.isEmpty()) {
             return;
         }
         Observability.enableDiskWriters(obs.cfg.runDir);
         if (obs.enabled(Observability.Family.EVENTS)) {
-            obs.emit(Observability.EventType.INSTANCE_READY, Map.of("listener", publicUri));
+            obs.emit(Observability.EVENT_INSTANCE_READY, Map.of(
+                    "listener", publicUri,
+                    "metrics_addr", metricsAddr));
         }
         Observability.MetaJson meta = new Observability.MetaJson();
         meta.slug = obs.cfg.slug;
@@ -377,6 +581,7 @@ public final class Serve {
         meta.address = publicUri;
         meta.organismUid = obs.cfg.organismUid;
         meta.organismSlug = obs.cfg.organismSlug;
+        meta.metricsAddr = metricsAddr;
         if (obs.enabled(Observability.Family.LOGS)) {
             meta.logPath = Path.of(obs.cfg.runDir, "stdout.log").toString();
         }
@@ -384,6 +589,44 @@ public final class Serve {
             Observability.writeMetaJson(obs.cfg.runDir, meta);
         } catch (IOException ignored) {
             // Best-effort metadata mirrors the other tier-2 SDKs.
+        }
+    }
+
+    private static Runnable combineStops(Runnable... stops) {
+        return () -> {
+            for (Runnable stop : stops) {
+                if (stop == null) {
+                    continue;
+                }
+                try {
+                    stop.run();
+                } catch (Exception ignored) {
+                    // Best-effort auxiliary shutdown.
+                }
+            }
+        };
+    }
+
+    private static final class AuxiliaryRuntime implements Runnable {
+        private final Observability.PromServer promServer;
+        private final List<Observability.MemberRelay> relays;
+
+        private AuxiliaryRuntime(Observability.PromServer promServer, List<Observability.MemberRelay> relays) {
+            this.promServer = promServer;
+            this.relays = relays == null ? List.of() : List.copyOf(relays);
+        }
+
+        @Override
+        public void run() {
+            for (Observability.MemberRelay relay : relays) {
+                try {
+                    relay.close();
+                } catch (Exception ignored) {
+                }
+            }
+            if (promServer != null) {
+                promServer.close();
+            }
         }
     }
 

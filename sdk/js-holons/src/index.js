@@ -8,6 +8,7 @@ const describe = require('./describe');
 const identity = require('./identity');
 const discover = require('./discover');
 const observability = require('./observability');
+const composite = require('./composite');
 const connectApi = require('./connect');
 const discoveryTypes = require('./discovery_types');
 const grpcclient = require('./grpcclient');
@@ -23,6 +24,7 @@ module.exports = {
     transport,
     serve,
     describe,
+    composite,
     observability,
     identity,
     grpcclient,

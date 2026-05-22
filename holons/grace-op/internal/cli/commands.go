@@ -191,7 +191,7 @@ func cmdRun(format Format, runtimeOpts commandRuntimeOptions, args []string) int
 	ui, args, _ := extractQuietFlag(args)
 	quiet := runtimeOpts.quiet || ui.Quiet
 
-	// Extract observability flags (--observe, --prom, --otel, --sessions, --json).
+	// Extract observability flags (--observe, --prom, --json).
 	// These are not passed through to parseRunArgs; applyRunObservability
 	// consumes them right before spawn.
 	args, observeOpts := extractRunObserveFlags(args)

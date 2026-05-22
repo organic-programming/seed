@@ -37,94 +37,87 @@ std::unique_ptr< HolonObservability::Stub> HolonObservability::NewStub(const std
 
 HolonObservability::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options)
   : channel_(channel), rpcmethod_Logs_(HolonObservability_method_names[0], options.suffix_for_stats(),::grpc::internal::RpcMethod::SERVER_STREAMING, channel)
-  , rpcmethod_Metrics_(HolonObservability_method_names[1], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_Metrics_(HolonObservability_method_names[1], options.suffix_for_stats(),::grpc::internal::RpcMethod::SERVER_STREAMING, channel)
   , rpcmethod_Events_(HolonObservability_method_names[2], options.suffix_for_stats(),::grpc::internal::RpcMethod::SERVER_STREAMING, channel)
   {}
 
-::grpc::ClientReader< ::holons::v1::LogEntry>* HolonObservability::Stub::LogsRaw(::grpc::ClientContext* context, const ::holons::v1::LogsRequest& request) {
-  return ::grpc::internal::ClientReaderFactory< ::holons::v1::LogEntry>::Create(channel_.get(), rpcmethod_Logs_, context, request);
+::grpc::ClientReader< ::holons::v1::LogRecord>* HolonObservability::Stub::LogsRaw(::grpc::ClientContext* context, const ::holons::v1::LogsRequest& request) {
+  return ::grpc::internal::ClientReaderFactory< ::holons::v1::LogRecord>::Create(channel_.get(), rpcmethod_Logs_, context, request);
 }
 
-void HolonObservability::Stub::async::Logs(::grpc::ClientContext* context, const ::holons::v1::LogsRequest* request, ::grpc::ClientReadReactor< ::holons::v1::LogEntry>* reactor) {
-  ::grpc::internal::ClientCallbackReaderFactory< ::holons::v1::LogEntry>::Create(stub_->channel_.get(), stub_->rpcmethod_Logs_, context, request, reactor);
+void HolonObservability::Stub::async::Logs(::grpc::ClientContext* context, const ::holons::v1::LogsRequest* request, ::grpc::ClientReadReactor< ::holons::v1::LogRecord>* reactor) {
+  ::grpc::internal::ClientCallbackReaderFactory< ::holons::v1::LogRecord>::Create(stub_->channel_.get(), stub_->rpcmethod_Logs_, context, request, reactor);
 }
 
-::grpc::ClientAsyncReader< ::holons::v1::LogEntry>* HolonObservability::Stub::AsyncLogsRaw(::grpc::ClientContext* context, const ::holons::v1::LogsRequest& request, ::grpc::CompletionQueue* cq, void* tag) {
-  return ::grpc::internal::ClientAsyncReaderFactory< ::holons::v1::LogEntry>::Create(channel_.get(), cq, rpcmethod_Logs_, context, request, true, tag);
+::grpc::ClientAsyncReader< ::holons::v1::LogRecord>* HolonObservability::Stub::AsyncLogsRaw(::grpc::ClientContext* context, const ::holons::v1::LogsRequest& request, ::grpc::CompletionQueue* cq, void* tag) {
+  return ::grpc::internal::ClientAsyncReaderFactory< ::holons::v1::LogRecord>::Create(channel_.get(), cq, rpcmethod_Logs_, context, request, true, tag);
 }
 
-::grpc::ClientAsyncReader< ::holons::v1::LogEntry>* HolonObservability::Stub::PrepareAsyncLogsRaw(::grpc::ClientContext* context, const ::holons::v1::LogsRequest& request, ::grpc::CompletionQueue* cq) {
-  return ::grpc::internal::ClientAsyncReaderFactory< ::holons::v1::LogEntry>::Create(channel_.get(), cq, rpcmethod_Logs_, context, request, false, nullptr);
+::grpc::ClientAsyncReader< ::holons::v1::LogRecord>* HolonObservability::Stub::PrepareAsyncLogsRaw(::grpc::ClientContext* context, const ::holons::v1::LogsRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncReaderFactory< ::holons::v1::LogRecord>::Create(channel_.get(), cq, rpcmethod_Logs_, context, request, false, nullptr);
 }
 
-::grpc::Status HolonObservability::Stub::Metrics(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest& request, ::holons::v1::MetricsSnapshot* response) {
-  return ::grpc::internal::BlockingUnaryCall< ::holons::v1::MetricsRequest, ::holons::v1::MetricsSnapshot, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_Metrics_, context, request, response);
+::grpc::ClientReader< ::holons::v1::Metric>* HolonObservability::Stub::MetricsRaw(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest& request) {
+  return ::grpc::internal::ClientReaderFactory< ::holons::v1::Metric>::Create(channel_.get(), rpcmethod_Metrics_, context, request);
 }
 
-void HolonObservability::Stub::async::Metrics(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest* request, ::holons::v1::MetricsSnapshot* response, std::function<void(::grpc::Status)> f) {
-  ::grpc::internal::CallbackUnaryCall< ::holons::v1::MetricsRequest, ::holons::v1::MetricsSnapshot, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_Metrics_, context, request, response, std::move(f));
+void HolonObservability::Stub::async::Metrics(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest* request, ::grpc::ClientReadReactor< ::holons::v1::Metric>* reactor) {
+  ::grpc::internal::ClientCallbackReaderFactory< ::holons::v1::Metric>::Create(stub_->channel_.get(), stub_->rpcmethod_Metrics_, context, request, reactor);
 }
 
-void HolonObservability::Stub::async::Metrics(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest* request, ::holons::v1::MetricsSnapshot* response, ::grpc::ClientUnaryReactor* reactor) {
-  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_Metrics_, context, request, response, reactor);
+::grpc::ClientAsyncReader< ::holons::v1::Metric>* HolonObservability::Stub::AsyncMetricsRaw(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest& request, ::grpc::CompletionQueue* cq, void* tag) {
+  return ::grpc::internal::ClientAsyncReaderFactory< ::holons::v1::Metric>::Create(channel_.get(), cq, rpcmethod_Metrics_, context, request, true, tag);
 }
 
-::grpc::ClientAsyncResponseReader< ::holons::v1::MetricsSnapshot>* HolonObservability::Stub::PrepareAsyncMetricsRaw(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest& request, ::grpc::CompletionQueue* cq) {
-  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::holons::v1::MetricsSnapshot, ::holons::v1::MetricsRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_Metrics_, context, request);
+::grpc::ClientAsyncReader< ::holons::v1::Metric>* HolonObservability::Stub::PrepareAsyncMetricsRaw(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncReaderFactory< ::holons::v1::Metric>::Create(channel_.get(), cq, rpcmethod_Metrics_, context, request, false, nullptr);
 }
 
-::grpc::ClientAsyncResponseReader< ::holons::v1::MetricsSnapshot>* HolonObservability::Stub::AsyncMetricsRaw(::grpc::ClientContext* context, const ::holons::v1::MetricsRequest& request, ::grpc::CompletionQueue* cq) {
-  auto* result =
-    this->PrepareAsyncMetricsRaw(context, request, cq);
-  result->StartCall();
-  return result;
+::grpc::ClientReader< ::holons::v1::LogRecord>* HolonObservability::Stub::EventsRaw(::grpc::ClientContext* context, const ::holons::v1::EventsRequest& request) {
+  return ::grpc::internal::ClientReaderFactory< ::holons::v1::LogRecord>::Create(channel_.get(), rpcmethod_Events_, context, request);
 }
 
-::grpc::ClientReader< ::holons::v1::EventInfo>* HolonObservability::Stub::EventsRaw(::grpc::ClientContext* context, const ::holons::v1::EventsRequest& request) {
-  return ::grpc::internal::ClientReaderFactory< ::holons::v1::EventInfo>::Create(channel_.get(), rpcmethod_Events_, context, request);
+void HolonObservability::Stub::async::Events(::grpc::ClientContext* context, const ::holons::v1::EventsRequest* request, ::grpc::ClientReadReactor< ::holons::v1::LogRecord>* reactor) {
+  ::grpc::internal::ClientCallbackReaderFactory< ::holons::v1::LogRecord>::Create(stub_->channel_.get(), stub_->rpcmethod_Events_, context, request, reactor);
 }
 
-void HolonObservability::Stub::async::Events(::grpc::ClientContext* context, const ::holons::v1::EventsRequest* request, ::grpc::ClientReadReactor< ::holons::v1::EventInfo>* reactor) {
-  ::grpc::internal::ClientCallbackReaderFactory< ::holons::v1::EventInfo>::Create(stub_->channel_.get(), stub_->rpcmethod_Events_, context, request, reactor);
+::grpc::ClientAsyncReader< ::holons::v1::LogRecord>* HolonObservability::Stub::AsyncEventsRaw(::grpc::ClientContext* context, const ::holons::v1::EventsRequest& request, ::grpc::CompletionQueue* cq, void* tag) {
+  return ::grpc::internal::ClientAsyncReaderFactory< ::holons::v1::LogRecord>::Create(channel_.get(), cq, rpcmethod_Events_, context, request, true, tag);
 }
 
-::grpc::ClientAsyncReader< ::holons::v1::EventInfo>* HolonObservability::Stub::AsyncEventsRaw(::grpc::ClientContext* context, const ::holons::v1::EventsRequest& request, ::grpc::CompletionQueue* cq, void* tag) {
-  return ::grpc::internal::ClientAsyncReaderFactory< ::holons::v1::EventInfo>::Create(channel_.get(), cq, rpcmethod_Events_, context, request, true, tag);
-}
-
-::grpc::ClientAsyncReader< ::holons::v1::EventInfo>* HolonObservability::Stub::PrepareAsyncEventsRaw(::grpc::ClientContext* context, const ::holons::v1::EventsRequest& request, ::grpc::CompletionQueue* cq) {
-  return ::grpc::internal::ClientAsyncReaderFactory< ::holons::v1::EventInfo>::Create(channel_.get(), cq, rpcmethod_Events_, context, request, false, nullptr);
+::grpc::ClientAsyncReader< ::holons::v1::LogRecord>* HolonObservability::Stub::PrepareAsyncEventsRaw(::grpc::ClientContext* context, const ::holons::v1::EventsRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncReaderFactory< ::holons::v1::LogRecord>::Create(channel_.get(), cq, rpcmethod_Events_, context, request, false, nullptr);
 }
 
 HolonObservability::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       HolonObservability_method_names[0],
       ::grpc::internal::RpcMethod::SERVER_STREAMING,
-      new ::grpc::internal::ServerStreamingHandler< HolonObservability::Service, ::holons::v1::LogsRequest, ::holons::v1::LogEntry>(
+      new ::grpc::internal::ServerStreamingHandler< HolonObservability::Service, ::holons::v1::LogsRequest, ::holons::v1::LogRecord>(
           [](HolonObservability::Service* service,
              ::grpc::ServerContext* ctx,
              const ::holons::v1::LogsRequest* req,
-             ::grpc::ServerWriter<::holons::v1::LogEntry>* writer) {
+             ::grpc::ServerWriter<::holons::v1::LogRecord>* writer) {
                return service->Logs(ctx, req, writer);
              }, this)));
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       HolonObservability_method_names[1],
-      ::grpc::internal::RpcMethod::NORMAL_RPC,
-      new ::grpc::internal::RpcMethodHandler< HolonObservability::Service, ::holons::v1::MetricsRequest, ::holons::v1::MetricsSnapshot, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
+      ::grpc::internal::RpcMethod::SERVER_STREAMING,
+      new ::grpc::internal::ServerStreamingHandler< HolonObservability::Service, ::holons::v1::MetricsRequest, ::holons::v1::Metric>(
           [](HolonObservability::Service* service,
              ::grpc::ServerContext* ctx,
              const ::holons::v1::MetricsRequest* req,
-             ::holons::v1::MetricsSnapshot* resp) {
-               return service->Metrics(ctx, req, resp);
+             ::grpc::ServerWriter<::holons::v1::Metric>* writer) {
+               return service->Metrics(ctx, req, writer);
              }, this)));
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       HolonObservability_method_names[2],
       ::grpc::internal::RpcMethod::SERVER_STREAMING,
-      new ::grpc::internal::ServerStreamingHandler< HolonObservability::Service, ::holons::v1::EventsRequest, ::holons::v1::EventInfo>(
+      new ::grpc::internal::ServerStreamingHandler< HolonObservability::Service, ::holons::v1::EventsRequest, ::holons::v1::LogRecord>(
           [](HolonObservability::Service* service,
              ::grpc::ServerContext* ctx,
              const ::holons::v1::EventsRequest* req,
-             ::grpc::ServerWriter<::holons::v1::EventInfo>* writer) {
+             ::grpc::ServerWriter<::holons::v1::LogRecord>* writer) {
                return service->Events(ctx, req, writer);
              }, this)));
 }
@@ -132,21 +125,21 @@ HolonObservability::Service::Service() {
 HolonObservability::Service::~Service() {
 }
 
-::grpc::Status HolonObservability::Service::Logs(::grpc::ServerContext* context, const ::holons::v1::LogsRequest* request, ::grpc::ServerWriter< ::holons::v1::LogEntry>* writer) {
+::grpc::Status HolonObservability::Service::Logs(::grpc::ServerContext* context, const ::holons::v1::LogsRequest* request, ::grpc::ServerWriter< ::holons::v1::LogRecord>* writer) {
   (void) context;
   (void) request;
   (void) writer;
   return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
 }
 
-::grpc::Status HolonObservability::Service::Metrics(::grpc::ServerContext* context, const ::holons::v1::MetricsRequest* request, ::holons::v1::MetricsSnapshot* response) {
+::grpc::Status HolonObservability::Service::Metrics(::grpc::ServerContext* context, const ::holons::v1::MetricsRequest* request, ::grpc::ServerWriter< ::holons::v1::Metric>* writer) {
   (void) context;
   (void) request;
-  (void) response;
+  (void) writer;
   return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
 }
 
-::grpc::Status HolonObservability::Service::Events(::grpc::ServerContext* context, const ::holons::v1::EventsRequest* request, ::grpc::ServerWriter< ::holons::v1::EventInfo>* writer) {
+::grpc::Status HolonObservability::Service::Events(::grpc::ServerContext* context, const ::holons::v1::EventsRequest* request, ::grpc::ServerWriter< ::holons::v1::LogRecord>* writer) {
   (void) context;
   (void) request;
   (void) writer;

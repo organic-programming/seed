@@ -115,8 +115,6 @@ func (c cliState) run(args []string) int {
 		return c.runToolsCommand(rest)
 	case "env":
 		return c.runEnvCommand(format, rest)
-	case "worktree":
-		return c.runWorktreeCommand(format, rest)
 	case "serve":
 		return c.runServeCommand(rest)
 	case "version":
@@ -189,7 +187,6 @@ OP commands:
   op uninstall <holon>
   op mod <command>
   op env [--init] [--shell]
-  op worktree <create|bootstrap|launch|shell|doctor>
   op mcp <slug> [slug2...]
   op mcp <tcp://host:port>
   op serve [--listen tcp://:9090]

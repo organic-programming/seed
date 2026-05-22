@@ -202,6 +202,103 @@ func TestExecuteLifecycleBuildGoModuleFromProtoManifest(t *testing.T) {
 	}
 }
 
+func TestExecuteLifecycleBuildCompositeGoModuleEmbedsMembers(t *testing.T) {
+	if _, err := execLookPath("go"); err != nil {
+		t.Skip("go command not available")
+	}
+
+	root := t.TempDir()
+	chdirForHolonTest(t, root)
+	childDir := writeProtoGoHolonFixture(t, root, "node-a")
+
+	parentDir := filepath.Join(root, "composite")
+	if err := os.MkdirAll(filepath.Join(parentDir, "cmd", "composite"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(parentDir, "api", "v1"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(parentDir, "go.mod"), []byte("module example.com/composite\n\ngo 1.24.0\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(parentDir, "cmd", "composite", "main.go"), []byte("package main\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	writeSharedHolonManifestProto(t, root)
+
+	proto := `syntax = "proto3";
+
+package test.composite.v1;
+
+import "holons/v1/manifest.proto";
+
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "composite-uuid"
+    given_name: "Demo"
+    family_name: "Composite"
+    motto: "Proto-backed composite test holon."
+    composer: "test"
+    status: "draft"
+    born: "2026-05-14"
+  }
+  kind: "composite"
+  lang: "go"
+  build: {
+    runner: "go-module"
+    main: "./cmd/composite"
+    members: {
+      id: "node-a"
+      path: "../node-a"
+      type: "holon"
+    }
+  }
+  requires: {
+    commands: ["go"]
+    files: ["go.mod"]
+  }
+  artifacts: {
+    primary: ".op/build/composite.holon"
+  }
+};
+`
+	if err := os.WriteFile(filepath.Join(parentDir, "api", "v1", "holon.proto"), []byte(proto), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	first, err := ExecuteLifecycle(OperationBuild, parentDir)
+	if err != nil {
+		t.Fatalf("first build failed: %v", err)
+	}
+	if len(first.Children) != 1 {
+		t.Fatalf("first build children = %d, want 1", len(first.Children))
+	}
+	parentBinary := filepath.Join(parentDir, ".op", "build", "composite.holon", "bin", runtimeArchitecture(), "composite")
+	if _, err := os.Stat(parentBinary); err != nil {
+		t.Fatalf("parent binary missing: %v", err)
+	}
+	embeddedChildBinary := filepath.Join(parentDir, ".op", "build", "composite.holon", "bin", runtimeArchitecture(), "holons", "node-a", "node-a")
+	if _, err := os.Stat(embeddedChildBinary); err != nil {
+		t.Fatalf("embedded child binary missing: %v", err)
+	}
+	childBinary := filepath.Join(childDir, ".op", "build", "node-a.holon", "bin", runtimeArchitecture(), "node-a")
+	if _, err := os.Stat(childBinary); err != nil {
+		t.Fatalf("child binary missing: %v", err)
+	}
+
+	second, err := ExecuteLifecycle(OperationBuild, parentDir)
+	if err != nil {
+		t.Fatalf("second build failed: %v", err)
+	}
+	if len(second.Children) != 1 {
+		t.Fatalf("second build children = %d, want 1", len(second.Children))
+	}
+	if !hasEntryContaining(second.Children[0].Notes, "fresh dependency") {
+		t.Fatalf("second build should skip rebuilding the child, got child notes %v", second.Children[0].Notes)
+	}
+}
+
 func TestResolveTargetBySlugAcrossRoots(t *testing.T) {
 	root := t.TempDir()
 	chdirForHolonTest(t, root)

@@ -15,6 +15,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
+const http = require('http');
 const grpc = require('@grpc/grpc-js');
 
 const observabilityWire = require('./gen/holons/v1/observability');
@@ -524,6 +525,21 @@ function toProtoLogEntry(entry) {
   };
 }
 
+function fromProtoLogEntry(entry) {
+  return {
+    timestamp: fromProtoTimestamp(entry.ts),
+    level: normalizeLogLevel(entry.level),
+    slug: entry.slug || '',
+    instance_uid: entry.instance_uid || '',
+    session_id: entry.session_id || '',
+    rpc_method: entry.rpc_method || '',
+    message: entry.message || '',
+    fields: { ...(entry.fields || {}) },
+    caller: entry.caller || '',
+    chain: (entry.chain || []).map(fromProtoHop),
+  };
+}
+
 function histogramToProto(snap) {
   return {
     buckets: (snap.bounds || []).map((upper, index) => ({
@@ -577,6 +593,30 @@ function toProtoEvent(event) {
       instance_uid: hop.instance_uid || '',
     })),
   };
+}
+
+function fromProtoEvent(event) {
+  return {
+    timestamp: fromProtoTimestamp(event.ts),
+    type: normalizeEventType(event.type),
+    slug: event.slug || '',
+    instance_uid: event.instance_uid || '',
+    session_id: event.session_id || '',
+    payload: { ...(event.payload || {}) },
+    chain: (event.chain || []).map(fromProtoHop),
+  };
+}
+
+function fromProtoHop(hop) {
+  return {
+    slug: hop.slug || '',
+    instance_uid: hop.instance_uid || '',
+  };
+}
+
+function fromProtoTimestamp(ts) {
+  if (!ts) return 0;
+  return Number(ts.seconds || 0) + Number(ts.nanos || 0) / 1e9;
 }
 
 function makeHolonObservabilityHandlers(obs = current()) {
@@ -724,6 +764,230 @@ function failStream(call, message) {
   call.emit('error', err);
 }
 
+// --- Prometheus exposition --------------------------------------------------
+
+class PromServer {
+  constructor(addr = ':0') {
+    this.addr = addr || ':0';
+    this.server = null;
+  }
+
+  async start() {
+    if (this.server) return this.addrURL();
+    const { host, port } = parsePromAddr(this.addr);
+    this.server = http.createServer((req, res) => {
+      const pathname = (req.url || '').split('?', 1)[0];
+      if (pathname !== '/metrics') {
+        res.writeHead(404);
+        res.end();
+        return;
+      }
+      const obs = current();
+      let status = 200;
+      let body = '';
+      if (!obs.enabled(Family.METRICS)) {
+        status = 503;
+        body = '# metrics family disabled (OP_OBS)\n';
+      } else if (!obs.enabled(Family.PROM)) {
+        status = 503;
+        body = '# prom family disabled (OP_OBS)\n';
+      } else {
+        body = toPrometheusText(obs);
+      }
+      res.writeHead(status, {
+        'content-type': 'text/plain; version=0.0.4',
+        'content-length': Buffer.byteLength(body),
+      });
+      res.end(body);
+    });
+    await new Promise((resolve, reject) => {
+      this.server.once('error', reject);
+      this.server.listen(port, host, () => {
+        this.server.off('error', reject);
+        resolve();
+      });
+    });
+    return this.addrURL();
+  }
+
+  addrURL() {
+    if (!this.server || !this.server.address()) return '';
+    const address = this.server.address();
+    return `http://${advertisedPromHost(address.address)}:${address.port}/metrics`;
+  }
+
+  async close() {
+    const server = this.server;
+    this.server = null;
+    if (!server) return;
+    await new Promise((resolve) => server.close(() => resolve()));
+  }
+}
+
+function toPrometheusText(obs) {
+  if (!obs.enabled(Family.METRICS) || !obs.registry) {
+    return '# metrics family disabled (OP_OBS)\n';
+  }
+  const snapshot = obs.registry.snapshot();
+  const groups = new Map();
+  const ensure = (name, help, type) => {
+    let group = groups.get(name);
+    if (!group) {
+      group = { name, help, type, counters: [], gauges: [], histograms: [] };
+      groups.set(name, group);
+    }
+    if (!group.help && help) group.help = help;
+    return group;
+  };
+  for (const counter of snapshot.counters || []) ensure(counter.name, counter.help, 'counter').counters.push(counter);
+  for (const gauge of snapshot.gauges || []) ensure(gauge.name, gauge.help, 'gauge').gauges.push(gauge);
+  for (const histogram of snapshot.histograms || []) ensure(histogram.name, histogram.help, 'histogram').histograms.push(histogram);
+
+  const injected = { slug: obs.cfg.slug || '' };
+  if (obs.cfg.instanceUid) injected.instance_uid = obs.cfg.instanceUid;
+  const lines = [];
+  for (const name of [...groups.keys()].sort()) {
+    const group = groups.get(name);
+    lines.push(`# HELP ${name} ${promEscapeHelp(group.help || '')}`);
+    lines.push(`# TYPE ${name} ${group.type}`);
+    for (const counter of group.counters) {
+      lines.push(`${counter.name}${promLabels(mergeLabels(counter.labels, injected))} ${Number(counter.value || 0)}`);
+    }
+    for (const gauge of group.gauges) {
+      lines.push(`${gauge.name}${promLabels(mergeLabels(gauge.labels, injected))} ${formatPromFloat(gauge.value || 0)}`);
+    }
+    for (const histogram of group.histograms) {
+      const labels = mergeLabels(histogram.labels, injected);
+      const snap = histogram.snap || {};
+      const bounds = snap.bounds || [];
+      const counts = snap.counts || [];
+      for (let i = 0; i < bounds.length; i += 1) {
+        lines.push(`${histogram.name}_bucket${promLabels({ ...labels, le: formatPromFloat(bounds[i]) })} ${Number(counts[i] || 0)}`);
+      }
+      lines.push(`${histogram.name}_bucket${promLabels({ ...labels, le: '+Inf' })} ${Number(snap.total || 0)}`);
+      lines.push(`${histogram.name}_sum${promLabels(labels)} ${formatPromFloat(snap.sum || 0)}`);
+      lines.push(`${histogram.name}_count${promLabels(labels)} ${Number(snap.total || 0)}`);
+    }
+  }
+  return lines.length ? `${lines.join('\n')}\n` : '';
+}
+
+function parsePromAddr(raw) {
+  const trimmed = String(raw || ':0').trim() || ':0';
+  if (trimmed.startsWith(':')) {
+    return { host: '0.0.0.0', port: Number(trimmed.slice(1) || 0) };
+  }
+  const idx = trimmed.lastIndexOf(':');
+  if (idx < 0) throw new Error(`invalid Prometheus address "${raw}"`);
+  return { host: trimmed.slice(0, idx) || '0.0.0.0', port: Number(trimmed.slice(idx + 1)) };
+}
+
+function advertisedPromHost(host) {
+  if (!host || host === '0.0.0.0') return '127.0.0.1';
+  if (host === '::') return '::1';
+  return host;
+}
+
+function mergeLabels(base, extra) {
+  const out = {};
+  for (const [key, value] of Object.entries(extra || {})) {
+    if (value !== undefined && value !== null && String(value) !== '') out[key] = String(value);
+  }
+  for (const [key, value] of Object.entries(base || {})) out[key] = String(value);
+  return out;
+}
+
+function promLabels(labels) {
+  const keys = Object.keys(labels || {}).sort();
+  if (!keys.length) return '';
+  return `{${keys.map((key) => `${key}="${promEscapeValue(labels[key])}"`).join(',')}}`;
+}
+
+function promEscapeValue(value) {
+  return String(value).replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/"/g, '\\"');
+}
+
+function promEscapeHelp(value) {
+  return String(value).replace(/\\/g, '\\\\').replace(/\n/g, '\\n');
+}
+
+function formatPromFloat(value) {
+  const number = Number(value);
+  if (number === Infinity) return '+Inf';
+  if (number === -Infinity) return '-Inf';
+  if (Number.isNaN(number)) return 'NaN';
+  return String(number);
+}
+
+// --- Member observability relay --------------------------------------------
+
+class MemberRelay {
+  constructor({ childSlug, childUid, client, observability = current(), retryDelayMs = 2000 }) {
+    this.childSlug = childSlug || '';
+    this.childUid = childUid || '';
+    this.client = client;
+    this.observability = observability;
+    this.retryDelayMs = retryDelayMs;
+    this.stopped = false;
+    this.active = new Set();
+  }
+
+  start() {
+    const obs = this.observability;
+    if (obs.enabled(Family.LOGS) && obs.logRing) this.pumpLogs();
+    if (obs.enabled(Family.EVENTS) && obs.eventBus) this.pumpEvents();
+  }
+
+  stop() {
+    this.stopped = true;
+    for (const stream of [...this.active]) {
+      if (typeof stream.cancel === 'function') stream.cancel();
+      if (typeof stream.destroy === 'function') stream.destroy();
+    }
+    this.active.clear();
+  }
+
+  pumpLogs() {
+    if (this.stopped) return;
+    const stream = this.client.Logs({ follow: true });
+    this.active.add(stream);
+    const restart = () => {
+      this.active.delete(stream);
+      if (!this.stopped) setTimeout(() => this.pumpLogs(), this.retryDelayMs);
+    };
+    stream.on('data', (proto) => {
+      const obs = this.observability;
+      if (!obs.enabled(Family.LOGS) || !obs.logRing) return;
+      const entry = fromProtoLogEntry(proto);
+      entry.chain = appendDirectChild(entry.chain, this.childSlug, this.childUid);
+      obs.logRing.push(entry);
+    });
+    stream.on('error', restart);
+    stream.on('end', restart);
+    stream.on('close', restart);
+  }
+
+  pumpEvents() {
+    if (this.stopped) return;
+    const stream = this.client.Events({ follow: true });
+    this.active.add(stream);
+    const restart = () => {
+      this.active.delete(stream);
+      if (!this.stopped) setTimeout(() => this.pumpEvents(), this.retryDelayMs);
+    };
+    stream.on('data', (proto) => {
+      const obs = this.observability;
+      if (!obs.enabled(Family.EVENTS) || !obs.eventBus) return;
+      const event = fromProtoEvent(proto);
+      event.chain = appendDirectChild(event.chain, this.childSlug, this.childUid);
+      obs.eventBus.emit(event);
+    });
+    stream.on('error', restart);
+    stream.on('end', restart);
+    stream.on('close', restart);
+  }
+}
+
 // --- Disk writers -----------------------------------------------------------
 
 function enableDiskWriters(runDir) {
@@ -786,11 +1050,14 @@ module.exports = {
   Family, Level, EventType, InvalidTokenError,
   Counter, Gauge, Histogram, Registry, LogRing, EventBus,
   Logger, Observability,
+  MemberRelay, PromServer,
   parseOpObs, checkEnv, parseLevel, levelName, eventTypeName,
   appendDirectChild, enrichForMultilog,
   configure, fromEnv, current, reset,
   deriveRunDir,
+  fromProtoLogEntry, fromProtoEvent,
   toProtoLogEntry, toProtoMetricSamples, toProtoEvent,
+  toPrometheusText,
   makeHolonObservabilityHandlers, registerService,
   enableDiskWriters, writeMetaJson, readMetaJson,
   DEFAULT_BUCKETS,

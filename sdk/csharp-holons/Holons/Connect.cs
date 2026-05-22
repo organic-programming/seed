@@ -432,7 +432,18 @@ internal static class ConnectionInternals
             false);
     }
 
-    internal static async Task<StartedConnection> StartStdioHolonAsync(LaunchTarget target, TimeSpan timeout)
+    internal static Task<StartedConnection> StartStdioHolonAsync(LaunchTarget target, TimeSpan timeout) =>
+        StartStdioHolonAsync(
+            target,
+            timeout,
+            new[] { "serve", "--listen", "stdio://" },
+            null);
+
+    internal static async Task<StartedConnection> StartStdioHolonAsync(
+        LaunchTarget target,
+        TimeSpan timeout,
+        IReadOnlyList<string> tailArguments,
+        IReadOnlyDictionary<string, string>? environment)
     {
         var process = new Process
         {
@@ -440,8 +451,13 @@ internal static class ConnectionInternals
                 target.CommandPath,
                 target.Arguments,
                 target.WorkingDirectory,
-                new[] { "serve", "--listen", "stdio://" }),
+                tailArguments),
         };
+        if (environment is not null)
+        {
+            foreach (var (key, value) in environment)
+                process.StartInfo.Environment[key] = value;
+        }
         if (!process.Start())
             throw new IOException($"failed to start {target.CommandPath}");
 

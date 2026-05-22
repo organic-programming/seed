@@ -58,18 +58,19 @@ func newHTTPBridge(server *grpc.Server, conn *grpc.ClientConn, response *holonsv
 		"Logs": {
 			Name:            "Logs",
 			InputType:       "holons.v1.LogsRequest",
-			OutputType:      "holons.v1.LogEntry",
+			OutputType:      "holons.v1.LogRecord",
 			ServerStreaming: true,
 		},
 		"Metrics": {
-			Name:       "Metrics",
-			InputType:  "holons.v1.MetricsRequest",
-			OutputType: "holons.v1.MetricsSnapshot",
+			Name:            "Metrics",
+			InputType:       "holons.v1.MetricsRequest",
+			OutputType:      "holons.v1.Metric",
+			ServerStreaming: true,
 		},
 		"Events": {
 			Name:            "Events",
 			InputType:       "holons.v1.EventsRequest",
-			OutputType:      "holons.v1.EventInfo",
+			OutputType:      "holons.v1.LogRecord",
 			ServerStreaming: true,
 		},
 	}

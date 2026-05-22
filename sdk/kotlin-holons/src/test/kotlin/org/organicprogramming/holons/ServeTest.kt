@@ -84,25 +84,25 @@ class ServeTest {
                 val inst = Observability.current()
                 inst.logger("serve-test").info("serve-log", mapOf("sdk" to "kotlin"))
                 inst.counter("serve_requests_total")!!.inc()
-                inst.emit(Observability.EventType.INSTANCE_READY)
+                inst.emit(Observability.EventName.INSTANCE_READY)
 
                 val logs = ClientCalls.blockingServerStreamingCall(
                     channel,
                     Observability.logsMethod,
                     CallOptions.DEFAULT,
                     ObsProto.LogsRequest.newBuilder()
-                        .setMinLevel(ObsProto.LogLevel.INFO)
+                        .setMinSeverityNumber(ObsProto.SeverityNumber.SEVERITY_NUMBER_INFO)
                         .build(),
                 ).asSequence().toList()
-                assertTrue(logs.any { it.message == "serve-log" })
+                assertTrue(logs.any { it.body.stringValue == "serve-log" })
 
-                val metrics = ClientCalls.blockingUnaryCall(
+                val metrics = ClientCalls.blockingServerStreamingCall(
                     channel,
                     Observability.metricsMethod,
                     CallOptions.DEFAULT,
                     ObsProto.MetricsRequest.getDefaultInstance(),
-                )
-                assertTrue(metrics.samplesList.any { it.name == "serve_requests_total" })
+                ).asSequence().toList()
+                assertTrue(metrics.any { it.name == "serve_requests_total" && it.hasSum() })
 
                 val events = ClientCalls.blockingServerStreamingCall(
                     channel,
@@ -110,7 +110,7 @@ class ServeTest {
                     CallOptions.DEFAULT,
                     ObsProto.EventsRequest.getDefaultInstance(),
                 ).asSequence().toList()
-                assertTrue(events.any { it.type == ObsProto.EventType.INSTANCE_READY })
+                assertTrue(events.any { it.eventName == Observability.EventName.INSTANCE_READY })
 
                 assertTrue(
                     Files.isRegularFile(
@@ -126,6 +126,103 @@ class ServeTest {
                 running.stop()
             }
         } finally {
+            Describe.useStaticResponse(null)
+            Observability.reset()
+            root.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
+    fun currentTransportTracksStdioServeLifecycle() {
+        assertEquals("", CurrentTransport.get())
+        Describe.useStaticResponse(staticDescribeResponse())
+        val running = Serve.startWithOptions(
+            "stdio://",
+            emptyList<io.grpc.BindableService>(),
+            Serve.Options(describe = true, logger = {}),
+        )
+        try {
+            assertEquals("stdio", CurrentTransport.get())
+        } finally {
+            running.stop()
+            Describe.useStaticResponse(null)
+        }
+        assertEquals("", CurrentTransport.get())
+    }
+
+    @Test
+    fun startWithOptionsRelaysMemberObservabilityAndWritesPrometheusAddress() {
+        val root = Files.createTempDirectory("kotlin-holons-relay")
+        var child: Serve.RunningServer? = null
+        var parent: Serve.RunningServer? = null
+        try {
+            Describe.useStaticResponse(staticDescribeResponse())
+            Observability.reset()
+            val registryRoot = root.resolve("runs")
+
+            child = Serve.startWithOptions(
+                "tcp://127.0.0.1:0",
+                emptyList<io.grpc.BindableService>(),
+                Serve.Options(
+                    slug = "cascade-node-kotlin-child",
+                    env = mapOf(
+                        "OP_OBS" to "logs,metrics,events",
+                        "OP_RUN_DIR" to registryRoot.toString(),
+                        "OP_INSTANCE_UID" to "kotlin-child-1",
+                    ),
+                ),
+            )
+
+            val childObs = Observability.current()
+            childObs.logger("tick").info("tick received", mapOf("sender" to "serve-test"))
+            childObs.emit(Observability.EventName.CONFIG_RELOADED, mapOf("source" to "serve-test"))
+
+            parent = Serve.startWithOptions(
+                "tcp://127.0.0.1:0",
+                emptyList<io.grpc.BindableService>(),
+                Serve.Options(
+                    slug = "cascade-node-kotlin-parent",
+                    env = mapOf(
+                        "OP_OBS" to "logs,metrics,events,prom",
+                        "OP_RUN_DIR" to registryRoot.toString(),
+                        "OP_INSTANCE_UID" to "kotlin-parent-1",
+                        "OP_PROM_ADDR" to ":0",
+                    ),
+                    memberEndpoints = listOf(
+                        Serve.MemberRef(
+                            slug = "cascade-node-kotlin-child",
+                            address = child.publicUri,
+                        ),
+                    ),
+                ),
+            )
+
+            val parentObs = Observability.current()
+            awaitCondition {
+                parentObs.logRing!!.drain().any { entry ->
+                    entry.message == "tick received" &&
+                        entry.chain.size == 1 &&
+                        entry.chain[0] == "cascade-node-kotlin-child"
+                }
+            }
+            awaitCondition {
+                parentObs.eventBus!!.drain().any { event ->
+                    event.eventName == Observability.EventName.CONFIG_RELOADED &&
+                        event.chain.size == 1 &&
+                        event.chain[0] == "cascade-node-kotlin-child"
+                }
+            }
+
+            val parentMeta = Files.readString(
+                registryRoot
+                    .resolve("cascade-node-kotlin-parent")
+                    .resolve("kotlin-parent-1")
+                    .resolve("meta.json"),
+            )
+            assertTrue(parentMeta.contains("\"metrics_addr\""))
+        } finally {
+            parent?.stop()
+            child?.stop()
             Describe.useStaticResponse(null)
             Observability.reset()
             root.toFile().deleteRecursively()
@@ -265,6 +362,17 @@ class ServeTest {
         } finally {
             executor.shutdownNow()
         }
+    }
+
+    private fun awaitCondition(condition: () -> Boolean) {
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+        while (System.nanoTime() < deadline) {
+            if (condition()) {
+                return
+            }
+            Thread.sleep(50)
+        }
+        assertTrue(condition())
     }
 
     private fun staticDescribeResponse(): HolonsDescribe.DescribeResponse =

@@ -7,22 +7,19 @@ import '../model/app_model.dart';
 
 const _holonRpcTimeout = Duration(seconds: 20);
 final _callOptions = CallOptions(timeout: _holonRpcTimeout);
-final _greetingMethodRegistry = holons.UnaryJsonMethodRegistry(<
-  holons.UnaryJsonMethodDescriptor<dynamic, dynamic>
->[
-  holons.UnaryJsonMethodDescriptor<ListLanguagesRequest, ListLanguagesResponse>(
-    path: '/greeting.v1.GreetingService/ListLanguages',
-    createRequest: ListLanguagesRequest.new,
-    createResponse: ListLanguagesResponse.new,
-    defaultCallOptions: _callOptions,
-  ),
-  holons.UnaryJsonMethodDescriptor<SayHelloRequest, SayHelloResponse>(
-    path: '/greeting.v1.GreetingService/SayHello',
-    createRequest: SayHelloRequest.new,
-    createResponse: SayHelloResponse.new,
-    defaultCallOptions: _callOptions,
-  ),
-]);
+final _greetingMethodRegistry =
+    unaryJsonMethodRegistryBuilder(defaultCallOptions: _callOptions)
+        .add<ListLanguagesRequest, ListLanguagesResponse>(
+          path: '/greeting.v1.GreetingService/ListLanguages',
+          createRequest: ListLanguagesRequest.new,
+          createResponse: ListLanguagesResponse.new,
+        )
+        .add<SayHelloRequest, SayHelloResponse>(
+          path: '/greeting.v1.GreetingService/SayHello',
+          createRequest: SayHelloRequest.new,
+          createResponse: SayHelloResponse.new,
+        )
+        .build();
 
 abstract interface class GreetingHolonConnection {
   Future<List<Language>> listLanguages();
@@ -42,22 +39,44 @@ class BundledGreetingHolonConnectionFactory
     implements GreetingHolonConnectionFactory {
   BundledGreetingHolonConnectionFactory({
     HolonConnector<GabrielHolonIdentity>? connector,
-  }) : _connector =
-           connector ??
-           BundledHolonConnector<GabrielHolonIdentity>(
-             slugOf: (holon) => holon.slug,
-             buildRunnerOf: (holon) => holon.buildRunner,
-           );
+    bool withTransitiveObservability = true,
+  }) : _channels = SharedHolonChannels<GabrielHolonIdentity>(
+         connector ??
+             BundledHolonConnector<GabrielHolonIdentity>(
+               slugOf: (holon) => holon.slug,
+               buildRunnerOf: (holon) => holon.buildRunner,
+               withTransitiveObservability: withTransitiveObservability,
+             ),
+         slugOf: (holon) => holon.slug,
+         buildRunnerOf: (holon) => holon.buildRunner,
+       );
 
-  final HolonConnector<GabrielHolonIdentity> _connector;
+  final SharedHolonChannels<GabrielHolonIdentity> _channels;
 
   @override
   Future<GreetingHolonConnection> connect(
     GabrielHolonIdentity holon, {
     required String transport,
   }) async {
-    final channel = await _connector.connect(holon, transport: transport);
-    return DesktopGreetingHolonConnection(channel);
+    final channel = await openChannel(holon, transport: transport);
+    return DesktopGreetingHolonConnection(
+      channel,
+      onClose: () => _channels.close(holon, transport: transport),
+    );
+  }
+
+  Future<ClientChannel> openChannel(
+    GabrielHolonIdentity holon, {
+    required String transport,
+  }) {
+    return _channels.open(holon, transport: transport);
+  }
+
+  Future<ClientChannel>? existingChannel(
+    GabrielHolonIdentity holon, {
+    required String transport,
+  }) {
+    return _channels.existing(holon, transport: transport);
   }
 }
 
@@ -66,10 +85,14 @@ typedef DesktopGreetingHolonConnectionFactory =
     BundledGreetingHolonConnectionFactory;
 
 class DesktopGreetingHolonConnection implements GreetingHolonConnection {
-  DesktopGreetingHolonConnection(this._channel)
-    : _client = GreetingServiceClient(_channel);
+  DesktopGreetingHolonConnection(
+    this._channel, {
+    Future<void> Function()? onClose,
+  }) : _onClose = onClose,
+       _client = GreetingServiceClient(_channel);
 
   final ClientChannel _channel;
+  final Future<void> Function()? _onClose;
   final GreetingServiceClient _client;
 
   @override
@@ -106,6 +129,11 @@ class DesktopGreetingHolonConnection implements GreetingHolonConnection {
 
   @override
   Future<void> close() async {
+    final close = _onClose;
+    if (close != null) {
+      await close();
+      return;
+    }
     await holons.disconnectAsync(_channel);
   }
 }

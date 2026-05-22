@@ -47,8 +47,6 @@ func FormatResponse(format Format, resp proto.Message) string {
 		return formatInstallResponseText(typed)
 	case *opv1.InspectResponse:
 		return formatInspectResponseText(typed)
-	case *opv1.WorktreeResponse:
-		return formatWorktreeResponseText(typed)
 	case *opv1.SdkPrebuiltResponse:
 		return formatSDKPrebuiltResponseText(typed)
 	case *opv1.ListSdkPrebuiltsResponse:
@@ -92,8 +90,6 @@ func responseMessageForMethod(method string) proto.Message {
 		return &opv1.InstallResponse{}
 	case "Inspect":
 		return &opv1.InspectResponse{}
-	case "Worktree":
-		return &opv1.WorktreeResponse{}
 	case "InstallSdkPrebuilt", "UninstallSdkPrebuilt", "VerifySdkPrebuilt", "LocateSdkPrebuilt":
 		return &opv1.SdkPrebuiltResponse{}
 	case "ListSdkPrebuilts":
@@ -260,31 +256,6 @@ func formatInstallResponseText(resp *opv1.InstallResponse) string {
 		for _, note := range report.GetNotes() {
 			writeInstallLine(&b, "- %s", note)
 		}
-	}
-	return strings.TrimSpace(b.String())
-}
-
-func formatWorktreeResponseText(resp *opv1.WorktreeResponse) string {
-	if resp == nil {
-		return ""
-	}
-	if resp.GetCommand() == "doctor" {
-		if resp.GetDoctor() != nil && resp.GetDoctor().GetOk() {
-			return "op worktree doctor: ok"
-		}
-		return "op worktree doctor: failed"
-	}
-	var b strings.Builder
-	fmt.Fprintf(&b, "op worktree %s: %s (%s)\n", resp.GetCommand(), resp.GetStatus(), resp.GetMode())
-	if resp.GetBranch() != "" {
-		fmt.Fprintf(&b, "branch:   %s\n", resp.GetBranch())
-	}
-	if resp.GetWorktree() != "" {
-		fmt.Fprintf(&b, "worktree: %s\n", resp.GetWorktree())
-	}
-	if resp.GetMode() == "isolated" {
-		fmt.Fprintf(&b, "OPPATH:   %s\n", resp.GetOppath())
-		fmt.Fprintf(&b, "OPBIN:    %s\n", resp.GetOpbin())
 	}
 	return strings.TrimSpace(b.String())
 }

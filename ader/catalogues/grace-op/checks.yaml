@@ -212,6 +212,11 @@ checks:
     command: go test -tags e2e -v -count=1 -timeout 10m -run '^TestRunObserve_CLI_' .
     description: Verifies op run --observe tails lifecycle events from a real holon.
 
+  observability-cascade-rpc:
+    workdir: ader/catalogues/grace-op/integration/observability_cascade
+    command: go test -tags e2e -v -count=1 -timeout 240m -run '^TestObservabilityCascade_RPCMatrix$' .
+    description: Builds every observability-cascade composite and verifies its RPC validation modes.
+
   op-serve-cli:
     workdir: ader/catalogues/grace-op/integration/serve
     command: go test -tags e2e -v -count=1 -timeout 10m -run '^TestServe_CLI_' .

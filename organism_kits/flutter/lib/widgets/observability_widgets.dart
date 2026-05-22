@@ -1,12 +1,19 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:holons/holons.dart' as holons;
 
 import '../observability/observability_kit.dart';
 
 class ObservabilityPanel extends StatefulWidget {
-  const ObservabilityPanel({super.key, required this.kit});
+  const ObservabilityPanel({
+    super.key,
+    required this.kit,
+    this.exportDestination,
+  });
 
   final ObservabilityKit kit;
+  final Future<Directory?> Function()? exportDestination;
 
   @override
   State<ObservabilityPanel> createState() => _ObservabilityPanelState();
@@ -15,6 +22,8 @@ class ObservabilityPanel extends StatefulWidget {
 class _ObservabilityPanelState extends State<ObservabilityPanel>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs;
+  bool _exporting = false;
+  String _exportStatus = '';
 
   @override
   void initState() {
@@ -37,13 +46,40 @@ class _ObservabilityPanelState extends State<ObservabilityPanel>
           children: [
             Material(
               color: Theme.of(context).colorScheme.surface,
-              child: TabBar(
-                controller: _tabs,
-                tabs: const [
-                  Tab(icon: Icon(Icons.tune), text: 'Settings'),
-                  Tab(icon: Icon(Icons.notes), text: 'Logs'),
-                  Tab(icon: Icon(Icons.monitor_heart), text: 'Metrics'),
-                  Tab(icon: Icon(Icons.event_note), text: 'Events'),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TabBar(
+                          controller: _tabs,
+                          tabs: const [
+                            Tab(icon: Icon(Icons.tune), text: 'Settings'),
+                            Tab(icon: Icon(Icons.notes), text: 'Logs'),
+                            Tab(
+                              icon: Icon(Icons.monitor_heart),
+                              text: 'Metrics',
+                            ),
+                            Tab(icon: Icon(Icons.event_note), text: 'Events'),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Export observability bundle',
+                        icon: const Icon(Icons.file_download_outlined),
+                        onPressed:
+                            widget.exportDestination == null || _exporting
+                            ? null
+                            : _export,
+                      ),
+                    ],
+                  ),
+                  if (_exportStatus.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(_exportStatus),
+                    ),
                 ],
               ),
             ),
@@ -62,6 +98,38 @@ class _ObservabilityPanelState extends State<ObservabilityPanel>
         );
       },
     );
+  }
+
+  Future<void> _export() async {
+    final destination = widget.exportDestination;
+    if (destination == null) return;
+    setState(() {
+      _exporting = true;
+      _exportStatus = '';
+    });
+    try {
+      final dir = await destination();
+      if (dir == null) {
+        if (mounted) {
+          setState(() {
+            _exporting = false;
+          });
+        }
+        return;
+      }
+      final exported = await widget.kit.export.exportTo(dir);
+      if (!mounted) return;
+      setState(() {
+        _exporting = false;
+        _exportStatus = 'Exported to ${exported.path}';
+      });
+    } on Object catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _exporting = false;
+        _exportStatus = 'Export failed: $error';
+      });
+    }
   }
 }
 
@@ -197,12 +265,44 @@ class LogConsoleView extends StatelessWidget {
                 itemCount: entries.length,
                 itemBuilder: (context, index) {
                   final entry = entries[entries.length - index - 1];
+                  final theme = Theme.of(context);
+                  final titleStyle = theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  );
+                  final contextStyle = theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  );
+                  final fieldsStyle = theme.textTheme.bodySmall?.copyWith(
+                    fontFamily: 'monospace',
+                    color: theme.colorScheme.onSurface,
+                  );
+                  final originStyle = theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  );
+                  final fieldsText = _fieldsText(entry.attributes);
+                  final contextText = _logContextText(entry);
+                  final showChain =
+                      entry.chain.isNotEmpty && !_chainIsRedundant(entry);
                   return ListTile(
                     dense: true,
-                    leading: _LevelBadge(level: entry.level),
-                    title: Text(entry.message),
-                    subtitle: Text(
-                      '${entry.slug}  ${entry.timestamp.toIso8601String()}',
+                    trailing: _LevelBadge(level: entry.level),
+                    title: _LogTitle(entry: entry, style: titleStyle),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (contextText.isNotEmpty)
+                          Text(contextText, style: contextStyle),
+                        if (fieldsText.isNotEmpty)
+                          Text(fieldsText, style: fieldsStyle),
+                        if (contextText.isNotEmpty || fieldsText.isNotEmpty)
+                          const SizedBox(height: 4),
+                        Text(_logOriginText(entry), style: originStyle),
+                        if (showChain)
+                          Text(
+                            '← ${_chainText(entry.chain)}',
+                            style: contextStyle,
+                          ),
+                      ],
                     ),
                   );
                 },
@@ -211,6 +311,36 @@ class LogConsoleView extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _LogTitle extends StatelessWidget {
+  const _LogTitle({required this.entry, this.style});
+
+  final ObservabilityLogRecord entry;
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) {
+    if (entry.loggerName.isEmpty) {
+      return Text(entry.message, style: style);
+    }
+    final effectiveStyle = style ?? DefaultTextStyle.of(context).style;
+    return Text.rich(
+      TextSpan(
+        style: effectiveStyle,
+        children: [
+          TextSpan(
+            text: '[${entry.loggerName}]  ',
+            style: effectiveStyle.copyWith(fontFamily: 'monospace'),
+          ),
+          TextSpan(
+            text: entry.message,
+            style: effectiveStyle.copyWith(fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -298,9 +428,13 @@ class EventsView extends StatelessWidget {
             final event = events[events.length - index - 1];
             return ListTile(
               leading: const Icon(Icons.bolt),
-              title: Text(event.type.name),
-              subtitle: Text(
-                '${event.slug}  ${event.timestamp.toIso8601String()}',
+              title: Text(event.eventName),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('${event.slug}  ${event.timestamp.toIso8601String()}'),
+                  if (event.chain.isNotEmpty) Text(_chainText(event.chain)),
+                ],
               ),
             );
           },
@@ -425,6 +559,87 @@ class _HistogramPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _HistogramPainter oldDelegate) =>
       oldDelegate.snapshot != snapshot || oldDelegate.color != color;
+}
+
+String _chainText(List<holons.Hop> chain) {
+  return chain
+      .map(
+        (hop) => hop.instanceUid.isEmpty
+            ? hop.slug
+            : '${hop.slug}:${hop.instanceUid}',
+      )
+      .join(' > ');
+}
+
+String _logContextText(ObservabilityLogRecord entry) {
+  final parts = <String>[];
+  if (entry.rpcMethod.isNotEmpty) {
+    parts.add(entry.rpcMethod);
+  }
+  if (entry.sessionId.isNotEmpty) {
+    final session = entry.sessionId.length <= 8
+        ? entry.sessionId
+        : entry.sessionId.substring(0, 8);
+    parts.add('session $session');
+  }
+  return parts.join(' · ');
+}
+
+String _logOriginText(ObservabilityLogRecord entry) {
+  final parts = <String>[
+    entry.slug,
+    entry.timestamp.toIso8601String(),
+    if (entry.caller.isNotEmpty) entry.caller,
+  ];
+  return parts.join('  ·  ');
+}
+
+String _fieldsText(List<ObservabilityKeyValue> fields) {
+  if (fields.isEmpty) return '';
+  final sorted = fields.toList()..sort((a, b) => a.key.compareTo(b.key));
+  return sorted
+      .map((field) {
+        final key = field.key;
+        final label = key.endsWith('_ns')
+            ? key.substring(0, key.length - 3)
+            : key;
+        return '$label=${_fieldValueText(key, field.value)}';
+      })
+      .join('  ');
+}
+
+String _formatAdaptiveDuration(int ns) {
+  if (ns < 1000) return '${ns}ns';
+  if (ns < 1000000) return '${(ns / 1000).toStringAsFixed(1)}µs';
+  if (ns < 1000000000) {
+    return '${(ns / 1000000).toStringAsFixed(1)}ms';
+  }
+  if (ns < 60 * 1000000000) {
+    return '${(ns / 1000000000).toStringAsFixed(1)}s';
+  }
+  return '${(ns / 60000000000).toStringAsFixed(1)}min';
+}
+
+String _fieldValueText(String key, ObservabilityAnyValue value) {
+  if (value.branch == AnyValueBranch.intValue && key.endsWith('_ns')) {
+    return _formatAdaptiveDuration(value.intValue);
+  }
+  final text = switch (value.branch) {
+    AnyValueBranch.intValue => value.intValue.toString(),
+    AnyValueBranch.doubleValue => value.doubleValue.toString(),
+    AnyValueBranch.boolValue => value.boolValue.toString(),
+    AnyValueBranch.stringValue => value.stringValue,
+    AnyValueBranch.notSet => '',
+  };
+  if (value.branch != AnyValueBranch.stringValue) return text;
+  final needsQuotes =
+      text.isEmpty || text.contains(RegExp(r'\s')) || text.contains('"');
+  if (!needsQuotes) return text;
+  return '"${text.replaceAll('"', r'\"')}"';
+}
+
+bool _chainIsRedundant(ObservabilityLogRecord entry) {
+  return entry.chain.length == 1 && entry.chain.first.slug == entry.slug;
 }
 
 extension _IterableFirstOrNull<T> on Iterable<T> {

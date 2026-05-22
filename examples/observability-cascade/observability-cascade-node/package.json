@@ -1,0 +1,12 @@
+{
+  "name": "observability-cascade-node",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Node.js observability cascade composite verifier.",
+  "main": "cmd/main.js",
+  "dependencies": {
+    "@grpc/grpc-js": "^1.10.0",
+    "@organic-programming/holons": "file:../../../sdk/node-holons",
+    "google-protobuf": "^3.21.4"
+  }
+}

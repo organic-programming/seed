@@ -10,6 +10,7 @@ const protoLoader = require('@grpc/proto-loader');
 
 const describe = require('./describe');
 const observability = require('./observability');
+const observabilityWire = require('./gen/holons/v1/observability');
 const transport = require('./transport');
 
 const DEFAULT_URI = transport.DEFAULT_URI;
@@ -46,7 +47,7 @@ async function runWithOptions(listenUri, registerFn, reflectOrOptions = false) {
     });
     observability.checkEnv();
     const obs = (process.env.OP_OBS || '').trim()
-        ? observability.fromEnv({})
+        ? observability.fromEnv({ slug: options.slug || '' })
         : null;
     registerFn(server);
     try {
@@ -75,9 +76,21 @@ async function runWithOptions(listenUri, registerFn, reflectOrOptions = false) {
         throw new Error(`unsupported serve transport: ${parsed.scheme}://`);
     }
 
+    const promServer = await startPromServer(obs, logger);
+    const metricsAddr = promServer ? promServer.addrURL() : '';
     if (obs && obs.families && obs.families.size > 0) {
-        startObservabilityRuntime(obs, runtime.publicURI, parsed.scheme);
+        startObservabilityRuntime(obs, runtime.publicURI, parsed.scheme, metricsAddr);
     }
+    const startedRelays = await startMemberRelays(obs, options.memberEndpoints, logger);
+    const closeRuntime = runtime.close;
+    runtime.close = async () => {
+        for (const relay of startedRelays) relay.stop();
+        for (const relay of startedRelays) {
+            if (relay.client && typeof relay.client.close === 'function') relay.client.close();
+        }
+        if (promServer) await promServer.close();
+        await closeRuntime.call(runtime);
+    };
     attachRuntime(server, runtime, options.logger || console);
 
     const mode = reflectionEnabled ? 'reflection ON' : 'reflection OFF';
@@ -90,7 +103,7 @@ function autoRegisterHolonMeta(server) {
     describe.register(server);
 }
 
-function startObservabilityRuntime(obs, publicURI, transportName) {
+function startObservabilityRuntime(obs, publicURI, transportName, metricsAddr = '') {
     if (!obs.cfg.runDir) return;
     observability.enableDiskWriters(obs.cfg.runDir);
     if (obs.enabled(observability.Family.EVENTS)) {
@@ -104,6 +117,7 @@ function startObservabilityRuntime(obs, publicURI, transportName) {
         mode: 'persistent',
         transport: transportName || '',
         address: publicURI || '',
+        ...(metricsAddr ? { metrics_addr: metricsAddr } : {}),
         ...(obs.enabled(observability.Family.LOGS)
             ? { log_path: path.join(obs.cfg.runDir, 'stdout.log') }
             : {}),
@@ -133,8 +147,148 @@ function normalizeRunOptions(input) {
         reflectionPackageDefinition: options.reflectionPackageDefinition || null,
         ws: options.ws || {},
         logger: options.logger || console,
+        memberEndpoints: Array.isArray(options.memberEndpoints) ? options.memberEndpoints : [],
+        slug: options.slug || '',
     };
 }
+
+async function startPromServer(obs, logger) {
+    if (!obs || !obs.enabled(observability.Family.PROM)) return null;
+    const server = new observability.PromServer(obs.cfg.promAddr || ':0');
+    try {
+        await server.start();
+        return server;
+    } catch (err) {
+        logger.warn(`warning: prom HTTP bind failed: ${err.message}`);
+        return null;
+    }
+}
+
+async function startMemberRelays(obs, members, logger) {
+    if (!obs || (!obs.enabled(observability.Family.LOGS) && !obs.enabled(observability.Family.EVENTS))) {
+        return [];
+    }
+    const started = [];
+    for (const raw of members || []) {
+        let member = normalizeMemberRef(raw);
+        if (!member.slug || !member.address) {
+            logger.warn(`warning: observability relay skipped incomplete member ref: slug="${member.slug}" uid="${member.uid}" address="${member.address}"`);
+            continue;
+        }
+        const client = new ObservabilityClient(
+            normalizeRelayDialTarget(member.address),
+            grpc.credentials.createInsecure(),
+        );
+        try {
+            member = await resolveRelayMemberIdentity(client, member);
+            if (!member.uid) {
+                logger.warn(`warning: observability relay uid unresolved for ${member.slug} at ${member.address}; chain hops will have empty uid`);
+            }
+            const relay = new observability.MemberRelay({
+                childSlug: member.slug,
+                childUid: member.uid,
+                client,
+                observability: obs,
+            });
+            relay.start();
+            started.push(relay);
+        } catch (err) {
+            if (typeof client.close === 'function') client.close();
+            logger.warn(`warning: observability relay start ${member.slug}/${member.uid}: ${err.message}`);
+        }
+    }
+    return started;
+}
+
+function normalizeMemberRef(raw) {
+    return {
+        slug: String(raw && raw.slug ? raw.slug : '').trim(),
+        uid: String(raw && raw.uid ? raw.uid : '').trim(),
+        address: String(raw && raw.address ? raw.address : '').trim(),
+    };
+}
+
+async function resolveRelayMemberIdentity(client, member) {
+    if (member.uid) return member;
+    try {
+        const events = await collectStream(client.Events.bind(client), { types: ['INSTANCE_READY'], follow: false }, 2000);
+        for (const event of events) {
+            if (event.instance_uid && !(event.chain || []).length) {
+                return {
+                    ...member,
+                    slug: String(event.slug || '').trim() || member.slug,
+                    uid: String(event.instance_uid || '').trim(),
+                };
+            }
+        }
+    } catch {
+        // fall back to Metrics
+    }
+    try {
+        const snapshot = await unary(client.Metrics.bind(client), {}, 2000);
+        if (snapshot.instance_uid) {
+            return {
+                ...member,
+                slug: String(snapshot.slug || '').trim() || member.slug,
+                uid: String(snapshot.instance_uid || '').trim(),
+            };
+        }
+    } catch {
+        // leave unresolved
+    }
+    return member;
+}
+
+function collectStream(method, request, timeoutMs) {
+    return new Promise((resolve, reject) => {
+        const out = [];
+        const stream = method(request);
+        const timer = setTimeout(() => {
+            if (typeof stream.cancel === 'function') stream.cancel();
+            resolve(out);
+        }, timeoutMs);
+        stream.on('data', (entry) => out.push(entry));
+        stream.on('error', (err) => {
+            clearTimeout(timer);
+            reject(err);
+        });
+        stream.on('end', () => {
+            clearTimeout(timer);
+            resolve(out);
+        });
+    });
+}
+
+function unary(method, request, timeoutMs) {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('timeout')), timeoutMs);
+        method(request, (err, out) => {
+            clearTimeout(timer);
+            if (err) reject(err);
+            else resolve(out || {});
+        });
+    });
+}
+
+function normalizeRelayDialTarget(address) {
+    const trimmed = String(address || '').trim();
+    if (!trimmed.includes('://')) return trimmed;
+    const parsed = transport.parseURI(trimmed);
+    if (parsed.scheme === 'tcp') {
+        const host = !parsed.host || parsed.host === '0.0.0.0' || parsed.host === '::'
+            ? '127.0.0.1'
+            : parsed.host;
+        return `${host}:${parsed.port}`;
+    }
+    if (parsed.scheme === 'unix') return `unix://${parsed.path}`;
+    return trimmed;
+}
+
+const ObservabilityClient = grpc.makeGenericClientConstructor(
+    observabilityWire.HOLON_OBSERVABILITY_SERVICE_DEF,
+    'HolonObservability',
+    {},
+);
 
 function maybeEnableReflection(server, options) {
     if (!options.reflect) return false;

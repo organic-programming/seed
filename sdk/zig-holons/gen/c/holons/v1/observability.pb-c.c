@@ -52,102 +52,6 @@ void   holons__v1__logs_request__free_unpacked
   assert(message->base.descriptor == &holons__v1__logs_request__descriptor);
   protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
 }
-void   holons__v1__log_entry__fields_entry__init
-                     (Holons__V1__LogEntry__FieldsEntry         *message)
-{
-  static const Holons__V1__LogEntry__FieldsEntry init_value = HOLONS__V1__LOG_ENTRY__FIELDS_ENTRY__INIT;
-  *message = init_value;
-}
-void   holons__v1__log_entry__init
-                     (Holons__V1__LogEntry         *message)
-{
-  static const Holons__V1__LogEntry init_value = HOLONS__V1__LOG_ENTRY__INIT;
-  *message = init_value;
-}
-size_t holons__v1__log_entry__get_packed_size
-                     (const Holons__V1__LogEntry *message)
-{
-  assert(message->base.descriptor == &holons__v1__log_entry__descriptor);
-  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
-}
-size_t holons__v1__log_entry__pack
-                     (const Holons__V1__LogEntry *message,
-                      uint8_t       *out)
-{
-  assert(message->base.descriptor == &holons__v1__log_entry__descriptor);
-  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
-}
-size_t holons__v1__log_entry__pack_to_buffer
-                     (const Holons__V1__LogEntry *message,
-                      ProtobufCBuffer *buffer)
-{
-  assert(message->base.descriptor == &holons__v1__log_entry__descriptor);
-  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
-}
-Holons__V1__LogEntry *
-       holons__v1__log_entry__unpack
-                     (ProtobufCAllocator  *allocator,
-                      size_t               len,
-                      const uint8_t       *data)
-{
-  return (Holons__V1__LogEntry *)
-     protobuf_c_message_unpack (&holons__v1__log_entry__descriptor,
-                                allocator, len, data);
-}
-void   holons__v1__log_entry__free_unpacked
-                     (Holons__V1__LogEntry *message,
-                      ProtobufCAllocator *allocator)
-{
-  if(!message)
-    return;
-  assert(message->base.descriptor == &holons__v1__log_entry__descriptor);
-  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
-}
-void   holons__v1__chain_hop__init
-                     (Holons__V1__ChainHop         *message)
-{
-  static const Holons__V1__ChainHop init_value = HOLONS__V1__CHAIN_HOP__INIT;
-  *message = init_value;
-}
-size_t holons__v1__chain_hop__get_packed_size
-                     (const Holons__V1__ChainHop *message)
-{
-  assert(message->base.descriptor == &holons__v1__chain_hop__descriptor);
-  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
-}
-size_t holons__v1__chain_hop__pack
-                     (const Holons__V1__ChainHop *message,
-                      uint8_t       *out)
-{
-  assert(message->base.descriptor == &holons__v1__chain_hop__descriptor);
-  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
-}
-size_t holons__v1__chain_hop__pack_to_buffer
-                     (const Holons__V1__ChainHop *message,
-                      ProtobufCBuffer *buffer)
-{
-  assert(message->base.descriptor == &holons__v1__chain_hop__descriptor);
-  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
-}
-Holons__V1__ChainHop *
-       holons__v1__chain_hop__unpack
-                     (ProtobufCAllocator  *allocator,
-                      size_t               len,
-                      const uint8_t       *data)
-{
-  return (Holons__V1__ChainHop *)
-     protobuf_c_message_unpack (&holons__v1__chain_hop__descriptor,
-                                allocator, len, data);
-}
-void   holons__v1__chain_hop__free_unpacked
-                     (Holons__V1__ChainHop *message,
-                      ProtobufCAllocator *allocator)
-{
-  if(!message)
-    return;
-  assert(message->base.descriptor == &holons__v1__chain_hop__descriptor);
-  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
-}
 void   holons__v1__metrics_request__init
                      (Holons__V1__MetricsRequest         *message)
 {
@@ -191,192 +95,6 @@ void   holons__v1__metrics_request__free_unpacked
   if(!message)
     return;
   assert(message->base.descriptor == &holons__v1__metrics_request__descriptor);
-  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
-}
-void   holons__v1__metrics_snapshot__init
-                     (Holons__V1__MetricsSnapshot         *message)
-{
-  static const Holons__V1__MetricsSnapshot init_value = HOLONS__V1__METRICS_SNAPSHOT__INIT;
-  *message = init_value;
-}
-size_t holons__v1__metrics_snapshot__get_packed_size
-                     (const Holons__V1__MetricsSnapshot *message)
-{
-  assert(message->base.descriptor == &holons__v1__metrics_snapshot__descriptor);
-  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
-}
-size_t holons__v1__metrics_snapshot__pack
-                     (const Holons__V1__MetricsSnapshot *message,
-                      uint8_t       *out)
-{
-  assert(message->base.descriptor == &holons__v1__metrics_snapshot__descriptor);
-  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
-}
-size_t holons__v1__metrics_snapshot__pack_to_buffer
-                     (const Holons__V1__MetricsSnapshot *message,
-                      ProtobufCBuffer *buffer)
-{
-  assert(message->base.descriptor == &holons__v1__metrics_snapshot__descriptor);
-  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
-}
-Holons__V1__MetricsSnapshot *
-       holons__v1__metrics_snapshot__unpack
-                     (ProtobufCAllocator  *allocator,
-                      size_t               len,
-                      const uint8_t       *data)
-{
-  return (Holons__V1__MetricsSnapshot *)
-     protobuf_c_message_unpack (&holons__v1__metrics_snapshot__descriptor,
-                                allocator, len, data);
-}
-void   holons__v1__metrics_snapshot__free_unpacked
-                     (Holons__V1__MetricsSnapshot *message,
-                      ProtobufCAllocator *allocator)
-{
-  if(!message)
-    return;
-  assert(message->base.descriptor == &holons__v1__metrics_snapshot__descriptor);
-  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
-}
-void   holons__v1__metric_sample__labels_entry__init
-                     (Holons__V1__MetricSample__LabelsEntry         *message)
-{
-  static const Holons__V1__MetricSample__LabelsEntry init_value = HOLONS__V1__METRIC_SAMPLE__LABELS_ENTRY__INIT;
-  *message = init_value;
-}
-void   holons__v1__metric_sample__init
-                     (Holons__V1__MetricSample         *message)
-{
-  static const Holons__V1__MetricSample init_value = HOLONS__V1__METRIC_SAMPLE__INIT;
-  *message = init_value;
-}
-size_t holons__v1__metric_sample__get_packed_size
-                     (const Holons__V1__MetricSample *message)
-{
-  assert(message->base.descriptor == &holons__v1__metric_sample__descriptor);
-  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
-}
-size_t holons__v1__metric_sample__pack
-                     (const Holons__V1__MetricSample *message,
-                      uint8_t       *out)
-{
-  assert(message->base.descriptor == &holons__v1__metric_sample__descriptor);
-  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
-}
-size_t holons__v1__metric_sample__pack_to_buffer
-                     (const Holons__V1__MetricSample *message,
-                      ProtobufCBuffer *buffer)
-{
-  assert(message->base.descriptor == &holons__v1__metric_sample__descriptor);
-  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
-}
-Holons__V1__MetricSample *
-       holons__v1__metric_sample__unpack
-                     (ProtobufCAllocator  *allocator,
-                      size_t               len,
-                      const uint8_t       *data)
-{
-  return (Holons__V1__MetricSample *)
-     protobuf_c_message_unpack (&holons__v1__metric_sample__descriptor,
-                                allocator, len, data);
-}
-void   holons__v1__metric_sample__free_unpacked
-                     (Holons__V1__MetricSample *message,
-                      ProtobufCAllocator *allocator)
-{
-  if(!message)
-    return;
-  assert(message->base.descriptor == &holons__v1__metric_sample__descriptor);
-  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
-}
-void   holons__v1__histogram_sample__init
-                     (Holons__V1__HistogramSample         *message)
-{
-  static const Holons__V1__HistogramSample init_value = HOLONS__V1__HISTOGRAM_SAMPLE__INIT;
-  *message = init_value;
-}
-size_t holons__v1__histogram_sample__get_packed_size
-                     (const Holons__V1__HistogramSample *message)
-{
-  assert(message->base.descriptor == &holons__v1__histogram_sample__descriptor);
-  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
-}
-size_t holons__v1__histogram_sample__pack
-                     (const Holons__V1__HistogramSample *message,
-                      uint8_t       *out)
-{
-  assert(message->base.descriptor == &holons__v1__histogram_sample__descriptor);
-  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
-}
-size_t holons__v1__histogram_sample__pack_to_buffer
-                     (const Holons__V1__HistogramSample *message,
-                      ProtobufCBuffer *buffer)
-{
-  assert(message->base.descriptor == &holons__v1__histogram_sample__descriptor);
-  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
-}
-Holons__V1__HistogramSample *
-       holons__v1__histogram_sample__unpack
-                     (ProtobufCAllocator  *allocator,
-                      size_t               len,
-                      const uint8_t       *data)
-{
-  return (Holons__V1__HistogramSample *)
-     protobuf_c_message_unpack (&holons__v1__histogram_sample__descriptor,
-                                allocator, len, data);
-}
-void   holons__v1__histogram_sample__free_unpacked
-                     (Holons__V1__HistogramSample *message,
-                      ProtobufCAllocator *allocator)
-{
-  if(!message)
-    return;
-  assert(message->base.descriptor == &holons__v1__histogram_sample__descriptor);
-  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
-}
-void   holons__v1__bucket__init
-                     (Holons__V1__Bucket         *message)
-{
-  static const Holons__V1__Bucket init_value = HOLONS__V1__BUCKET__INIT;
-  *message = init_value;
-}
-size_t holons__v1__bucket__get_packed_size
-                     (const Holons__V1__Bucket *message)
-{
-  assert(message->base.descriptor == &holons__v1__bucket__descriptor);
-  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
-}
-size_t holons__v1__bucket__pack
-                     (const Holons__V1__Bucket *message,
-                      uint8_t       *out)
-{
-  assert(message->base.descriptor == &holons__v1__bucket__descriptor);
-  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
-}
-size_t holons__v1__bucket__pack_to_buffer
-                     (const Holons__V1__Bucket *message,
-                      ProtobufCBuffer *buffer)
-{
-  assert(message->base.descriptor == &holons__v1__bucket__descriptor);
-  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
-}
-Holons__V1__Bucket *
-       holons__v1__bucket__unpack
-                     (ProtobufCAllocator  *allocator,
-                      size_t               len,
-                      const uint8_t       *data)
-{
-  return (Holons__V1__Bucket *)
-     protobuf_c_message_unpack (&holons__v1__bucket__descriptor,
-                                allocator, len, data);
-}
-void   holons__v1__bucket__free_unpacked
-                     (Holons__V1__Bucket *message,
-                      ProtobufCAllocator *allocator)
-{
-  if(!message)
-    return;
-  assert(message->base.descriptor == &holons__v1__bucket__descriptor);
   protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
 }
 void   holons__v1__events_request__init
@@ -424,67 +142,466 @@ void   holons__v1__events_request__free_unpacked
   assert(message->base.descriptor == &holons__v1__events_request__descriptor);
   protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
 }
-void   holons__v1__event_info__payload_entry__init
-                     (Holons__V1__EventInfo__PayloadEntry         *message)
+void   holons__v1__any_value__init
+                     (Holons__V1__AnyValue         *message)
 {
-  static const Holons__V1__EventInfo__PayloadEntry init_value = HOLONS__V1__EVENT_INFO__PAYLOAD_ENTRY__INIT;
+  static const Holons__V1__AnyValue init_value = HOLONS__V1__ANY_VALUE__INIT;
   *message = init_value;
 }
-void   holons__v1__event_info__init
-                     (Holons__V1__EventInfo         *message)
+size_t holons__v1__any_value__get_packed_size
+                     (const Holons__V1__AnyValue *message)
 {
-  static const Holons__V1__EventInfo init_value = HOLONS__V1__EVENT_INFO__INIT;
-  *message = init_value;
-}
-size_t holons__v1__event_info__get_packed_size
-                     (const Holons__V1__EventInfo *message)
-{
-  assert(message->base.descriptor == &holons__v1__event_info__descriptor);
+  assert(message->base.descriptor == &holons__v1__any_value__descriptor);
   return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
 }
-size_t holons__v1__event_info__pack
-                     (const Holons__V1__EventInfo *message,
+size_t holons__v1__any_value__pack
+                     (const Holons__V1__AnyValue *message,
                       uint8_t       *out)
 {
-  assert(message->base.descriptor == &holons__v1__event_info__descriptor);
+  assert(message->base.descriptor == &holons__v1__any_value__descriptor);
   return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
 }
-size_t holons__v1__event_info__pack_to_buffer
-                     (const Holons__V1__EventInfo *message,
+size_t holons__v1__any_value__pack_to_buffer
+                     (const Holons__V1__AnyValue *message,
                       ProtobufCBuffer *buffer)
 {
-  assert(message->base.descriptor == &holons__v1__event_info__descriptor);
+  assert(message->base.descriptor == &holons__v1__any_value__descriptor);
   return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
 }
-Holons__V1__EventInfo *
-       holons__v1__event_info__unpack
+Holons__V1__AnyValue *
+       holons__v1__any_value__unpack
                      (ProtobufCAllocator  *allocator,
                       size_t               len,
                       const uint8_t       *data)
 {
-  return (Holons__V1__EventInfo *)
-     protobuf_c_message_unpack (&holons__v1__event_info__descriptor,
+  return (Holons__V1__AnyValue *)
+     protobuf_c_message_unpack (&holons__v1__any_value__descriptor,
                                 allocator, len, data);
 }
-void   holons__v1__event_info__free_unpacked
-                     (Holons__V1__EventInfo *message,
+void   holons__v1__any_value__free_unpacked
+                     (Holons__V1__AnyValue *message,
                       ProtobufCAllocator *allocator)
 {
   if(!message)
     return;
-  assert(message->base.descriptor == &holons__v1__event_info__descriptor);
+  assert(message->base.descriptor == &holons__v1__any_value__descriptor);
+  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
+}
+void   holons__v1__key_value__init
+                     (Holons__V1__KeyValue         *message)
+{
+  static const Holons__V1__KeyValue init_value = HOLONS__V1__KEY_VALUE__INIT;
+  *message = init_value;
+}
+size_t holons__v1__key_value__get_packed_size
+                     (const Holons__V1__KeyValue *message)
+{
+  assert(message->base.descriptor == &holons__v1__key_value__descriptor);
+  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
+}
+size_t holons__v1__key_value__pack
+                     (const Holons__V1__KeyValue *message,
+                      uint8_t       *out)
+{
+  assert(message->base.descriptor == &holons__v1__key_value__descriptor);
+  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
+}
+size_t holons__v1__key_value__pack_to_buffer
+                     (const Holons__V1__KeyValue *message,
+                      ProtobufCBuffer *buffer)
+{
+  assert(message->base.descriptor == &holons__v1__key_value__descriptor);
+  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
+}
+Holons__V1__KeyValue *
+       holons__v1__key_value__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+  return (Holons__V1__KeyValue *)
+     protobuf_c_message_unpack (&holons__v1__key_value__descriptor,
+                                allocator, len, data);
+}
+void   holons__v1__key_value__free_unpacked
+                     (Holons__V1__KeyValue *message,
+                      ProtobufCAllocator *allocator)
+{
+  if(!message)
+    return;
+  assert(message->base.descriptor == &holons__v1__key_value__descriptor);
+  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
+}
+void   holons__v1__resource__init
+                     (Holons__V1__Resource         *message)
+{
+  static const Holons__V1__Resource init_value = HOLONS__V1__RESOURCE__INIT;
+  *message = init_value;
+}
+size_t holons__v1__resource__get_packed_size
+                     (const Holons__V1__Resource *message)
+{
+  assert(message->base.descriptor == &holons__v1__resource__descriptor);
+  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
+}
+size_t holons__v1__resource__pack
+                     (const Holons__V1__Resource *message,
+                      uint8_t       *out)
+{
+  assert(message->base.descriptor == &holons__v1__resource__descriptor);
+  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
+}
+size_t holons__v1__resource__pack_to_buffer
+                     (const Holons__V1__Resource *message,
+                      ProtobufCBuffer *buffer)
+{
+  assert(message->base.descriptor == &holons__v1__resource__descriptor);
+  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
+}
+Holons__V1__Resource *
+       holons__v1__resource__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+  return (Holons__V1__Resource *)
+     protobuf_c_message_unpack (&holons__v1__resource__descriptor,
+                                allocator, len, data);
+}
+void   holons__v1__resource__free_unpacked
+                     (Holons__V1__Resource *message,
+                      ProtobufCAllocator *allocator)
+{
+  if(!message)
+    return;
+  assert(message->base.descriptor == &holons__v1__resource__descriptor);
+  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
+}
+void   holons__v1__log_record__init
+                     (Holons__V1__LogRecord         *message)
+{
+  static const Holons__V1__LogRecord init_value = HOLONS__V1__LOG_RECORD__INIT;
+  *message = init_value;
+}
+size_t holons__v1__log_record__get_packed_size
+                     (const Holons__V1__LogRecord *message)
+{
+  assert(message->base.descriptor == &holons__v1__log_record__descriptor);
+  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
+}
+size_t holons__v1__log_record__pack
+                     (const Holons__V1__LogRecord *message,
+                      uint8_t       *out)
+{
+  assert(message->base.descriptor == &holons__v1__log_record__descriptor);
+  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
+}
+size_t holons__v1__log_record__pack_to_buffer
+                     (const Holons__V1__LogRecord *message,
+                      ProtobufCBuffer *buffer)
+{
+  assert(message->base.descriptor == &holons__v1__log_record__descriptor);
+  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
+}
+Holons__V1__LogRecord *
+       holons__v1__log_record__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+  return (Holons__V1__LogRecord *)
+     protobuf_c_message_unpack (&holons__v1__log_record__descriptor,
+                                allocator, len, data);
+}
+void   holons__v1__log_record__free_unpacked
+                     (Holons__V1__LogRecord *message,
+                      ProtobufCAllocator *allocator)
+{
+  if(!message)
+    return;
+  assert(message->base.descriptor == &holons__v1__log_record__descriptor);
+  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
+}
+void   holons__v1__metric__init
+                     (Holons__V1__Metric         *message)
+{
+  static const Holons__V1__Metric init_value = HOLONS__V1__METRIC__INIT;
+  *message = init_value;
+}
+size_t holons__v1__metric__get_packed_size
+                     (const Holons__V1__Metric *message)
+{
+  assert(message->base.descriptor == &holons__v1__metric__descriptor);
+  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
+}
+size_t holons__v1__metric__pack
+                     (const Holons__V1__Metric *message,
+                      uint8_t       *out)
+{
+  assert(message->base.descriptor == &holons__v1__metric__descriptor);
+  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
+}
+size_t holons__v1__metric__pack_to_buffer
+                     (const Holons__V1__Metric *message,
+                      ProtobufCBuffer *buffer)
+{
+  assert(message->base.descriptor == &holons__v1__metric__descriptor);
+  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
+}
+Holons__V1__Metric *
+       holons__v1__metric__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+  return (Holons__V1__Metric *)
+     protobuf_c_message_unpack (&holons__v1__metric__descriptor,
+                                allocator, len, data);
+}
+void   holons__v1__metric__free_unpacked
+                     (Holons__V1__Metric *message,
+                      ProtobufCAllocator *allocator)
+{
+  if(!message)
+    return;
+  assert(message->base.descriptor == &holons__v1__metric__descriptor);
+  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
+}
+void   holons__v1__gauge__init
+                     (Holons__V1__Gauge         *message)
+{
+  static const Holons__V1__Gauge init_value = HOLONS__V1__GAUGE__INIT;
+  *message = init_value;
+}
+size_t holons__v1__gauge__get_packed_size
+                     (const Holons__V1__Gauge *message)
+{
+  assert(message->base.descriptor == &holons__v1__gauge__descriptor);
+  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
+}
+size_t holons__v1__gauge__pack
+                     (const Holons__V1__Gauge *message,
+                      uint8_t       *out)
+{
+  assert(message->base.descriptor == &holons__v1__gauge__descriptor);
+  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
+}
+size_t holons__v1__gauge__pack_to_buffer
+                     (const Holons__V1__Gauge *message,
+                      ProtobufCBuffer *buffer)
+{
+  assert(message->base.descriptor == &holons__v1__gauge__descriptor);
+  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
+}
+Holons__V1__Gauge *
+       holons__v1__gauge__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+  return (Holons__V1__Gauge *)
+     protobuf_c_message_unpack (&holons__v1__gauge__descriptor,
+                                allocator, len, data);
+}
+void   holons__v1__gauge__free_unpacked
+                     (Holons__V1__Gauge *message,
+                      ProtobufCAllocator *allocator)
+{
+  if(!message)
+    return;
+  assert(message->base.descriptor == &holons__v1__gauge__descriptor);
+  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
+}
+void   holons__v1__sum__init
+                     (Holons__V1__Sum         *message)
+{
+  static const Holons__V1__Sum init_value = HOLONS__V1__SUM__INIT;
+  *message = init_value;
+}
+size_t holons__v1__sum__get_packed_size
+                     (const Holons__V1__Sum *message)
+{
+  assert(message->base.descriptor == &holons__v1__sum__descriptor);
+  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
+}
+size_t holons__v1__sum__pack
+                     (const Holons__V1__Sum *message,
+                      uint8_t       *out)
+{
+  assert(message->base.descriptor == &holons__v1__sum__descriptor);
+  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
+}
+size_t holons__v1__sum__pack_to_buffer
+                     (const Holons__V1__Sum *message,
+                      ProtobufCBuffer *buffer)
+{
+  assert(message->base.descriptor == &holons__v1__sum__descriptor);
+  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
+}
+Holons__V1__Sum *
+       holons__v1__sum__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+  return (Holons__V1__Sum *)
+     protobuf_c_message_unpack (&holons__v1__sum__descriptor,
+                                allocator, len, data);
+}
+void   holons__v1__sum__free_unpacked
+                     (Holons__V1__Sum *message,
+                      ProtobufCAllocator *allocator)
+{
+  if(!message)
+    return;
+  assert(message->base.descriptor == &holons__v1__sum__descriptor);
+  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
+}
+void   holons__v1__histogram__init
+                     (Holons__V1__Histogram         *message)
+{
+  static const Holons__V1__Histogram init_value = HOLONS__V1__HISTOGRAM__INIT;
+  *message = init_value;
+}
+size_t holons__v1__histogram__get_packed_size
+                     (const Holons__V1__Histogram *message)
+{
+  assert(message->base.descriptor == &holons__v1__histogram__descriptor);
+  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
+}
+size_t holons__v1__histogram__pack
+                     (const Holons__V1__Histogram *message,
+                      uint8_t       *out)
+{
+  assert(message->base.descriptor == &holons__v1__histogram__descriptor);
+  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
+}
+size_t holons__v1__histogram__pack_to_buffer
+                     (const Holons__V1__Histogram *message,
+                      ProtobufCBuffer *buffer)
+{
+  assert(message->base.descriptor == &holons__v1__histogram__descriptor);
+  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
+}
+Holons__V1__Histogram *
+       holons__v1__histogram__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+  return (Holons__V1__Histogram *)
+     protobuf_c_message_unpack (&holons__v1__histogram__descriptor,
+                                allocator, len, data);
+}
+void   holons__v1__histogram__free_unpacked
+                     (Holons__V1__Histogram *message,
+                      ProtobufCAllocator *allocator)
+{
+  if(!message)
+    return;
+  assert(message->base.descriptor == &holons__v1__histogram__descriptor);
+  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
+}
+void   holons__v1__number_data_point__init
+                     (Holons__V1__NumberDataPoint         *message)
+{
+  static const Holons__V1__NumberDataPoint init_value = HOLONS__V1__NUMBER_DATA_POINT__INIT;
+  *message = init_value;
+}
+size_t holons__v1__number_data_point__get_packed_size
+                     (const Holons__V1__NumberDataPoint *message)
+{
+  assert(message->base.descriptor == &holons__v1__number_data_point__descriptor);
+  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
+}
+size_t holons__v1__number_data_point__pack
+                     (const Holons__V1__NumberDataPoint *message,
+                      uint8_t       *out)
+{
+  assert(message->base.descriptor == &holons__v1__number_data_point__descriptor);
+  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
+}
+size_t holons__v1__number_data_point__pack_to_buffer
+                     (const Holons__V1__NumberDataPoint *message,
+                      ProtobufCBuffer *buffer)
+{
+  assert(message->base.descriptor == &holons__v1__number_data_point__descriptor);
+  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
+}
+Holons__V1__NumberDataPoint *
+       holons__v1__number_data_point__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+  return (Holons__V1__NumberDataPoint *)
+     protobuf_c_message_unpack (&holons__v1__number_data_point__descriptor,
+                                allocator, len, data);
+}
+void   holons__v1__number_data_point__free_unpacked
+                     (Holons__V1__NumberDataPoint *message,
+                      ProtobufCAllocator *allocator)
+{
+  if(!message)
+    return;
+  assert(message->base.descriptor == &holons__v1__number_data_point__descriptor);
+  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
+}
+void   holons__v1__histogram_data_point__init
+                     (Holons__V1__HistogramDataPoint         *message)
+{
+  static const Holons__V1__HistogramDataPoint init_value = HOLONS__V1__HISTOGRAM_DATA_POINT__INIT;
+  *message = init_value;
+}
+size_t holons__v1__histogram_data_point__get_packed_size
+                     (const Holons__V1__HistogramDataPoint *message)
+{
+  assert(message->base.descriptor == &holons__v1__histogram_data_point__descriptor);
+  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
+}
+size_t holons__v1__histogram_data_point__pack
+                     (const Holons__V1__HistogramDataPoint *message,
+                      uint8_t       *out)
+{
+  assert(message->base.descriptor == &holons__v1__histogram_data_point__descriptor);
+  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
+}
+size_t holons__v1__histogram_data_point__pack_to_buffer
+                     (const Holons__V1__HistogramDataPoint *message,
+                      ProtobufCBuffer *buffer)
+{
+  assert(message->base.descriptor == &holons__v1__histogram_data_point__descriptor);
+  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
+}
+Holons__V1__HistogramDataPoint *
+       holons__v1__histogram_data_point__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+  return (Holons__V1__HistogramDataPoint *)
+     protobuf_c_message_unpack (&holons__v1__histogram_data_point__descriptor,
+                                allocator, len, data);
+}
+void   holons__v1__histogram_data_point__free_unpacked
+                     (Holons__V1__HistogramDataPoint *message,
+                      ProtobufCAllocator *allocator)
+{
+  if(!message)
+    return;
+  assert(message->base.descriptor == &holons__v1__histogram_data_point__descriptor);
   protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
 }
 static const ProtobufCFieldDescriptor holons__v1__logs_request__field_descriptors[5] =
 {
   {
-    "min_level",
+    "min_severity_number",
     1,
     PROTOBUF_C_LABEL_NONE,
     PROTOBUF_C_TYPE_ENUM,
     0,   /* quantifier_offset */
-    offsetof(Holons__V1__LogsRequest, min_level),
-    &holons__v1__log_level__descriptor,
+    offsetof(Holons__V1__LogsRequest, min_severity_number),
+    &holons__v1__severity_number__descriptor,
     NULL,
     0,             /* flags */
     0,NULL,NULL    /* reserved1,reserved2, etc */
@@ -540,7 +657,7 @@ static const ProtobufCFieldDescriptor holons__v1__logs_request__field_descriptor
 };
 static const unsigned holons__v1__logs_request__field_indices_by_name[] = {
   4,   /* field[4] = follow */
-  0,   /* field[0] = min_level */
+  0,   /* field[0] = min_severity_number */
   2,   /* field[2] = rpc_methods */
   1,   /* field[1] = session_ids */
   3,   /* field[3] = since */
@@ -565,264 +682,7 @@ const ProtobufCMessageDescriptor holons__v1__logs_request__descriptor =
   (ProtobufCMessageInit) holons__v1__logs_request__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
-static const ProtobufCFieldDescriptor holons__v1__log_entry__fields_entry__field_descriptors[2] =
-{
-  {
-    "key",
-    1,
-    PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_STRING,
-    0,   /* quantifier_offset */
-    offsetof(Holons__V1__LogEntry__FieldsEntry, key),
-    NULL,
-    &protobuf_c_empty_string,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "value",
-    2,
-    PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_STRING,
-    0,   /* quantifier_offset */
-    offsetof(Holons__V1__LogEntry__FieldsEntry, value),
-    NULL,
-    &protobuf_c_empty_string,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-};
-static const unsigned holons__v1__log_entry__fields_entry__field_indices_by_name[] = {
-  0,   /* field[0] = key */
-  1,   /* field[1] = value */
-};
-static const ProtobufCIntRange holons__v1__log_entry__fields_entry__number_ranges[1 + 1] =
-{
-  { 1, 0 },
-  { 0, 2 }
-};
-const ProtobufCMessageDescriptor holons__v1__log_entry__fields_entry__descriptor =
-{
-  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
-  "holons.v1.LogEntry.FieldsEntry",
-  "FieldsEntry",
-  "Holons__V1__LogEntry__FieldsEntry",
-  "holons.v1",
-  sizeof(Holons__V1__LogEntry__FieldsEntry),
-  2,
-  holons__v1__log_entry__fields_entry__field_descriptors,
-  holons__v1__log_entry__fields_entry__field_indices_by_name,
-  1,  holons__v1__log_entry__fields_entry__number_ranges,
-  (ProtobufCMessageInit) holons__v1__log_entry__fields_entry__init,
-  NULL,NULL,NULL    /* reserved[123] */
-};
-static const ProtobufCFieldDescriptor holons__v1__log_entry__field_descriptors[10] =
-{
-  {
-    "ts",
-    1,
-    PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_MESSAGE,
-    0,   /* quantifier_offset */
-    offsetof(Holons__V1__LogEntry, ts),
-    &google__protobuf__timestamp__descriptor,
-    NULL,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "level",
-    2,
-    PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_ENUM,
-    0,   /* quantifier_offset */
-    offsetof(Holons__V1__LogEntry, level),
-    &holons__v1__log_level__descriptor,
-    NULL,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "slug",
-    3,
-    PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_STRING,
-    0,   /* quantifier_offset */
-    offsetof(Holons__V1__LogEntry, slug),
-    NULL,
-    &protobuf_c_empty_string,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "instance_uid",
-    4,
-    PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_STRING,
-    0,   /* quantifier_offset */
-    offsetof(Holons__V1__LogEntry, instance_uid),
-    NULL,
-    &protobuf_c_empty_string,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "session_id",
-    5,
-    PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_STRING,
-    0,   /* quantifier_offset */
-    offsetof(Holons__V1__LogEntry, session_id),
-    NULL,
-    &protobuf_c_empty_string,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "rpc_method",
-    6,
-    PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_STRING,
-    0,   /* quantifier_offset */
-    offsetof(Holons__V1__LogEntry, rpc_method),
-    NULL,
-    &protobuf_c_empty_string,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "message",
-    7,
-    PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_STRING,
-    0,   /* quantifier_offset */
-    offsetof(Holons__V1__LogEntry, message),
-    NULL,
-    &protobuf_c_empty_string,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "fields",
-    8,
-    PROTOBUF_C_LABEL_REPEATED,
-    PROTOBUF_C_TYPE_MESSAGE,
-    offsetof(Holons__V1__LogEntry, n_fields),
-    offsetof(Holons__V1__LogEntry, fields),
-    &holons__v1__log_entry__fields_entry__descriptor,
-    NULL,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "caller",
-    9,
-    PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_STRING,
-    0,   /* quantifier_offset */
-    offsetof(Holons__V1__LogEntry, caller),
-    NULL,
-    &protobuf_c_empty_string,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "chain",
-    10,
-    PROTOBUF_C_LABEL_REPEATED,
-    PROTOBUF_C_TYPE_MESSAGE,
-    offsetof(Holons__V1__LogEntry, n_chain),
-    offsetof(Holons__V1__LogEntry, chain),
-    &holons__v1__chain_hop__descriptor,
-    NULL,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-};
-static const unsigned holons__v1__log_entry__field_indices_by_name[] = {
-  8,   /* field[8] = caller */
-  9,   /* field[9] = chain */
-  7,   /* field[7] = fields */
-  3,   /* field[3] = instance_uid */
-  1,   /* field[1] = level */
-  6,   /* field[6] = message */
-  5,   /* field[5] = rpc_method */
-  4,   /* field[4] = session_id */
-  2,   /* field[2] = slug */
-  0,   /* field[0] = ts */
-};
-static const ProtobufCIntRange holons__v1__log_entry__number_ranges[1 + 1] =
-{
-  { 1, 0 },
-  { 0, 10 }
-};
-const ProtobufCMessageDescriptor holons__v1__log_entry__descriptor =
-{
-  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
-  "holons.v1.LogEntry",
-  "LogEntry",
-  "Holons__V1__LogEntry",
-  "holons.v1",
-  sizeof(Holons__V1__LogEntry),
-  10,
-  holons__v1__log_entry__field_descriptors,
-  holons__v1__log_entry__field_indices_by_name,
-  1,  holons__v1__log_entry__number_ranges,
-  (ProtobufCMessageInit) holons__v1__log_entry__init,
-  NULL,NULL,NULL    /* reserved[123] */
-};
-static const ProtobufCFieldDescriptor holons__v1__chain_hop__field_descriptors[2] =
-{
-  {
-    "slug",
-    1,
-    PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_STRING,
-    0,   /* quantifier_offset */
-    offsetof(Holons__V1__ChainHop, slug),
-    NULL,
-    &protobuf_c_empty_string,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "instance_uid",
-    2,
-    PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_STRING,
-    0,   /* quantifier_offset */
-    offsetof(Holons__V1__ChainHop, instance_uid),
-    NULL,
-    &protobuf_c_empty_string,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-};
-static const unsigned holons__v1__chain_hop__field_indices_by_name[] = {
-  1,   /* field[1] = instance_uid */
-  0,   /* field[0] = slug */
-};
-static const ProtobufCIntRange holons__v1__chain_hop__number_ranges[1 + 1] =
-{
-  { 1, 0 },
-  { 0, 2 }
-};
-const ProtobufCMessageDescriptor holons__v1__chain_hop__descriptor =
-{
-  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
-  "holons.v1.ChainHop",
-  "ChainHop",
-  "Holons__V1__ChainHop",
-  "holons.v1",
-  sizeof(Holons__V1__ChainHop),
-  2,
-  holons__v1__chain_hop__field_descriptors,
-  holons__v1__chain_hop__field_indices_by_name,
-  1,  holons__v1__chain_hop__number_ranges,
-  (ProtobufCMessageInit) holons__v1__chain_hop__init,
-  NULL,NULL,NULL    /* reserved[123] */
-};
-static const ProtobufCFieldDescriptor holons__v1__metrics_request__field_descriptors[2] =
+static const ProtobufCFieldDescriptor holons__v1__metrics_request__field_descriptors[1] =
 {
   {
     "name_prefixes",
@@ -836,27 +696,14 @@ static const ProtobufCFieldDescriptor holons__v1__metrics_request__field_descrip
     0,             /* flags */
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
-  {
-    "include_session_rollup",
-    2,
-    PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_BOOL,
-    0,   /* quantifier_offset */
-    offsetof(Holons__V1__MetricsRequest, include_session_rollup),
-    NULL,
-    NULL,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
 };
 static const unsigned holons__v1__metrics_request__field_indices_by_name[] = {
-  1,   /* field[1] = include_session_rollup */
   0,   /* field[0] = name_prefixes */
 };
 static const ProtobufCIntRange holons__v1__metrics_request__number_ranges[1 + 1] =
 {
   { 1, 0 },
-  { 0, 2 }
+  { 0, 1 }
 };
 const ProtobufCMessageDescriptor holons__v1__metrics_request__descriptor =
 {
@@ -866,397 +713,25 @@ const ProtobufCMessageDescriptor holons__v1__metrics_request__descriptor =
   "Holons__V1__MetricsRequest",
   "holons.v1",
   sizeof(Holons__V1__MetricsRequest),
-  2,
+  1,
   holons__v1__metrics_request__field_descriptors,
   holons__v1__metrics_request__field_indices_by_name,
   1,  holons__v1__metrics_request__number_ranges,
   (ProtobufCMessageInit) holons__v1__metrics_request__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
-static const ProtobufCFieldDescriptor holons__v1__metrics_snapshot__field_descriptors[5] =
-{
-  {
-    "captured_at",
-    1,
-    PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_MESSAGE,
-    0,   /* quantifier_offset */
-    offsetof(Holons__V1__MetricsSnapshot, captured_at),
-    &google__protobuf__timestamp__descriptor,
-    NULL,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "slug",
-    2,
-    PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_STRING,
-    0,   /* quantifier_offset */
-    offsetof(Holons__V1__MetricsSnapshot, slug),
-    NULL,
-    &protobuf_c_empty_string,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "instance_uid",
-    3,
-    PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_STRING,
-    0,   /* quantifier_offset */
-    offsetof(Holons__V1__MetricsSnapshot, instance_uid),
-    NULL,
-    &protobuf_c_empty_string,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "samples",
-    4,
-    PROTOBUF_C_LABEL_REPEATED,
-    PROTOBUF_C_TYPE_MESSAGE,
-    offsetof(Holons__V1__MetricsSnapshot, n_samples),
-    offsetof(Holons__V1__MetricsSnapshot, samples),
-    &holons__v1__metric_sample__descriptor,
-    NULL,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "session_rollup",
-    5,
-    PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_MESSAGE,
-    0,   /* quantifier_offset */
-    offsetof(Holons__V1__MetricsSnapshot, session_rollup),
-    &holons__v1__session_metrics__descriptor,
-    NULL,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-};
-static const unsigned holons__v1__metrics_snapshot__field_indices_by_name[] = {
-  0,   /* field[0] = captured_at */
-  2,   /* field[2] = instance_uid */
-  3,   /* field[3] = samples */
-  4,   /* field[4] = session_rollup */
-  1,   /* field[1] = slug */
-};
-static const ProtobufCIntRange holons__v1__metrics_snapshot__number_ranges[1 + 1] =
-{
-  { 1, 0 },
-  { 0, 5 }
-};
-const ProtobufCMessageDescriptor holons__v1__metrics_snapshot__descriptor =
-{
-  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
-  "holons.v1.MetricsSnapshot",
-  "MetricsSnapshot",
-  "Holons__V1__MetricsSnapshot",
-  "holons.v1",
-  sizeof(Holons__V1__MetricsSnapshot),
-  5,
-  holons__v1__metrics_snapshot__field_descriptors,
-  holons__v1__metrics_snapshot__field_indices_by_name,
-  1,  holons__v1__metrics_snapshot__number_ranges,
-  (ProtobufCMessageInit) holons__v1__metrics_snapshot__init,
-  NULL,NULL,NULL    /* reserved[123] */
-};
-static const ProtobufCFieldDescriptor holons__v1__metric_sample__labels_entry__field_descriptors[2] =
-{
-  {
-    "key",
-    1,
-    PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_STRING,
-    0,   /* quantifier_offset */
-    offsetof(Holons__V1__MetricSample__LabelsEntry, key),
-    NULL,
-    &protobuf_c_empty_string,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "value",
-    2,
-    PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_STRING,
-    0,   /* quantifier_offset */
-    offsetof(Holons__V1__MetricSample__LabelsEntry, value),
-    NULL,
-    &protobuf_c_empty_string,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-};
-static const unsigned holons__v1__metric_sample__labels_entry__field_indices_by_name[] = {
-  0,   /* field[0] = key */
-  1,   /* field[1] = value */
-};
-static const ProtobufCIntRange holons__v1__metric_sample__labels_entry__number_ranges[1 + 1] =
-{
-  { 1, 0 },
-  { 0, 2 }
-};
-const ProtobufCMessageDescriptor holons__v1__metric_sample__labels_entry__descriptor =
-{
-  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
-  "holons.v1.MetricSample.LabelsEntry",
-  "LabelsEntry",
-  "Holons__V1__MetricSample__LabelsEntry",
-  "holons.v1",
-  sizeof(Holons__V1__MetricSample__LabelsEntry),
-  2,
-  holons__v1__metric_sample__labels_entry__field_descriptors,
-  holons__v1__metric_sample__labels_entry__field_indices_by_name,
-  1,  holons__v1__metric_sample__labels_entry__number_ranges,
-  (ProtobufCMessageInit) holons__v1__metric_sample__labels_entry__init,
-  NULL,NULL,NULL    /* reserved[123] */
-};
-static const ProtobufCFieldDescriptor holons__v1__metric_sample__field_descriptors[7] =
-{
-  {
-    "name",
-    1,
-    PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_STRING,
-    0,   /* quantifier_offset */
-    offsetof(Holons__V1__MetricSample, name),
-    NULL,
-    &protobuf_c_empty_string,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "labels",
-    2,
-    PROTOBUF_C_LABEL_REPEATED,
-    PROTOBUF_C_TYPE_MESSAGE,
-    offsetof(Holons__V1__MetricSample, n_labels),
-    offsetof(Holons__V1__MetricSample, labels),
-    &holons__v1__metric_sample__labels_entry__descriptor,
-    NULL,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "counter",
-    3,
-    PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_INT64,
-    offsetof(Holons__V1__MetricSample, value_case),
-    offsetof(Holons__V1__MetricSample, counter),
-    NULL,
-    NULL,
-    PROTOBUF_C_FIELD_FLAG_ONEOF,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "gauge",
-    4,
-    PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_DOUBLE,
-    offsetof(Holons__V1__MetricSample, value_case),
-    offsetof(Holons__V1__MetricSample, gauge),
-    NULL,
-    NULL,
-    PROTOBUF_C_FIELD_FLAG_ONEOF,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "histogram",
-    5,
-    PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_MESSAGE,
-    offsetof(Holons__V1__MetricSample, value_case),
-    offsetof(Holons__V1__MetricSample, histogram),
-    &holons__v1__histogram_sample__descriptor,
-    NULL,
-    PROTOBUF_C_FIELD_FLAG_ONEOF,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "help",
-    6,
-    PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_STRING,
-    0,   /* quantifier_offset */
-    offsetof(Holons__V1__MetricSample, help),
-    NULL,
-    &protobuf_c_empty_string,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "chain",
-    7,
-    PROTOBUF_C_LABEL_REPEATED,
-    PROTOBUF_C_TYPE_MESSAGE,
-    offsetof(Holons__V1__MetricSample, n_chain),
-    offsetof(Holons__V1__MetricSample, chain),
-    &holons__v1__chain_hop__descriptor,
-    NULL,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-};
-static const unsigned holons__v1__metric_sample__field_indices_by_name[] = {
-  6,   /* field[6] = chain */
-  2,   /* field[2] = counter */
-  3,   /* field[3] = gauge */
-  5,   /* field[5] = help */
-  4,   /* field[4] = histogram */
-  1,   /* field[1] = labels */
-  0,   /* field[0] = name */
-};
-static const ProtobufCIntRange holons__v1__metric_sample__number_ranges[1 + 1] =
-{
-  { 1, 0 },
-  { 0, 7 }
-};
-const ProtobufCMessageDescriptor holons__v1__metric_sample__descriptor =
-{
-  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
-  "holons.v1.MetricSample",
-  "MetricSample",
-  "Holons__V1__MetricSample",
-  "holons.v1",
-  sizeof(Holons__V1__MetricSample),
-  7,
-  holons__v1__metric_sample__field_descriptors,
-  holons__v1__metric_sample__field_indices_by_name,
-  1,  holons__v1__metric_sample__number_ranges,
-  (ProtobufCMessageInit) holons__v1__metric_sample__init,
-  NULL,NULL,NULL    /* reserved[123] */
-};
-static const ProtobufCFieldDescriptor holons__v1__histogram_sample__field_descriptors[3] =
-{
-  {
-    "buckets",
-    1,
-    PROTOBUF_C_LABEL_REPEATED,
-    PROTOBUF_C_TYPE_MESSAGE,
-    offsetof(Holons__V1__HistogramSample, n_buckets),
-    offsetof(Holons__V1__HistogramSample, buckets),
-    &holons__v1__bucket__descriptor,
-    NULL,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "count",
-    2,
-    PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_INT64,
-    0,   /* quantifier_offset */
-    offsetof(Holons__V1__HistogramSample, count),
-    NULL,
-    NULL,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "sum",
-    3,
-    PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_DOUBLE,
-    0,   /* quantifier_offset */
-    offsetof(Holons__V1__HistogramSample, sum),
-    NULL,
-    NULL,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-};
-static const unsigned holons__v1__histogram_sample__field_indices_by_name[] = {
-  0,   /* field[0] = buckets */
-  1,   /* field[1] = count */
-  2,   /* field[2] = sum */
-};
-static const ProtobufCIntRange holons__v1__histogram_sample__number_ranges[1 + 1] =
-{
-  { 1, 0 },
-  { 0, 3 }
-};
-const ProtobufCMessageDescriptor holons__v1__histogram_sample__descriptor =
-{
-  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
-  "holons.v1.HistogramSample",
-  "HistogramSample",
-  "Holons__V1__HistogramSample",
-  "holons.v1",
-  sizeof(Holons__V1__HistogramSample),
-  3,
-  holons__v1__histogram_sample__field_descriptors,
-  holons__v1__histogram_sample__field_indices_by_name,
-  1,  holons__v1__histogram_sample__number_ranges,
-  (ProtobufCMessageInit) holons__v1__histogram_sample__init,
-  NULL,NULL,NULL    /* reserved[123] */
-};
-static const ProtobufCFieldDescriptor holons__v1__bucket__field_descriptors[2] =
-{
-  {
-    "upper_bound",
-    1,
-    PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_DOUBLE,
-    0,   /* quantifier_offset */
-    offsetof(Holons__V1__Bucket, upper_bound),
-    NULL,
-    NULL,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "count",
-    2,
-    PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_INT64,
-    0,   /* quantifier_offset */
-    offsetof(Holons__V1__Bucket, count),
-    NULL,
-    NULL,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-};
-static const unsigned holons__v1__bucket__field_indices_by_name[] = {
-  1,   /* field[1] = count */
-  0,   /* field[0] = upper_bound */
-};
-static const ProtobufCIntRange holons__v1__bucket__number_ranges[1 + 1] =
-{
-  { 1, 0 },
-  { 0, 2 }
-};
-const ProtobufCMessageDescriptor holons__v1__bucket__descriptor =
-{
-  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
-  "holons.v1.Bucket",
-  "Bucket",
-  "Holons__V1__Bucket",
-  "holons.v1",
-  sizeof(Holons__V1__Bucket),
-  2,
-  holons__v1__bucket__field_descriptors,
-  holons__v1__bucket__field_indices_by_name,
-  1,  holons__v1__bucket__number_ranges,
-  (ProtobufCMessageInit) holons__v1__bucket__init,
-  NULL,NULL,NULL    /* reserved[123] */
-};
 static const ProtobufCFieldDescriptor holons__v1__events_request__field_descriptors[3] =
 {
   {
-    "types",
+    "event_names",
     1,
     PROTOBUF_C_LABEL_REPEATED,
-    PROTOBUF_C_TYPE_ENUM,
-    offsetof(Holons__V1__EventsRequest, n_types),
-    offsetof(Holons__V1__EventsRequest, types),
-    &holons__v1__event_type__descriptor,
+    PROTOBUF_C_TYPE_STRING,
+    offsetof(Holons__V1__EventsRequest, n_event_names),
+    offsetof(Holons__V1__EventsRequest, event_names),
     NULL,
-    PROTOBUF_C_FIELD_FLAG_PACKED,             /* flags */
+    &protobuf_c_empty_string,
+    0,             /* flags */
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
   {
@@ -1285,9 +760,9 @@ static const ProtobufCFieldDescriptor holons__v1__events_request__field_descript
   },
 };
 static const unsigned holons__v1__events_request__field_indices_by_name[] = {
+  0,   /* field[0] = event_names */
   2,   /* field[2] = follow */
   1,   /* field[1] = since */
-  0,   /* field[0] = types */
 };
 static const ProtobufCIntRange holons__v1__events_request__number_ranges[1 + 1] =
 {
@@ -1309,7 +784,84 @@ const ProtobufCMessageDescriptor holons__v1__events_request__descriptor =
   (ProtobufCMessageInit) holons__v1__events_request__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
-static const ProtobufCFieldDescriptor holons__v1__event_info__payload_entry__field_descriptors[2] =
+static const ProtobufCFieldDescriptor holons__v1__any_value__field_descriptors[4] =
+{
+  {
+    "string_value",
+    1,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_STRING,
+    offsetof(Holons__V1__AnyValue, value_case),
+    offsetof(Holons__V1__AnyValue, string_value),
+    NULL,
+    &protobuf_c_empty_string,
+    PROTOBUF_C_FIELD_FLAG_ONEOF,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "bool_value",
+    2,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_BOOL,
+    offsetof(Holons__V1__AnyValue, value_case),
+    offsetof(Holons__V1__AnyValue, bool_value),
+    NULL,
+    NULL,
+    PROTOBUF_C_FIELD_FLAG_ONEOF,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "int_value",
+    3,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_INT64,
+    offsetof(Holons__V1__AnyValue, value_case),
+    offsetof(Holons__V1__AnyValue, int_value),
+    NULL,
+    NULL,
+    PROTOBUF_C_FIELD_FLAG_ONEOF,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "double_value",
+    4,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_DOUBLE,
+    offsetof(Holons__V1__AnyValue, value_case),
+    offsetof(Holons__V1__AnyValue, double_value),
+    NULL,
+    NULL,
+    PROTOBUF_C_FIELD_FLAG_ONEOF,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+};
+static const unsigned holons__v1__any_value__field_indices_by_name[] = {
+  1,   /* field[1] = bool_value */
+  3,   /* field[3] = double_value */
+  2,   /* field[2] = int_value */
+  0,   /* field[0] = string_value */
+};
+static const ProtobufCIntRange holons__v1__any_value__number_ranges[1 + 1] =
+{
+  { 1, 0 },
+  { 0, 4 }
+};
+const ProtobufCMessageDescriptor holons__v1__any_value__descriptor =
+{
+  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
+  "holons.v1.AnyValue",
+  "AnyValue",
+  "Holons__V1__AnyValue",
+  "holons.v1",
+  sizeof(Holons__V1__AnyValue),
+  4,
+  holons__v1__any_value__field_descriptors,
+  holons__v1__any_value__field_indices_by_name,
+  1,  holons__v1__any_value__number_ranges,
+  (ProtobufCMessageInit) holons__v1__any_value__init,
+  NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCFieldDescriptor holons__v1__key_value__field_descriptors[2] =
 {
   {
     "key",
@@ -1317,7 +869,7 @@ static const ProtobufCFieldDescriptor holons__v1__event_info__payload_entry__fie
     PROTOBUF_C_LABEL_NONE,
     PROTOBUF_C_TYPE_STRING,
     0,   /* quantifier_offset */
-    offsetof(Holons__V1__EventInfo__PayloadEntry, key),
+    offsetof(Holons__V1__KeyValue, key),
     NULL,
     &protobuf_c_empty_string,
     0,             /* flags */
@@ -1327,240 +879,840 @@ static const ProtobufCFieldDescriptor holons__v1__event_info__payload_entry__fie
     "value",
     2,
     PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_STRING,
+    PROTOBUF_C_TYPE_MESSAGE,
     0,   /* quantifier_offset */
-    offsetof(Holons__V1__EventInfo__PayloadEntry, value),
+    offsetof(Holons__V1__KeyValue, value),
+    &holons__v1__any_value__descriptor,
     NULL,
-    &protobuf_c_empty_string,
     0,             /* flags */
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
 };
-static const unsigned holons__v1__event_info__payload_entry__field_indices_by_name[] = {
+static const unsigned holons__v1__key_value__field_indices_by_name[] = {
   0,   /* field[0] = key */
   1,   /* field[1] = value */
 };
-static const ProtobufCIntRange holons__v1__event_info__payload_entry__number_ranges[1 + 1] =
+static const ProtobufCIntRange holons__v1__key_value__number_ranges[1 + 1] =
 {
   { 1, 0 },
   { 0, 2 }
 };
-const ProtobufCMessageDescriptor holons__v1__event_info__payload_entry__descriptor =
+const ProtobufCMessageDescriptor holons__v1__key_value__descriptor =
 {
   PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
-  "holons.v1.EventInfo.PayloadEntry",
-  "PayloadEntry",
-  "Holons__V1__EventInfo__PayloadEntry",
+  "holons.v1.KeyValue",
+  "KeyValue",
+  "Holons__V1__KeyValue",
   "holons.v1",
-  sizeof(Holons__V1__EventInfo__PayloadEntry),
+  sizeof(Holons__V1__KeyValue),
   2,
-  holons__v1__event_info__payload_entry__field_descriptors,
-  holons__v1__event_info__payload_entry__field_indices_by_name,
-  1,  holons__v1__event_info__payload_entry__number_ranges,
-  (ProtobufCMessageInit) holons__v1__event_info__payload_entry__init,
+  holons__v1__key_value__field_descriptors,
+  holons__v1__key_value__field_indices_by_name,
+  1,  holons__v1__key_value__number_ranges,
+  (ProtobufCMessageInit) holons__v1__key_value__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
-static const ProtobufCFieldDescriptor holons__v1__event_info__field_descriptors[7] =
+static const ProtobufCFieldDescriptor holons__v1__resource__field_descriptors[2] =
 {
   {
-    "ts",
+    "attributes",
     1,
-    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_LABEL_REPEATED,
     PROTOBUF_C_TYPE_MESSAGE,
-    0,   /* quantifier_offset */
-    offsetof(Holons__V1__EventInfo, ts),
-    &google__protobuf__timestamp__descriptor,
+    offsetof(Holons__V1__Resource, n_attributes),
+    offsetof(Holons__V1__Resource, attributes),
+    &holons__v1__key_value__descriptor,
     NULL,
     0,             /* flags */
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
   {
-    "type",
+    "dropped_attributes_count",
+    2,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_UINT32,
+    0,   /* quantifier_offset */
+    offsetof(Holons__V1__Resource, dropped_attributes_count),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+};
+static const unsigned holons__v1__resource__field_indices_by_name[] = {
+  0,   /* field[0] = attributes */
+  1,   /* field[1] = dropped_attributes_count */
+};
+static const ProtobufCIntRange holons__v1__resource__number_ranges[1 + 1] =
+{
+  { 1, 0 },
+  { 0, 2 }
+};
+const ProtobufCMessageDescriptor holons__v1__resource__descriptor =
+{
+  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
+  "holons.v1.Resource",
+  "Resource",
+  "Holons__V1__Resource",
+  "holons.v1",
+  sizeof(Holons__V1__Resource),
+  2,
+  holons__v1__resource__field_descriptors,
+  holons__v1__resource__field_indices_by_name,
+  1,  holons__v1__resource__number_ranges,
+  (ProtobufCMessageInit) holons__v1__resource__init,
+  NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCFieldDescriptor holons__v1__log_record__field_descriptors[12] =
+{
+  {
+    "time_unix_nano",
+    1,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_FIXED64,
+    0,   /* quantifier_offset */
+    offsetof(Holons__V1__LogRecord, time_unix_nano),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "severity_number",
     2,
     PROTOBUF_C_LABEL_NONE,
     PROTOBUF_C_TYPE_ENUM,
     0,   /* quantifier_offset */
-    offsetof(Holons__V1__EventInfo, type),
-    &holons__v1__event_type__descriptor,
+    offsetof(Holons__V1__LogRecord, severity_number),
+    &holons__v1__severity_number__descriptor,
     NULL,
     0,             /* flags */
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
   {
-    "slug",
+    "severity_text",
     3,
     PROTOBUF_C_LABEL_NONE,
     PROTOBUF_C_TYPE_STRING,
     0,   /* quantifier_offset */
-    offsetof(Holons__V1__EventInfo, slug),
+    offsetof(Holons__V1__LogRecord, severity_text),
     NULL,
     &protobuf_c_empty_string,
     0,             /* flags */
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
   {
-    "instance_uid",
-    4,
-    PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_STRING,
-    0,   /* quantifier_offset */
-    offsetof(Holons__V1__EventInfo, instance_uid),
-    NULL,
-    &protobuf_c_empty_string,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "session_id",
+    "body",
     5,
     PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_STRING,
+    PROTOBUF_C_TYPE_MESSAGE,
     0,   /* quantifier_offset */
-    offsetof(Holons__V1__EventInfo, session_id),
+    offsetof(Holons__V1__LogRecord, body),
+    &holons__v1__any_value__descriptor,
     NULL,
-    &protobuf_c_empty_string,
     0,             /* flags */
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
   {
-    "payload",
+    "attributes",
     6,
     PROTOBUF_C_LABEL_REPEATED,
     PROTOBUF_C_TYPE_MESSAGE,
-    offsetof(Holons__V1__EventInfo, n_payload),
-    offsetof(Holons__V1__EventInfo, payload),
-    &holons__v1__event_info__payload_entry__descriptor,
+    offsetof(Holons__V1__LogRecord, n_attributes),
+    offsetof(Holons__V1__LogRecord, attributes),
+    &holons__v1__key_value__descriptor,
     NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "dropped_attributes_count",
+    7,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_UINT32,
+    0,   /* quantifier_offset */
+    offsetof(Holons__V1__LogRecord, dropped_attributes_count),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "flags",
+    8,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_UINT32,
+    0,   /* quantifier_offset */
+    offsetof(Holons__V1__LogRecord, flags),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "trace_id",
+    9,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_BYTES,
+    0,   /* quantifier_offset */
+    offsetof(Holons__V1__LogRecord, trace_id),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "span_id",
+    10,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_BYTES,
+    0,   /* quantifier_offset */
+    offsetof(Holons__V1__LogRecord, span_id),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "observed_time_unix_nano",
+    11,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_FIXED64,
+    0,   /* quantifier_offset */
+    offsetof(Holons__V1__LogRecord, observed_time_unix_nano),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "event_name",
+    20,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_STRING,
+    0,   /* quantifier_offset */
+    offsetof(Holons__V1__LogRecord, event_name),
+    NULL,
+    &protobuf_c_empty_string,
     0,             /* flags */
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
   {
     "chain",
+    21,
+    PROTOBUF_C_LABEL_REPEATED,
+    PROTOBUF_C_TYPE_STRING,
+    offsetof(Holons__V1__LogRecord, n_chain),
+    offsetof(Holons__V1__LogRecord, chain),
+    NULL,
+    &protobuf_c_empty_string,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+};
+static const unsigned holons__v1__log_record__field_indices_by_name[] = {
+  4,   /* field[4] = attributes */
+  3,   /* field[3] = body */
+  11,   /* field[11] = chain */
+  5,   /* field[5] = dropped_attributes_count */
+  10,   /* field[10] = event_name */
+  6,   /* field[6] = flags */
+  9,   /* field[9] = observed_time_unix_nano */
+  1,   /* field[1] = severity_number */
+  2,   /* field[2] = severity_text */
+  8,   /* field[8] = span_id */
+  0,   /* field[0] = time_unix_nano */
+  7,   /* field[7] = trace_id */
+};
+static const ProtobufCIntRange holons__v1__log_record__number_ranges[3 + 1] =
+{
+  { 1, 0 },
+  { 5, 3 },
+  { 20, 10 },
+  { 0, 12 }
+};
+const ProtobufCMessageDescriptor holons__v1__log_record__descriptor =
+{
+  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
+  "holons.v1.LogRecord",
+  "LogRecord",
+  "Holons__V1__LogRecord",
+  "holons.v1",
+  sizeof(Holons__V1__LogRecord),
+  12,
+  holons__v1__log_record__field_descriptors,
+  holons__v1__log_record__field_indices_by_name,
+  3,  holons__v1__log_record__number_ranges,
+  (ProtobufCMessageInit) holons__v1__log_record__init,
+  NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCFieldDescriptor holons__v1__metric__field_descriptors[6] =
+{
+  {
+    "name",
+    1,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_STRING,
+    0,   /* quantifier_offset */
+    offsetof(Holons__V1__Metric, name),
+    NULL,
+    &protobuf_c_empty_string,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "description",
+    2,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_STRING,
+    0,   /* quantifier_offset */
+    offsetof(Holons__V1__Metric, description),
+    NULL,
+    &protobuf_c_empty_string,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "unit",
+    3,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_STRING,
+    0,   /* quantifier_offset */
+    offsetof(Holons__V1__Metric, unit),
+    NULL,
+    &protobuf_c_empty_string,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "gauge",
+    5,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_MESSAGE,
+    offsetof(Holons__V1__Metric, data_case),
+    offsetof(Holons__V1__Metric, gauge),
+    &holons__v1__gauge__descriptor,
+    NULL,
+    PROTOBUF_C_FIELD_FLAG_ONEOF,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "sum",
     7,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_MESSAGE,
+    offsetof(Holons__V1__Metric, data_case),
+    offsetof(Holons__V1__Metric, sum),
+    &holons__v1__sum__descriptor,
+    NULL,
+    PROTOBUF_C_FIELD_FLAG_ONEOF,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "histogram",
+    9,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_MESSAGE,
+    offsetof(Holons__V1__Metric, data_case),
+    offsetof(Holons__V1__Metric, histogram),
+    &holons__v1__histogram__descriptor,
+    NULL,
+    PROTOBUF_C_FIELD_FLAG_ONEOF,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+};
+static const unsigned holons__v1__metric__field_indices_by_name[] = {
+  1,   /* field[1] = description */
+  3,   /* field[3] = gauge */
+  5,   /* field[5] = histogram */
+  0,   /* field[0] = name */
+  4,   /* field[4] = sum */
+  2,   /* field[2] = unit */
+};
+static const ProtobufCIntRange holons__v1__metric__number_ranges[4 + 1] =
+{
+  { 1, 0 },
+  { 5, 3 },
+  { 7, 4 },
+  { 9, 5 },
+  { 0, 6 }
+};
+const ProtobufCMessageDescriptor holons__v1__metric__descriptor =
+{
+  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
+  "holons.v1.Metric",
+  "Metric",
+  "Holons__V1__Metric",
+  "holons.v1",
+  sizeof(Holons__V1__Metric),
+  6,
+  holons__v1__metric__field_descriptors,
+  holons__v1__metric__field_indices_by_name,
+  4,  holons__v1__metric__number_ranges,
+  (ProtobufCMessageInit) holons__v1__metric__init,
+  NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCFieldDescriptor holons__v1__gauge__field_descriptors[1] =
+{
+  {
+    "data_points",
+    1,
     PROTOBUF_C_LABEL_REPEATED,
     PROTOBUF_C_TYPE_MESSAGE,
-    offsetof(Holons__V1__EventInfo, n_chain),
-    offsetof(Holons__V1__EventInfo, chain),
-    &holons__v1__chain_hop__descriptor,
+    offsetof(Holons__V1__Gauge, n_data_points),
+    offsetof(Holons__V1__Gauge, data_points),
+    &holons__v1__number_data_point__descriptor,
     NULL,
     0,             /* flags */
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
 };
-static const unsigned holons__v1__event_info__field_indices_by_name[] = {
-  6,   /* field[6] = chain */
-  3,   /* field[3] = instance_uid */
-  5,   /* field[5] = payload */
-  4,   /* field[4] = session_id */
-  2,   /* field[2] = slug */
-  0,   /* field[0] = ts */
-  1,   /* field[1] = type */
+static const unsigned holons__v1__gauge__field_indices_by_name[] = {
+  0,   /* field[0] = data_points */
 };
-static const ProtobufCIntRange holons__v1__event_info__number_ranges[1 + 1] =
+static const ProtobufCIntRange holons__v1__gauge__number_ranges[1 + 1] =
 {
   { 1, 0 },
-  { 0, 7 }
+  { 0, 1 }
 };
-const ProtobufCMessageDescriptor holons__v1__event_info__descriptor =
+const ProtobufCMessageDescriptor holons__v1__gauge__descriptor =
 {
   PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
-  "holons.v1.EventInfo",
-  "EventInfo",
-  "Holons__V1__EventInfo",
+  "holons.v1.Gauge",
+  "Gauge",
+  "Holons__V1__Gauge",
   "holons.v1",
-  sizeof(Holons__V1__EventInfo),
-  7,
-  holons__v1__event_info__field_descriptors,
-  holons__v1__event_info__field_indices_by_name,
-  1,  holons__v1__event_info__number_ranges,
-  (ProtobufCMessageInit) holons__v1__event_info__init,
+  sizeof(Holons__V1__Gauge),
+  1,
+  holons__v1__gauge__field_descriptors,
+  holons__v1__gauge__field_indices_by_name,
+  1,  holons__v1__gauge__number_ranges,
+  (ProtobufCMessageInit) holons__v1__gauge__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
-static const ProtobufCEnumValue holons__v1__log_level__enum_values_by_number[7] =
+static const ProtobufCFieldDescriptor holons__v1__sum__field_descriptors[3] =
 {
-  { "LOG_LEVEL_UNSPECIFIED", "HOLONS__V1__LOG_LEVEL__LOG_LEVEL_UNSPECIFIED", 0 },
-  { "TRACE", "HOLONS__V1__LOG_LEVEL__TRACE", 1 },
-  { "DEBUG", "HOLONS__V1__LOG_LEVEL__DEBUG", 2 },
-  { "INFO", "HOLONS__V1__LOG_LEVEL__INFO", 3 },
-  { "WARN", "HOLONS__V1__LOG_LEVEL__WARN", 4 },
-  { "ERROR", "HOLONS__V1__LOG_LEVEL__ERROR", 5 },
-  { "FATAL", "HOLONS__V1__LOG_LEVEL__FATAL", 6 },
+  {
+    "data_points",
+    1,
+    PROTOBUF_C_LABEL_REPEATED,
+    PROTOBUF_C_TYPE_MESSAGE,
+    offsetof(Holons__V1__Sum, n_data_points),
+    offsetof(Holons__V1__Sum, data_points),
+    &holons__v1__number_data_point__descriptor,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "aggregation_temporality",
+    2,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_ENUM,
+    0,   /* quantifier_offset */
+    offsetof(Holons__V1__Sum, aggregation_temporality),
+    &holons__v1__aggregation_temporality__descriptor,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "is_monotonic",
+    3,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_BOOL,
+    0,   /* quantifier_offset */
+    offsetof(Holons__V1__Sum, is_monotonic),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
 };
-static const ProtobufCIntRange holons__v1__log_level__value_ranges[] = {
-{0, 0},{0, 7}
+static const unsigned holons__v1__sum__field_indices_by_name[] = {
+  1,   /* field[1] = aggregation_temporality */
+  0,   /* field[0] = data_points */
+  2,   /* field[2] = is_monotonic */
 };
-static const ProtobufCEnumValueIndex holons__v1__log_level__enum_values_by_name[7] =
+static const ProtobufCIntRange holons__v1__sum__number_ranges[1 + 1] =
 {
-  { "DEBUG", 2 },
-  { "ERROR", 5 },
-  { "FATAL", 6 },
-  { "INFO", 3 },
-  { "LOG_LEVEL_UNSPECIFIED", 0 },
-  { "TRACE", 1 },
-  { "WARN", 4 },
+  { 1, 0 },
+  { 0, 3 }
 };
-const ProtobufCEnumDescriptor holons__v1__log_level__descriptor =
+const ProtobufCMessageDescriptor holons__v1__sum__descriptor =
+{
+  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
+  "holons.v1.Sum",
+  "Sum",
+  "Holons__V1__Sum",
+  "holons.v1",
+  sizeof(Holons__V1__Sum),
+  3,
+  holons__v1__sum__field_descriptors,
+  holons__v1__sum__field_indices_by_name,
+  1,  holons__v1__sum__number_ranges,
+  (ProtobufCMessageInit) holons__v1__sum__init,
+  NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCFieldDescriptor holons__v1__histogram__field_descriptors[2] =
+{
+  {
+    "data_points",
+    1,
+    PROTOBUF_C_LABEL_REPEATED,
+    PROTOBUF_C_TYPE_MESSAGE,
+    offsetof(Holons__V1__Histogram, n_data_points),
+    offsetof(Holons__V1__Histogram, data_points),
+    &holons__v1__histogram_data_point__descriptor,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "aggregation_temporality",
+    2,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_ENUM,
+    0,   /* quantifier_offset */
+    offsetof(Holons__V1__Histogram, aggregation_temporality),
+    &holons__v1__aggregation_temporality__descriptor,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+};
+static const unsigned holons__v1__histogram__field_indices_by_name[] = {
+  1,   /* field[1] = aggregation_temporality */
+  0,   /* field[0] = data_points */
+};
+static const ProtobufCIntRange holons__v1__histogram__number_ranges[1 + 1] =
+{
+  { 1, 0 },
+  { 0, 2 }
+};
+const ProtobufCMessageDescriptor holons__v1__histogram__descriptor =
+{
+  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
+  "holons.v1.Histogram",
+  "Histogram",
+  "Holons__V1__Histogram",
+  "holons.v1",
+  sizeof(Holons__V1__Histogram),
+  2,
+  holons__v1__histogram__field_descriptors,
+  holons__v1__histogram__field_indices_by_name,
+  1,  holons__v1__histogram__number_ranges,
+  (ProtobufCMessageInit) holons__v1__histogram__init,
+  NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCFieldDescriptor holons__v1__number_data_point__field_descriptors[5] =
+{
+  {
+    "start_time_unix_nano",
+    2,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_FIXED64,
+    0,   /* quantifier_offset */
+    offsetof(Holons__V1__NumberDataPoint, start_time_unix_nano),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "time_unix_nano",
+    3,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_FIXED64,
+    0,   /* quantifier_offset */
+    offsetof(Holons__V1__NumberDataPoint, time_unix_nano),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "as_double",
+    4,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_DOUBLE,
+    offsetof(Holons__V1__NumberDataPoint, value_case),
+    offsetof(Holons__V1__NumberDataPoint, as_double),
+    NULL,
+    NULL,
+    PROTOBUF_C_FIELD_FLAG_ONEOF,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "as_int",
+    6,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_INT64,
+    offsetof(Holons__V1__NumberDataPoint, value_case),
+    offsetof(Holons__V1__NumberDataPoint, as_int),
+    NULL,
+    NULL,
+    PROTOBUF_C_FIELD_FLAG_ONEOF,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "attributes",
+    7,
+    PROTOBUF_C_LABEL_REPEATED,
+    PROTOBUF_C_TYPE_MESSAGE,
+    offsetof(Holons__V1__NumberDataPoint, n_attributes),
+    offsetof(Holons__V1__NumberDataPoint, attributes),
+    &holons__v1__key_value__descriptor,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+};
+static const unsigned holons__v1__number_data_point__field_indices_by_name[] = {
+  2,   /* field[2] = as_double */
+  3,   /* field[3] = as_int */
+  4,   /* field[4] = attributes */
+  0,   /* field[0] = start_time_unix_nano */
+  1,   /* field[1] = time_unix_nano */
+};
+static const ProtobufCIntRange holons__v1__number_data_point__number_ranges[2 + 1] =
+{
+  { 2, 0 },
+  { 6, 3 },
+  { 0, 5 }
+};
+const ProtobufCMessageDescriptor holons__v1__number_data_point__descriptor =
+{
+  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
+  "holons.v1.NumberDataPoint",
+  "NumberDataPoint",
+  "Holons__V1__NumberDataPoint",
+  "holons.v1",
+  sizeof(Holons__V1__NumberDataPoint),
+  5,
+  holons__v1__number_data_point__field_descriptors,
+  holons__v1__number_data_point__field_indices_by_name,
+  2,  holons__v1__number_data_point__number_ranges,
+  (ProtobufCMessageInit) holons__v1__number_data_point__init,
+  NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCFieldDescriptor holons__v1__histogram_data_point__field_descriptors[9] =
+{
+  {
+    "start_time_unix_nano",
+    2,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_FIXED64,
+    0,   /* quantifier_offset */
+    offsetof(Holons__V1__HistogramDataPoint, start_time_unix_nano),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "time_unix_nano",
+    3,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_FIXED64,
+    0,   /* quantifier_offset */
+    offsetof(Holons__V1__HistogramDataPoint, time_unix_nano),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "count",
+    4,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_UINT64,
+    0,   /* quantifier_offset */
+    offsetof(Holons__V1__HistogramDataPoint, count),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "sum",
+    5,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_DOUBLE,
+    0,   /* quantifier_offset */
+    offsetof(Holons__V1__HistogramDataPoint, sum),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "bucket_counts",
+    6,
+    PROTOBUF_C_LABEL_REPEATED,
+    PROTOBUF_C_TYPE_UINT64,
+    offsetof(Holons__V1__HistogramDataPoint, n_bucket_counts),
+    offsetof(Holons__V1__HistogramDataPoint, bucket_counts),
+    NULL,
+    NULL,
+    PROTOBUF_C_FIELD_FLAG_PACKED,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "explicit_bounds",
+    7,
+    PROTOBUF_C_LABEL_REPEATED,
+    PROTOBUF_C_TYPE_DOUBLE,
+    offsetof(Holons__V1__HistogramDataPoint, n_explicit_bounds),
+    offsetof(Holons__V1__HistogramDataPoint, explicit_bounds),
+    NULL,
+    NULL,
+    PROTOBUF_C_FIELD_FLAG_PACKED,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "attributes",
+    9,
+    PROTOBUF_C_LABEL_REPEATED,
+    PROTOBUF_C_TYPE_MESSAGE,
+    offsetof(Holons__V1__HistogramDataPoint, n_attributes),
+    offsetof(Holons__V1__HistogramDataPoint, attributes),
+    &holons__v1__key_value__descriptor,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "min",
+    11,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_DOUBLE,
+    0,   /* quantifier_offset */
+    offsetof(Holons__V1__HistogramDataPoint, min),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "max",
+    12,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_DOUBLE,
+    0,   /* quantifier_offset */
+    offsetof(Holons__V1__HistogramDataPoint, max),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+};
+static const unsigned holons__v1__histogram_data_point__field_indices_by_name[] = {
+  6,   /* field[6] = attributes */
+  4,   /* field[4] = bucket_counts */
+  2,   /* field[2] = count */
+  5,   /* field[5] = explicit_bounds */
+  8,   /* field[8] = max */
+  7,   /* field[7] = min */
+  0,   /* field[0] = start_time_unix_nano */
+  3,   /* field[3] = sum */
+  1,   /* field[1] = time_unix_nano */
+};
+static const ProtobufCIntRange holons__v1__histogram_data_point__number_ranges[3 + 1] =
+{
+  { 2, 0 },
+  { 9, 6 },
+  { 11, 7 },
+  { 0, 9 }
+};
+const ProtobufCMessageDescriptor holons__v1__histogram_data_point__descriptor =
+{
+  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
+  "holons.v1.HistogramDataPoint",
+  "HistogramDataPoint",
+  "Holons__V1__HistogramDataPoint",
+  "holons.v1",
+  sizeof(Holons__V1__HistogramDataPoint),
+  9,
+  holons__v1__histogram_data_point__field_descriptors,
+  holons__v1__histogram_data_point__field_indices_by_name,
+  3,  holons__v1__histogram_data_point__number_ranges,
+  (ProtobufCMessageInit) holons__v1__histogram_data_point__init,
+  NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCEnumValue holons__v1__severity_number__enum_values_by_number[7] =
+{
+  { "SEVERITY_NUMBER_UNSPECIFIED", "HOLONS__V1__SEVERITY_NUMBER__SEVERITY_NUMBER_UNSPECIFIED", 0 },
+  { "SEVERITY_NUMBER_TRACE", "HOLONS__V1__SEVERITY_NUMBER__SEVERITY_NUMBER_TRACE", 1 },
+  { "SEVERITY_NUMBER_DEBUG", "HOLONS__V1__SEVERITY_NUMBER__SEVERITY_NUMBER_DEBUG", 5 },
+  { "SEVERITY_NUMBER_INFO", "HOLONS__V1__SEVERITY_NUMBER__SEVERITY_NUMBER_INFO", 9 },
+  { "SEVERITY_NUMBER_WARN", "HOLONS__V1__SEVERITY_NUMBER__SEVERITY_NUMBER_WARN", 13 },
+  { "SEVERITY_NUMBER_ERROR", "HOLONS__V1__SEVERITY_NUMBER__SEVERITY_NUMBER_ERROR", 17 },
+  { "SEVERITY_NUMBER_FATAL", "HOLONS__V1__SEVERITY_NUMBER__SEVERITY_NUMBER_FATAL", 21 },
+};
+static const ProtobufCIntRange holons__v1__severity_number__value_ranges[] = {
+{0, 0},{5, 2},{9, 3},{13, 4},{17, 5},{21, 6},{0, 7}
+};
+static const ProtobufCEnumValueIndex holons__v1__severity_number__enum_values_by_name[7] =
+{
+  { "SEVERITY_NUMBER_DEBUG", 2 },
+  { "SEVERITY_NUMBER_ERROR", 5 },
+  { "SEVERITY_NUMBER_FATAL", 6 },
+  { "SEVERITY_NUMBER_INFO", 3 },
+  { "SEVERITY_NUMBER_TRACE", 1 },
+  { "SEVERITY_NUMBER_UNSPECIFIED", 0 },
+  { "SEVERITY_NUMBER_WARN", 4 },
+};
+const ProtobufCEnumDescriptor holons__v1__severity_number__descriptor =
 {
   PROTOBUF_C__ENUM_DESCRIPTOR_MAGIC,
-  "holons.v1.LogLevel",
-  "LogLevel",
-  "Holons__V1__LogLevel",
+  "holons.v1.SeverityNumber",
+  "SeverityNumber",
+  "Holons__V1__SeverityNumber",
   "holons.v1",
   7,
-  holons__v1__log_level__enum_values_by_number,
+  holons__v1__severity_number__enum_values_by_number,
   7,
-  holons__v1__log_level__enum_values_by_name,
-  1,
-  holons__v1__log_level__value_ranges,
+  holons__v1__severity_number__enum_values_by_name,
+  6,
+  holons__v1__severity_number__value_ranges,
   NULL,NULL,NULL,NULL   /* reserved[1234] */
 };
-static const ProtobufCEnumValue holons__v1__event_type__enum_values_by_number[9] =
+static const ProtobufCEnumValue holons__v1__aggregation_temporality__enum_values_by_number[3] =
 {
-  { "EVENT_TYPE_UNSPECIFIED", "HOLONS__V1__EVENT_TYPE__EVENT_TYPE_UNSPECIFIED", 0 },
-  { "INSTANCE_SPAWNED", "HOLONS__V1__EVENT_TYPE__INSTANCE_SPAWNED", 1 },
-  { "INSTANCE_READY", "HOLONS__V1__EVENT_TYPE__INSTANCE_READY", 2 },
-  { "INSTANCE_EXITED", "HOLONS__V1__EVENT_TYPE__INSTANCE_EXITED", 3 },
-  { "INSTANCE_CRASHED", "HOLONS__V1__EVENT_TYPE__INSTANCE_CRASHED", 4 },
-  { "SESSION_STARTED", "HOLONS__V1__EVENT_TYPE__SESSION_STARTED", 5 },
-  { "SESSION_ENDED", "HOLONS__V1__EVENT_TYPE__SESSION_ENDED", 6 },
-  { "HANDLER_PANIC", "HOLONS__V1__EVENT_TYPE__HANDLER_PANIC", 7 },
-  { "CONFIG_RELOADED", "HOLONS__V1__EVENT_TYPE__CONFIG_RELOADED", 8 },
+  { "AGGREGATION_TEMPORALITY_UNSPECIFIED", "HOLONS__V1__AGGREGATION_TEMPORALITY__AGGREGATION_TEMPORALITY_UNSPECIFIED", 0 },
+  { "AGGREGATION_TEMPORALITY_DELTA", "HOLONS__V1__AGGREGATION_TEMPORALITY__AGGREGATION_TEMPORALITY_DELTA", 1 },
+  { "AGGREGATION_TEMPORALITY_CUMULATIVE", "HOLONS__V1__AGGREGATION_TEMPORALITY__AGGREGATION_TEMPORALITY_CUMULATIVE", 2 },
 };
-static const ProtobufCIntRange holons__v1__event_type__value_ranges[] = {
-{0, 0},{0, 9}
+static const ProtobufCIntRange holons__v1__aggregation_temporality__value_ranges[] = {
+{0, 0},{0, 3}
 };
-static const ProtobufCEnumValueIndex holons__v1__event_type__enum_values_by_name[9] =
+static const ProtobufCEnumValueIndex holons__v1__aggregation_temporality__enum_values_by_name[3] =
 {
-  { "CONFIG_RELOADED", 8 },
-  { "EVENT_TYPE_UNSPECIFIED", 0 },
-  { "HANDLER_PANIC", 7 },
-  { "INSTANCE_CRASHED", 4 },
-  { "INSTANCE_EXITED", 3 },
-  { "INSTANCE_READY", 2 },
-  { "INSTANCE_SPAWNED", 1 },
-  { "SESSION_ENDED", 6 },
-  { "SESSION_STARTED", 5 },
+  { "AGGREGATION_TEMPORALITY_CUMULATIVE", 2 },
+  { "AGGREGATION_TEMPORALITY_DELTA", 1 },
+  { "AGGREGATION_TEMPORALITY_UNSPECIFIED", 0 },
 };
-const ProtobufCEnumDescriptor holons__v1__event_type__descriptor =
+const ProtobufCEnumDescriptor holons__v1__aggregation_temporality__descriptor =
 {
   PROTOBUF_C__ENUM_DESCRIPTOR_MAGIC,
-  "holons.v1.EventType",
-  "EventType",
-  "Holons__V1__EventType",
+  "holons.v1.AggregationTemporality",
+  "AggregationTemporality",
+  "Holons__V1__AggregationTemporality",
   "holons.v1",
-  9,
-  holons__v1__event_type__enum_values_by_number,
-  9,
-  holons__v1__event_type__enum_values_by_name,
+  3,
+  holons__v1__aggregation_temporality__enum_values_by_number,
+  3,
+  holons__v1__aggregation_temporality__enum_values_by_name,
   1,
-  holons__v1__event_type__value_ranges,
+  holons__v1__aggregation_temporality__value_ranges,
   NULL,NULL,NULL,NULL   /* reserved[1234] */
 };
 static const ProtobufCMethodDescriptor holons__v1__holon_observability__method_descriptors[3] =
 {
-  { "Logs", &holons__v1__logs_request__descriptor, &holons__v1__log_entry__descriptor },
-  { "Metrics", &holons__v1__metrics_request__descriptor, &holons__v1__metrics_snapshot__descriptor },
-  { "Events", &holons__v1__events_request__descriptor, &holons__v1__event_info__descriptor },
+  { "Logs", &holons__v1__logs_request__descriptor, &holons__v1__log_record__descriptor },
+  { "Metrics", &holons__v1__metrics_request__descriptor, &holons__v1__metric__descriptor },
+  { "Events", &holons__v1__events_request__descriptor, &holons__v1__log_record__descriptor },
 };
 const unsigned holons__v1__holon_observability__method_indices_by_name[] = {
   2,        /* Events */
@@ -1580,7 +1732,7 @@ const ProtobufCServiceDescriptor holons__v1__holon_observability__descriptor =
 };
 void holons__v1__holon_observability__logs(ProtobufCService *service,
                                            const Holons__V1__LogsRequest *input,
-                                           Holons__V1__LogEntry_Closure closure,
+                                           Holons__V1__LogRecord_Closure closure,
                                            void *closure_data)
 {
   assert(service->descriptor == &holons__v1__holon_observability__descriptor);
@@ -1588,7 +1740,7 @@ void holons__v1__holon_observability__logs(ProtobufCService *service,
 }
 void holons__v1__holon_observability__metrics(ProtobufCService *service,
                                               const Holons__V1__MetricsRequest *input,
-                                              Holons__V1__MetricsSnapshot_Closure closure,
+                                              Holons__V1__Metric_Closure closure,
                                               void *closure_data)
 {
   assert(service->descriptor == &holons__v1__holon_observability__descriptor);
@@ -1596,7 +1748,7 @@ void holons__v1__holon_observability__metrics(ProtobufCService *service,
 }
 void holons__v1__holon_observability__events(ProtobufCService *service,
                                              const Holons__V1__EventsRequest *input,
-                                             Holons__V1__EventInfo_Closure closure,
+                                             Holons__V1__LogRecord_Closure closure,
                                              void *closure_data)
 {
   assert(service->descriptor == &holons__v1__holon_observability__descriptor);

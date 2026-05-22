@@ -1,0 +1,16 @@
+description: Suite validating observability-cascade composites through the RPC-per-mode contract.
+defaults:
+  profile: smoke
+steps:
+  cascade-rpc:
+    check: observability-cascade-rpc
+    lane: regression
+profiles:
+  smoke:
+    description: Builds every observability-cascade composite and verifies RunDefault, RunLiveStream, and RunMultiPattern.
+    archive: never
+    steps: [cascade-rpc]
+  full:
+    description: Same full observability-cascade RPC matrix as smoke.
+    archive: never
+    steps: [cascade-rpc]

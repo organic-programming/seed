@@ -161,8 +161,8 @@ print_success_summary() {
   print_modified_files
   echo
   echo "Builds:"
-  printf "  %-8s %s\n" "OK" "op build op --install"
-  printf "  %-8s %s\n" "OK" "op sdk build all --force"
+  printf "  %-8s %s\n" "OK" "op build op --install   (bootstrap, against previous SDK)"
+  printf "  %-8s %s\n" "OK" "op sdk build all --version ${VERSION} --force"
   for holon in "${BUILT_HOLONS[@]}"; do
     printf "  %-8s %s\n" "OK" "op build ${holon}"
   done
@@ -208,28 +208,33 @@ echo "  $(grep '^seed_release:' seed-toolchain.yaml)"
 echo
 
 FAILED_STEP="rebuild all SDKs"
-echo "=== [4/6] Rebuild all SDKs ==="
-if ! op sdk build all --force; then
-  echo "error: op sdk build all --force failed" >&2
+echo "=== [4/6] Rebuild all SDKs at v${VERSION} ==="
+if ! op sdk build all --version "$VERSION" --force; then
+  echo "error: op sdk build all --version ${VERSION} --force failed" >&2
   exit 5
 fi
 echo
 
 FAILED_STEP="rebuild holons"
-echo "=== [5/6] Rebuild every holon ==="
+echo "=== [5/6] Rebuild every holon against the new SDK (install op + ader) ==="
 for proto in "${MANIFEST_PROTOS[@]}"; do
   holon_dir="${proto%/api/v1/holon.proto}"
-  echo
-  echo "  op build $holon_dir"
-  if op build "$holon_dir"; then
-    BUILT_HOLONS+=("$holon_dir")
+  install_flag=""
+  case "$holon_dir" in
+    holons/grace-op|holons/clem-ader)
+      install_flag="--install"
+      ;;
+  esac
+  echo "  op build $holon_dir $install_flag"
+  if op build "$holon_dir" $install_flag; then
+    BUILT_HOLONS+=("${holon_dir}${install_flag:+ ${install_flag}}")
   else
-    echo "error: op build $holon_dir failed" >&2
+    echo "error: op build $holon_dir $install_flag failed" >&2
     exit 6
   fi
 done
 echo
-echo "  ${#BUILT_HOLONS[@]} holon(s) built"
+echo "  ${#BUILT_HOLONS[@]} holon(s) built (op + ader installed)"
 echo
 
 FAILED_STEP="Ader op_invoke smoke"

@@ -3,10 +3,11 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:grpc/grpc.dart';
+import 'package:holons/gen/holons/v1/observability.pb.dart' as obs_pb;
 import 'package:holons/holons.dart' as holons;
+import 'package:holons/holons.dart' show SettingsStore;
 import 'package:path/path.dart' as p;
-
-import '../src/settings_store.dart';
 
 const _masterKey = 'observability.master.enabled';
 const _logsKey = 'observability.family.logs';
@@ -28,6 +29,262 @@ class ObservabilityMemberRef {
   final String slug;
   final String uid;
   final String address;
+}
+
+enum AnyValueBranch { stringValue, boolValue, intValue, doubleValue, notSet }
+
+class ObservabilityAnyValue {
+  const ObservabilityAnyValue._({
+    this.stringValue = '',
+    this.boolValue = false,
+    this.intValue = 0,
+    this.doubleValue = 0,
+    required this.branch,
+  });
+
+  const ObservabilityAnyValue.string(String value)
+    : this._(stringValue: value, branch: AnyValueBranch.stringValue);
+
+  const ObservabilityAnyValue.bool(bool value)
+    : this._(boolValue: value, branch: AnyValueBranch.boolValue);
+
+  const ObservabilityAnyValue.int(int value)
+    : this._(intValue: value, branch: AnyValueBranch.intValue);
+
+  const ObservabilityAnyValue.double(double value)
+    : this._(doubleValue: value, branch: AnyValueBranch.doubleValue);
+
+  const ObservabilityAnyValue.notSet() : this._(branch: AnyValueBranch.notSet);
+
+  factory ObservabilityAnyValue.fromProto(obs_pb.AnyValue value) {
+    return switch (value.whichValue()) {
+      obs_pb.AnyValue_Value.stringValue => ObservabilityAnyValue.string(
+        value.stringValue,
+      ),
+      obs_pb.AnyValue_Value.boolValue => ObservabilityAnyValue.bool(
+        value.boolValue,
+      ),
+      obs_pb.AnyValue_Value.intValue => ObservabilityAnyValue.int(
+        value.intValue.toInt(),
+      ),
+      obs_pb.AnyValue_Value.doubleValue => ObservabilityAnyValue.double(
+        value.doubleValue,
+      ),
+      obs_pb.AnyValue_Value.notSet => const ObservabilityAnyValue.notSet(),
+    };
+  }
+
+  final String stringValue;
+  final bool boolValue;
+  final int intValue;
+  final double doubleValue;
+  final AnyValueBranch branch;
+}
+
+class ObservabilityKeyValue {
+  const ObservabilityKeyValue({required this.key, required this.value});
+
+  final String key;
+  final ObservabilityAnyValue value;
+}
+
+class ObservabilityLogRecord {
+  const ObservabilityLogRecord({
+    required this.timestamp,
+    required this.level,
+    required this.slug,
+    required this.instanceUid,
+    required this.body,
+    this.severityText = '',
+    this.loggerName = '',
+    this.sessionId = '',
+    this.rpcMethod = '',
+    this.attributes = const [],
+    this.caller = '',
+    this.chain = const [],
+    this.eventName = '',
+    this.private = false,
+  });
+
+  factory ObservabilityLogRecord.fromLogRecord(
+    obs_pb.LogRecord record, {
+    bool private = false,
+  }) {
+    return ObservabilityLogRecord(
+      timestamp: _dateTimeFromUnixNano(record.timeUnixNano.toInt()),
+      level: _levelFromSeverity(record.severityNumber),
+      severityText: record.severityText,
+      slug: _attributeString(record.attributes, 'holons.slug'),
+      instanceUid: _attributeString(record.attributes, 'holons.instance_uid'),
+      sessionId: _attributeString(record.attributes, 'holons.session_id'),
+      rpcMethod: _attributeString(record.attributes, 'rpc.method'),
+      body: record.hasBody()
+          ? ObservabilityAnyValue.fromProto(record.body)
+          : const ObservabilityAnyValue.notSet(),
+      attributes: [
+        for (final attribute in record.attributes)
+          if (!_wellKnownAttributeKeys.contains(attribute.key))
+            ObservabilityKeyValue(
+              key: attribute.key,
+              value: attribute.hasValue()
+                  ? ObservabilityAnyValue.fromProto(attribute.value)
+                  : const ObservabilityAnyValue.notSet(),
+            ),
+      ],
+      caller: _attributeString(record.attributes, 'code.caller'),
+      chain: [
+        for (final hop in record.chain) holons.Hop(slug: hop, instanceUid: ''),
+      ],
+      eventName: record.eventName,
+      private: private,
+    );
+  }
+
+  factory ObservabilityLogRecord.fromLegacyLogEntry(dynamic entry) {
+    return ObservabilityLogRecord(
+      timestamp: entry.timestamp,
+      level: entry.level,
+      severityText: _levelLabel(entry.level),
+      loggerName: entry.loggerName,
+      slug: entry.slug,
+      instanceUid: entry.instanceUid,
+      sessionId: entry.sessionId,
+      rpcMethod: entry.rpcMethod,
+      body: ObservabilityAnyValue.string(entry.message),
+      attributes: [
+        for (final item in entry.fields.entries)
+          ObservabilityKeyValue(
+            key: item.key,
+            value: ObservabilityAnyValue.string(item.value),
+          ),
+      ],
+      caller: entry.caller,
+      chain: entry.chain,
+      private: entry.private,
+    );
+  }
+
+  factory ObservabilityLogRecord.fromLegacyEvent(dynamic event) {
+    return ObservabilityLogRecord(
+      timestamp: event.timestamp,
+      level: holons.Level.info,
+      severityText: _levelLabel(holons.Level.info),
+      slug: event.slug,
+      instanceUid: event.instanceUid,
+      sessionId: event.sessionId,
+      body: ObservabilityAnyValue.string(event.type.name),
+      attributes: [
+        for (final item in event.payload.entries)
+          ObservabilityKeyValue(
+            key: item.key,
+            value: ObservabilityAnyValue.string(item.value),
+          ),
+      ],
+      chain: event.chain,
+      eventName: event.type.name,
+      private: event.private,
+    );
+  }
+
+  String get message => switch (body.branch) {
+    AnyValueBranch.stringValue => body.stringValue,
+    AnyValueBranch.boolValue => body.boolValue.toString(),
+    AnyValueBranch.intValue => body.intValue.toString(),
+    AnyValueBranch.doubleValue => body.doubleValue.toString(),
+    AnyValueBranch.notSet => '',
+  };
+
+  final DateTime timestamp;
+  final holons.Level level;
+  final String severityText;
+  final String loggerName;
+  final String slug;
+  final String instanceUid;
+  final String sessionId;
+  final String rpcMethod;
+  final ObservabilityAnyValue body;
+  final List<ObservabilityKeyValue> attributes;
+  final String caller;
+  final List<holons.Hop> chain;
+  final String eventName;
+  final bool private;
+}
+
+const _wellKnownAttributeKeys = {
+  'holons.slug',
+  'service.name',
+  'holons.instance_uid',
+  'service.instance.id',
+  'holons.session_id',
+  'rpc.method',
+  'code.caller',
+};
+
+ObservabilityLogRecord _logRecordFromObject(Object entry) {
+  if (entry is obs_pb.LogRecord) {
+    return ObservabilityLogRecord.fromLogRecord(entry);
+  }
+  if (entry is holons.LogRecord) {
+    return ObservabilityLogRecord.fromLogRecord(
+      entry.record,
+      private: entry.private,
+    );
+  }
+  return ObservabilityLogRecord.fromLegacyLogEntry(entry);
+}
+
+ObservabilityLogRecord _eventRecordFromObject(Object event) {
+  if (event is obs_pb.LogRecord) {
+    return ObservabilityLogRecord.fromLogRecord(event);
+  }
+  if (event is holons.LogRecord) {
+    return ObservabilityLogRecord.fromLogRecord(
+      event.record,
+      private: event.private,
+    );
+  }
+  return ObservabilityLogRecord.fromLegacyEvent(event);
+}
+
+DateTime _dateTimeFromUnixNano(int ns) {
+  return DateTime.fromMicrosecondsSinceEpoch(ns ~/ 1000, isUtc: true);
+}
+
+holons.Level _levelFromSeverity(obs_pb.SeverityNumber severity) {
+  return switch (severity) {
+    obs_pb.SeverityNumber.SEVERITY_NUMBER_TRACE => holons.Level.trace,
+    obs_pb.SeverityNumber.SEVERITY_NUMBER_DEBUG => holons.Level.debug,
+    obs_pb.SeverityNumber.SEVERITY_NUMBER_INFO => holons.Level.info,
+    obs_pb.SeverityNumber.SEVERITY_NUMBER_WARN => holons.Level.warn,
+    obs_pb.SeverityNumber.SEVERITY_NUMBER_ERROR => holons.Level.error,
+    obs_pb.SeverityNumber.SEVERITY_NUMBER_FATAL => holons.Level.fatal,
+    _ => holons.Level.unset,
+  };
+}
+
+String _levelLabel(holons.Level level) {
+  if (level == holons.Level.trace) return 'TRACE';
+  if (level == holons.Level.debug) return 'DEBUG';
+  if (level == holons.Level.info) return 'INFO';
+  if (level == holons.Level.warn) return 'WARN';
+  if (level == holons.Level.error) return 'ERROR';
+  if (level == holons.Level.fatal) return 'FATAL';
+  return 'UNSPECIFIED';
+}
+
+String _attributeString(Iterable<obs_pb.KeyValue> attributes, String key) {
+  for (final attribute in attributes) {
+    if (attribute.key != key || !attribute.hasValue()) continue;
+    final value = ObservabilityAnyValue.fromProto(attribute.value);
+    return switch (value.branch) {
+      AnyValueBranch.stringValue => value.stringValue,
+      AnyValueBranch.boolValue => value.boolValue.toString(),
+      AnyValueBranch.intValue => value.intValue.toString(),
+      AnyValueBranch.doubleValue => value.doubleValue.toString(),
+      AnyValueBranch.notSet => '',
+    };
+  }
+  return '';
 }
 
 class RuntimeGate extends ChangeNotifier {
@@ -130,9 +387,11 @@ class RuntimeGate extends ChangeNotifier {
 
 class LogConsoleController extends ChangeNotifier {
   LogConsoleController(this.obs, this.gate) {
-    _entries.addAll(obs.logRing?.drain() ?? const []);
+    _entries.addAll(
+      (obs.logRing?.drain() ?? const <Object>[]).map(_logRecordFromObject),
+    );
     _sub = obs.logRing?.watch().listen((entry) {
-      _entries.add(entry);
+      _entries.add(_logRecordFromObject(entry));
       notifyListeners();
     });
     gate.addListener(notifyListeners);
@@ -140,22 +399,24 @@ class LogConsoleController extends ChangeNotifier {
 
   final holons.Observability obs;
   final RuntimeGate gate;
-  final List<holons.LogEntry> _entries = [];
-  StreamSubscription<holons.LogEntry>? _sub;
+  final List<ObservabilityLogRecord> _entries = [];
+  StreamSubscription<dynamic>? _sub;
   holons.Level minLevel = holons.Level.trace;
   String query = '';
 
-  List<holons.LogEntry> get entries {
+  List<ObservabilityLogRecord> get entries {
     if (!gate.familyEnabled(holons.Family.logs)) return const [];
     final q = query.trim().toLowerCase();
-    return List.unmodifiable(
-      _entries.where((entry) {
-        if (entry.level.value < minLevel.value) return false;
-        if (q.isEmpty) return true;
-        return entry.message.toLowerCase().contains(q) ||
-            entry.slug.toLowerCase().contains(q);
-      }),
-    );
+    final filtered = _entries
+        .where((entry) {
+          if (entry.level.value < minLevel.value) return false;
+          if (q.isEmpty) return true;
+          return entry.message.toLowerCase().contains(q) ||
+              entry.slug.toLowerCase().contains(q);
+        })
+        .toList(growable: false);
+    filtered.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    return List.unmodifiable(filtered);
   }
 
   void setMinLevel(holons.Level value) {
@@ -165,6 +426,12 @@ class LogConsoleController extends ChangeNotifier {
 
   void setQuery(String value) {
     query = value;
+    notifyListeners();
+  }
+
+  @visibleForTesting
+  void addRecord(ObservabilityLogRecord record) {
+    _entries.add(record);
     notifyListeners();
   }
 
@@ -236,9 +503,11 @@ class MetricsController extends ChangeNotifier {
 
 class EventsController extends ChangeNotifier {
   EventsController(this.obs, this.gate) {
-    _events.addAll(obs.eventBus?.drain() ?? const []);
+    _events.addAll(
+      (obs.eventBus?.drain() ?? const <Object>[]).map(_eventRecordFromObject),
+    );
     _sub = obs.eventBus?.watch().listen((event) {
-      _events.add(event);
+      _events.add(_eventRecordFromObject(event));
       notifyListeners();
     });
     gate.addListener(notifyListeners);
@@ -246,12 +515,19 @@ class EventsController extends ChangeNotifier {
 
   final holons.Observability obs;
   final RuntimeGate gate;
-  final List<holons.Event> _events = [];
-  StreamSubscription<holons.Event>? _sub;
+  final List<ObservabilityLogRecord> _events = [];
+  StreamSubscription<dynamic>? _sub;
 
-  List<holons.Event> get events => gate.familyEnabled(holons.Family.events)
+  List<ObservabilityLogRecord> get events =>
+      gate.familyEnabled(holons.Family.events)
       ? List.unmodifiable(_events)
       : const [];
+
+  @visibleForTesting
+  void addRecord(ObservabilityLogRecord record) {
+    _events.add(record);
+    notifyListeners();
+  }
 
   @override
   void dispose() {
@@ -261,20 +537,184 @@ class EventsController extends ChangeNotifier {
   }
 }
 
+typedef RelayChannelOpener =
+    Future<ClientChannel> Function(ObservabilityMemberRef member);
+
+typedef MemberRelayFactory =
+    RelaySession Function({
+      required String childSlug,
+      required String childUid,
+      required ClientChannel channel,
+      required holons.Observability observability,
+    });
+
+abstract interface class RelaySession {
+  Future<void> start();
+  Future<void> stop();
+  bool get isRunning;
+}
+
+class _MemberRelaySession implements RelaySession {
+  _MemberRelaySession(this._relay);
+
+  final holons.MemberRelay _relay;
+
+  @override
+  bool get isRunning => _relay.isRunning;
+
+  @override
+  Future<void> start() => _relay.start();
+
+  @override
+  Future<void> stop() => _relay.stop();
+}
+
+RelaySession _defaultMemberRelayFactory({
+  required String childSlug,
+  required String childUid,
+  required ClientChannel channel,
+  required holons.Observability observability,
+}) {
+  return _MemberRelaySession(
+    holons.MemberRelay(
+      childSlug: childSlug,
+      childUid: childUid,
+      channel: channel,
+      observability: observability,
+    ),
+  );
+}
+
 class RelayController extends ChangeNotifier {
-  RelayController(this.gate) {
-    gate.addListener(notifyListeners);
+  RelayController(
+    this.gate,
+    this.obs, {
+    RelayChannelOpener? channelOpener,
+    MemberRelayFactory memberRelayFactory = _defaultMemberRelayFactory,
+  }) : _channelOpener = channelOpener,
+       _memberRelayFactory = memberRelayFactory {
+    gate.addListener(_sync);
   }
 
   final RuntimeGate gate;
+  final holons.Observability obs;
+  final RelayChannelOpener? _channelOpener;
+  final MemberRelayFactory _memberRelayFactory;
+  final Map<String, RelaySession> _relays = {};
+  final Set<String> _starting = {};
+  String _activeMemberUid = '';
+  bool _disposed = false;
 
   List<ObservabilityMemberRef> get activeMembers => gate.members
-      .where((member) => gate.memberEnabled(member.uid))
+      .where((member) => _relays.containsKey(member.uid))
       .toList(growable: false);
+
+  int get runningRelayCount => _relays.length;
+
+  Future<void> activateMember(String uid) async {
+    if (_disposed) return;
+    _activeMemberUid = uid.trim();
+    await _sync();
+  }
+
+  Future<void> _sync() async {
+    if (_disposed) return;
+    final opener = _channelOpener;
+    if (opener == null) {
+      notifyListeners();
+      return;
+    }
+
+    final activeUid = _activeMemberUid;
+    final stopFutures = <Future<void>>[];
+    for (final uid in List<String>.from(_relays.keys)) {
+      if (uid != activeUid || !gate.memberEnabled(uid)) {
+        stopFutures.add(_stopRelay(uid));
+      }
+    }
+
+    final member = _memberByUid(activeUid);
+    if (member != null &&
+        _isRelayTarget(member) &&
+        !_relays.containsKey(member.uid) &&
+        !_starting.contains(member.uid)) {
+      _starting.add(member.uid);
+      unawaited(_startRelay(member));
+    }
+
+    if (stopFutures.isNotEmpty) {
+      await Future.wait(stopFutures);
+      notifyListeners();
+    }
+  }
+
+  Future<void> _startRelay(ObservabilityMemberRef member) async {
+    final opener = _channelOpener;
+    if (opener == null || !_isRelayTarget(member)) {
+      _starting.remove(member.uid);
+      return;
+    }
+    try {
+      final channel = await opener(member);
+      if (!_isRelayTarget(member)) return;
+      final relay = _memberRelayFactory(
+        childSlug: member.slug,
+        childUid: member.uid,
+        channel: channel,
+        observability: obs,
+      );
+      await relay.start();
+      if (!_isRelayTarget(member)) {
+        await relay.stop();
+        return;
+      }
+      if (relay.isRunning) {
+        _relays[member.uid] = relay;
+        notifyListeners();
+      }
+    } on Object catch (error) {
+      obs
+          .logger('relay-controller')
+          .warn(
+            'member relay start failed',
+            fields: {'slug': member.slug, 'uid': member.uid, 'error': error},
+          );
+    } finally {
+      _starting.remove(member.uid);
+    }
+  }
+
+  ObservabilityMemberRef? _memberByUid(String uid) {
+    if (uid.isEmpty) return null;
+    for (final member in gate.members) {
+      if (member.uid == uid) {
+        return member;
+      }
+    }
+    return null;
+  }
+
+  bool _isRelayTarget(ObservabilityMemberRef member) {
+    return !_disposed &&
+        _activeMemberUid == member.uid &&
+        gate.memberEnabled(member.uid);
+  }
+
+  Future<void> _stopRelay(String uid) async {
+    final relay = _relays.remove(uid);
+    if (relay == null) return;
+    await relay.stop();
+  }
 
   @override
   void dispose() {
-    gate.removeListener(notifyListeners);
+    if (_disposed) return;
+    _disposed = true;
+    gate.removeListener(_sync);
+    final relays = List<RelaySession>.from(_relays.values);
+    _relays.clear();
+    _starting.clear();
+    unawaited(Future.wait<void>([for (final relay in relays) relay.stop()]));
     super.dispose();
   }
 }
@@ -355,8 +795,8 @@ class ExportController {
       p.join(parent.path, 'observability-${kit.slug}-$timestamp'),
     );
     await dir.create(recursive: true);
-    final logs = kit.obs.logRing?.drain() ?? const <holons.LogEntry>[];
-    final events = kit.obs.eventBus?.drain() ?? const <holons.Event>[];
+    final logs = kit.obs.logRing?.drain() ?? const <Object>[];
+    final events = kit.obs.eventBus?.drain() ?? const <Object>[];
     await File(
       p.join(dir.path, 'logs.jsonl'),
     ).writeAsString(logs.map(_logJson).join('\n') + '\n');
@@ -409,6 +849,8 @@ class ObservabilityKit extends ChangeNotifier {
     required SettingsStore settings,
     Iterable<ObservabilityMemberRef> bundledHolons = const [],
     Map<String, String>? environment,
+    RelayChannelOpener? relayChannelOpener,
+    MemberRelayFactory memberRelayFactory = _defaultMemberRelayFactory,
   }) {
     final families = declaredFamilies.map((family) => family.name).join(',');
     final baseEnv = environment ?? Platform.environment;
@@ -432,7 +874,12 @@ class ObservabilityKit extends ChangeNotifier {
       logs: LogConsoleController(obs, gate),
       metrics: MetricsController(obs, gate),
       events: EventsController(obs, gate),
-      relay: RelayController(gate),
+      relay: RelayController(
+        gate,
+        obs,
+        channelOpener: relayChannelOpener,
+        memberRelayFactory: memberRelayFactory,
+      ),
       prometheus: PrometheusController(obs, gate),
     );
     kit.export = ExportController(kit);
@@ -489,19 +936,41 @@ String _labels(Map<String, String> labels) {
   return '{$parts}';
 }
 
-String _logJson(holons.LogEntry entry) => jsonEncode({
-  'ts': entry.timestamp.toUtc().toIso8601String(),
-  'level': entry.level.name,
-  'slug': entry.slug,
-  'instance_uid': entry.instanceUid,
-  'message': entry.message,
-  'fields': entry.fields,
-});
+String _logJson(Object entry) {
+  final record = _logRecordFromObject(entry);
+  return jsonEncode({
+    'ts': record.timestamp.toUtc().toIso8601String(),
+    'level': record.level.name,
+    'slug': record.slug,
+    'instance_uid': record.instanceUid,
+    'message': record.message,
+    'fields': {
+      for (final attribute in record.attributes)
+        attribute.key: _jsonValue(attribute.value),
+    },
+  });
+}
 
-String _eventJson(holons.Event event) => jsonEncode({
-  'ts': event.timestamp.toUtc().toIso8601String(),
-  'type': event.type.name,
-  'slug': event.slug,
-  'instance_uid': event.instanceUid,
-  'payload': event.payload,
-});
+String _eventJson(Object event) {
+  final record = _eventRecordFromObject(event);
+  return jsonEncode({
+    'ts': record.timestamp.toUtc().toIso8601String(),
+    'event_name': record.eventName,
+    'slug': record.slug,
+    'instance_uid': record.instanceUid,
+    'payload': {
+      for (final attribute in record.attributes)
+        attribute.key: _jsonValue(attribute.value),
+    },
+  });
+}
+
+Object _jsonValue(ObservabilityAnyValue value) {
+  return switch (value.branch) {
+    AnyValueBranch.stringValue => value.stringValue,
+    AnyValueBranch.boolValue => value.boolValue,
+    AnyValueBranch.intValue => value.intValue,
+    AnyValueBranch.doubleValue => value.doubleValue,
+    AnyValueBranch.notSet => '',
+  };
+}

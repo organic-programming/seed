@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package observability.cascade.ruby.v1;
+
+import "holons/v1/manifest.proto";
+import "observability_cascade/v1/service.proto";
+
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "d220e0b2-48ee-473e-a86e-610ca528b69a"
+    given_name: "Observability"
+    family_name: "Cascade-Ruby"
+    motto: "Validates Ruby observability cascade observability."
+    composer: "B. ALTER"
+    status: "draft"
+    born: "2026-05-13"
+    version: "0.1.0"
+  }
+  description: "A Ruby composite program that validates observability-cascade observability across three modes and patterns."
+  lang: "ruby"
+  kind: "composite"
+  transport: "tcp"
+  contract: {
+    proto: "observability_cascade/v1/service.proto"
+    service: "observability_cascade.v1.ObservabilityCascadeService"
+    rpcs: ["RunDefault", "RunLiveStream", "RunMultiPattern"]
+  }
+  build: {
+    runner: "ruby"
+    main: "./cmd/main.rb"
+    codegen: { languages: ["ruby"] }
+    members: {
+      id: "ruby-node"
+      path: "../observability-cascade-ruby-node"
+      type: "holon"
+    }
+    members: {
+      id: "go-node"
+      path: "../observability-cascade-go-node"
+      type: "holon"
+    }
+  }
+  requires: {
+    commands: ["ruby", "bundle"]
+    files: ["cmd/main.rb", "Gemfile"]
+    sdk_prebuilts: ["ruby"]
+  }
+  artifacts: {
+    primary: ".op/build/observability-cascade-ruby.holon"
+  }
+};

@@ -17,17 +17,25 @@ namespace Holons;
 /// <summary>Standard gRPC server runner utilities.</summary>
 public static class Serve
 {
+    private static readonly AsyncLocal<string?> CurrentTransportSlot = new();
+
+    public static string CurrentTransport => CurrentTransportSlot.Value ?? "";
+
+    public sealed record MemberRef(string Slug, string Address);
+
     public sealed record ServeOptions
     {
         public bool Describe { get; init; } = true;
         public bool Reflect { get; init; } = false;
+        public string Slug { get; init; } = "";
+        public IReadOnlyList<MemberRef> MemberEndpoints { get; init; } = Array.Empty<MemberRef>();
         public Action<string> Logger { get; init; } = message => Console.Error.WriteLine(message);
         public Action<string>? OnListen { get; init; }
         public int ShutdownGracePeriodSeconds { get; init; } = 10;
         public IReadOnlyDictionary<string, string>? Env { get; init; }
     }
 
-    public sealed record ParsedFlags(string ListenUri, bool Reflect);
+    public sealed record ParsedFlags(string ListenUri, bool Reflect, IReadOnlyList<MemberRef> MemberEndpoints);
 
     public sealed record GrpcServiceRegistration(
         Action<IServiceCollection> ConfigureServices,
@@ -58,14 +66,16 @@ public static class Serve
 
         public Task AwaitAsync() => _app.WaitForShutdownAsync();
 
-        public async Task StopAsync(int shutdownGracePeriodSeconds = 10)
+        public Task StopAsync(int shutdownGracePeriodSeconds = 10)
         {
             if (Interlocked.Exchange(ref _stopped, 1) != 0)
-            {
-                await _app.WaitForShutdownAsync().ConfigureAwait(false);
-                return;
-            }
+                return Task.CompletedTask;
+            CurrentTransportSlot.Value = null;
+            return StopCoreAsync(shutdownGracePeriodSeconds);
+        }
 
+        private async Task StopCoreAsync(int shutdownGracePeriodSeconds)
+        {
             if (_auxiliaryStop is not null)
                 await _auxiliaryStop().ConfigureAwait(false);
 
@@ -102,6 +112,7 @@ public static class Serve
     {
         var listenUri = Transport.DefaultUri;
         var reflect = false;
+        var members = new List<MemberRef>();
         for (int i = 0; i < args.Length; i++)
         {
             if (args[i] == "--listen" && i + 1 < args.Length)
@@ -110,8 +121,21 @@ public static class Serve
                 listenUri = $"tcp://:{args[i + 1]}";
             if (args[i] == "--reflect")
                 reflect = true;
+            if (args[i] == "--member" && i + 1 < args.Length)
+                members.Add(ParseMemberRef(args[++i]));
+            else if (args[i].StartsWith("--member=", StringComparison.Ordinal))
+                members.Add(ParseMemberRef(args[i]["--member=".Length..]));
         }
-        return new ParsedFlags(listenUri, reflect);
+        return new ParsedFlags(listenUri, reflect, members);
+    }
+
+    private static MemberRef ParseMemberRef(string raw)
+    {
+        raw ??= string.Empty;
+        var split = raw.IndexOf('=', StringComparison.Ordinal);
+        if (split <= 0 || split == raw.Length - 1)
+            throw new ArgumentException("--member must be formatted as <slug>=<address>");
+        return new MemberRef(raw[..split].Trim(), raw[(split + 1)..].Trim());
     }
 
     public static GrpcServiceRegistration Service<TService>()
@@ -172,28 +196,37 @@ public static class Serve
     {
         options ??= new ServeOptions();
         var parsed = Transport.ParseUri(string.IsNullOrWhiteSpace(listenUri) ? Transport.DefaultUri : listenUri);
+        CurrentTransportSlot.Value = parsed.Scheme;
         var registrations = services.ToList();
-        var describeEnabled = MaybeAddDescribe(registrations, options);
-        var reflectionEnabled = MaybeAddReflection(registrations, options);
-        var observability = MaybeAddObservability(registrations, options);
-
-        return parsed.Scheme switch
+        try
         {
-            "tcp" => StartTcpServer(
-                host: string.IsNullOrWhiteSpace(parsed.Host) ? "0.0.0.0" : parsed.Host,
-                port: parsed.Port ?? 9090,
-                registrations: registrations,
-                describeEnabled: describeEnabled,
-                reflectionEnabled: reflectionEnabled,
-                options: options,
-                observability: observability,
-                publicUriOverride: null,
-                suppressAnnouncement: false),
-            "stdio" => StartStdioServer(registrations, describeEnabled, reflectionEnabled, options, observability),
-            "unix" => StartUnixServer(parsed.Path ?? throw new ArgumentException("unix path missing"), registrations, describeEnabled, reflectionEnabled, options, observability),
-            _ => throw new ArgumentException(
-                $"Serve.Run(...) currently supports tcp://, unix://, and stdio:// only: {listenUri}"),
-        };
+            var describeEnabled = MaybeAddDescribe(registrations, options);
+            var reflectionEnabled = MaybeAddReflection(registrations, options);
+            var observability = MaybeAddObservability(registrations, options);
+
+            return parsed.Scheme switch
+            {
+                "tcp" => StartTcpServer(
+                    host: string.IsNullOrWhiteSpace(parsed.Host) ? "0.0.0.0" : parsed.Host,
+                    port: parsed.Port ?? 9090,
+                    registrations: registrations,
+                    describeEnabled: describeEnabled,
+                    reflectionEnabled: reflectionEnabled,
+                    options: options,
+                    observability: observability,
+                    publicUriOverride: null,
+                    suppressAnnouncement: false),
+                "stdio" => StartStdioServer(registrations, describeEnabled, reflectionEnabled, options, observability),
+                "unix" => StartUnixServer(parsed.Path ?? throw new ArgumentException("unix path missing"), registrations, describeEnabled, reflectionEnabled, options, observability),
+                _ => throw new ArgumentException(
+                    $"Serve.Run(...) currently supports tcp://, unix://, and stdio:// only: {listenUri}"),
+            };
+        }
+        catch
+        {
+            CurrentTransportSlot.Value = null;
+            throw;
+        }
     }
 
     private static RunningServer StartStdioServer(
@@ -207,7 +240,8 @@ public static class Serve
             host: "127.0.0.1",
             port: 0,
             registrations: registrations,
-            publicUriOverride: null);
+            publicUriOverride: null,
+            transportScheme: "stdio");
 
         var (host, port) = ParseTarget(backing.PublicUri);
         RunningServer? running = null;
@@ -215,15 +249,17 @@ public static class Serve
         {
             running?.StopAsync(options.ShutdownGracePeriodSeconds).GetAwaiter().GetResult();
         });
+        var obsStop = StartObservabilityRuntime(observability, "stdio://", "stdio", options);
 
         running = new RunningServer(
             backing.App,
             "stdio://",
             options.Logger,
-            auxiliaryStop: async () => await bridge.DisposeAsync().ConfigureAwait(false));
+            auxiliaryStop: CombineStops(
+                obsStop,
+                async () => await bridge.DisposeAsync().ConfigureAwait(false)));
 
         bridge.Start();
-        StartObservabilityRuntime(observability, "stdio://", "stdio");
         var mode = FormatMode(describeEnabled, reflectionEnabled);
         options.OnListen?.Invoke("stdio://");
         options.Logger($"gRPC server listening on stdio:// ({mode})");
@@ -242,14 +278,15 @@ public static class Serve
             host: "127.0.0.1",
             port: 0,
             registrations: registrations,
-            publicUriOverride: null);
+            publicUriOverride: null,
+            transportScheme: "unix");
 
         var (host, port) = ParseTarget(backing.PublicUri);
         var bridge = new UnixServerBridge(path, host, port);
         bridge.Start();
 
         var publicUri = $"unix://{path}";
-        StartObservabilityRuntime(observability, publicUri, "unix");
+        var obsStop = StartObservabilityRuntime(observability, publicUri, "unix", options);
         var mode = FormatMode(describeEnabled, reflectionEnabled);
         options.OnListen?.Invoke(publicUri);
         options.Logger($"gRPC server listening on {publicUri} ({mode})");
@@ -257,7 +294,9 @@ public static class Serve
             backing.App,
             publicUri,
             options.Logger,
-            auxiliaryStop: async () => await bridge.DisposeAsync().ConfigureAwait(false));
+            auxiliaryStop: CombineStops(
+                obsStop,
+                async () => await bridge.DisposeAsync().ConfigureAwait(false)));
     }
 
     private static RunningServer StartTcpServer(
@@ -271,8 +310,8 @@ public static class Serve
         string? publicUriOverride,
         bool suppressAnnouncement)
     {
-        var started = StartApplication(host, port, registrations, publicUriOverride);
-        StartObservabilityRuntime(observability, started.PublicUri, "tcp");
+        var started = StartApplication(host, port, registrations, publicUriOverride, "tcp");
+        var obsStop = StartObservabilityRuntime(observability, started.PublicUri, "tcp", options);
         if (!suppressAnnouncement)
         {
             var mode = FormatMode(describeEnabled, reflectionEnabled);
@@ -280,14 +319,15 @@ public static class Serve
             options.Logger($"gRPC server listening on {started.PublicUri} ({mode})");
         }
 
-        return new RunningServer(started.App, started.PublicUri, options.Logger);
+        return new RunningServer(started.App, started.PublicUri, options.Logger, obsStop);
     }
 
     private static StartedApplication StartApplication(
         string host,
         int port,
         IReadOnlyList<GrpcServiceRegistration> registrations,
-        string? publicUriOverride)
+        string? publicUriOverride,
+        string transportScheme)
     {
         var builder = WebApplication.CreateBuilder();
         builder.Logging.ClearProviders();
@@ -304,6 +344,19 @@ public static class Serve
             registration.ConfigureServices(builder.Services);
 
         var app = builder.Build();
+        app.Use(async (context, next) =>
+        {
+            var previous = CurrentTransportSlot.Value;
+            CurrentTransportSlot.Value = transportScheme;
+            try
+            {
+                await next().ConfigureAwait(false);
+            }
+            finally
+            {
+                CurrentTransportSlot.Value = previous;
+            }
+        });
         foreach (var registration in registrations)
             registration.MapEndpoints(app);
         app.Start();
@@ -356,9 +409,13 @@ public static class Serve
         if (string.IsNullOrWhiteSpace(raw))
             return null;
 
-        var obs = Obs.ObservabilityRegistry.FromEnvMap(
-            new Obs.ObsConfig(),
-            env?.ToDictionary(pair => pair.Key, pair => pair.Value));
+        var current = Obs.ObservabilityRegistry.Current();
+        var obs = current.Families.Count > 0
+            && (string.IsNullOrWhiteSpace(options.Slug) || string.Equals(current.Config.Slug, options.Slug, StringComparison.Ordinal))
+            ? current
+            : Obs.ObservabilityRegistry.FromEnvMap(
+                new Obs.ObsConfig { Slug = options.Slug },
+                env?.ToDictionary(pair => pair.Key, pair => pair.Value));
         if (obs.Families.Count == 0)
             return null;
 
@@ -366,28 +423,77 @@ public static class Serve
         return obs;
     }
 
-    private static void StartObservabilityRuntime(Obs.Observability? obs, string publicUri, string transport)
+    private static Func<Task>? StartObservabilityRuntime(
+        Obs.Observability? obs,
+        string publicUri,
+        string transport,
+        ServeOptions options)
     {
-        if (obs is null || string.IsNullOrEmpty(obs.Config.RunDir))
-            return;
+        if (obs is null)
+            return null;
 
-        Obs.DiskWriters.Enable(obs.Config.RunDir);
-        if (obs.Enabled(Obs.Family.Events))
-            obs.Emit(Obs.EventType.InstanceReady, new Dictionary<string, string> { ["listener"] = publicUri });
+        Obs.PrometheusServer? prom = null;
+        if (obs.Enabled(Obs.Family.Prom))
+            prom = Obs.PrometheusServer.Start(obs, string.IsNullOrEmpty(obs.Config.PromAddr) ? "127.0.0.1:0" : obs.Config.PromAddr);
 
-        var meta = new Obs.MetaJson
+        var relays = new List<Obs.MemberRelay>();
+        foreach (var member in options.MemberEndpoints)
         {
-            Slug = obs.Config.Slug,
-            Uid = obs.Config.InstanceUid,
-            Pid = Environment.ProcessId,
-            StartedAt = DateTime.UtcNow,
-            Transport = transport,
-            Address = publicUri,
-            LogPath = obs.Enabled(Obs.Family.Logs) ? Path.Combine(obs.Config.RunDir, "stdout.log") : "",
-            OrganismUid = obs.Config.OrganismUid,
-            OrganismSlug = obs.Config.OrganismSlug,
+            if (string.IsNullOrWhiteSpace(member.Slug) || string.IsNullOrWhiteSpace(member.Address))
+                continue;
+            var relay = new Obs.MemberRelay(obs, member.Slug, member.Address, options.Logger);
+            relay.Start();
+            relays.Add(relay);
+        }
+
+        if (!string.IsNullOrEmpty(obs.Config.RunDir))
+            Obs.DiskWriters.Enable(obs.Config.RunDir);
+        if (obs.Enabled(Obs.Family.Events))
+            obs.Emit(
+                Obs.EventNames.InstanceReady,
+                new Dictionary<string, object?>
+                {
+                    ["listener"] = publicUri,
+                    ["metrics_addr"] = prom?.Address ?? "",
+                });
+
+        if (!string.IsNullOrEmpty(obs.Config.RunDir))
+        {
+            var meta = new Obs.MetaJson
+            {
+                Slug = obs.Config.Slug,
+                Uid = obs.Config.InstanceUid,
+                Pid = Environment.ProcessId,
+                StartedAt = DateTime.UtcNow,
+                Transport = transport,
+                Address = publicUri,
+                MetricsAddr = prom?.Address ?? "",
+                LogPath = obs.Enabled(Obs.Family.Logs) ? Path.Combine(obs.Config.RunDir, "stdout.log") : "",
+                OrganismUid = obs.Config.OrganismUid,
+                OrganismSlug = obs.Config.OrganismSlug,
+            };
+            try { Obs.MetaJson.Write(obs.Config.RunDir, meta); } catch { }
+        }
+
+        return async () =>
+        {
+            foreach (var relay in relays)
+                await relay.DisposeAsync().ConfigureAwait(false);
+            prom?.Dispose();
+            obs.Close();
         };
-        try { Obs.MetaJson.Write(obs.Config.RunDir, meta); } catch { }
+    }
+
+    private static Func<Task>? CombineStops(params Func<Task>?[] stops)
+    {
+        var active = stops.Where(stop => stop is not null).ToArray();
+        if (active.Length == 0)
+            return null;
+        return async () =>
+        {
+            foreach (var stop in active)
+                await stop!().ConfigureAwait(false);
+        };
     }
 
     private static string FormatMode(bool describeEnabled, bool reflectionEnabled) =>

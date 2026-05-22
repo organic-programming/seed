@@ -10,11 +10,12 @@ ifneq ($(strip $(OP_SDK_C_PATH)),)
     $(error OP_SDK_C_PATH=$(OP_SDK_C_PATH) is not a C SDK prebuilt root; run `op sdk install c`)
   endif
   CFLAGS += -I$(OP_SDK_C_PATH)/include
-  LDFLAGS += -L$(OP_SDK_C_PATH)/lib
+  LDFLAGS += -L$(OP_SDK_C_PATH)/lib -lprotobuf-c
 endif
 
 TEST_BIN := test_runner
-SRC := src/holons.c src/discovery_api.c src/observability.c
+SRC := src/holons.c src/discovery_api.c src/observability.c gen/c/holons/v1/observability.pb-c.c gen/c/google/protobuf/duration.pb-c.c
+CFLAGS += -I gen/c
 TEST_SRC := test/holons_test.c
 DESCRIBE_HELPER_BIN := describe-static-helper
 DESCRIBE_HELPER_SRC := test/describe_static_helper.c test/describe_generated_fixture.c

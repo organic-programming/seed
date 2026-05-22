@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../src/coax_configuration.dart';
 import '../src/coax_controller.dart';
+import '../src/coax_platform_capabilities.dart';
 
 const _settingsDialogWidth = 720.0;
 const _settingsDialogContentHeight = 360.0;

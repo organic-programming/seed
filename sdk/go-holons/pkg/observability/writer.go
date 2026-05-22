@@ -247,58 +247,53 @@ func EnableDiskWriters(instanceRunDir string) error {
 // logEntryDiskRecord shapes an on-disk representation that matches
 // the multilog JSONL kind used by the root writer — a single line
 // carries "kind":"log" plus the common fields.
-func logEntryDiskRecord(e LogEntry) map[string]any {
+func logEntryDiskRecord(e LogRecord) map[string]any {
 	rec := map[string]any{
 		"kind":         "log",
-		"ts":           e.Timestamp.UTC().Format(time.RFC3339Nano),
-		"level":        e.Level.String(),
-		"slug":         e.Slug,
-		"instance_uid": e.InstanceUID,
-		"message":      e.Message,
+		"ts":           e.timestamp().UTC().Format(time.RFC3339Nano),
+		"level":        severityLabel(e.Record.GetSeverityNumber()),
+		"logger_name":  e.attr(AttrLoggerName),
+		"slug":         e.attr(AttrHolonsSlug),
+		"instance_uid": e.attr(AttrHolonsInstanceUID),
+		"message":      e.bodyString(),
 	}
-	if e.SessionID != "" {
-		rec["session_id"] = e.SessionID
+	if sessionID := e.attr(AttrHolonsSessionID); sessionID != "" {
+		rec["session_id"] = sessionID
 	}
-	if e.RPCMethod != "" {
-		rec["rpc_method"] = e.RPCMethod
+	if rpcMethod := e.attr(AttrRPCMethod); rpcMethod != "" {
+		rec["rpc_method"] = rpcMethod
 	}
-	if len(e.Fields) > 0 {
-		rec["fields"] = e.Fields
+	fields := userAttributesMap(e.Record.GetAttributes())
+	if len(fields) > 0 {
+		rec["fields"] = fields
 	}
-	if e.Caller != "" {
-		rec["caller"] = e.Caller
+	if caller := e.attr(AttrCodeCaller); caller != "" {
+		rec["caller"] = caller
 	}
-	if len(e.Chain) > 0 {
-		hops := make([]map[string]string, len(e.Chain))
-		for i, h := range e.Chain {
-			hops[i] = map[string]string{"slug": h.Slug, "instance_uid": h.InstanceUID}
-		}
-		rec["chain"] = hops
+	if len(e.Record.GetChain()) > 0 {
+		rec["chain"] = e.Record.GetChain()
 	}
 	return rec
 }
 
 // eventDiskRecord produces the on-disk shape for an event.
-func eventDiskRecord(e Event) map[string]any {
+func eventDiskRecord(e LogRecord) map[string]any {
 	rec := map[string]any{
 		"kind":         "event",
-		"ts":           e.Timestamp.UTC().Format(time.RFC3339Nano),
-		"type":         e.Type.String(),
-		"slug":         e.Slug,
-		"instance_uid": e.InstanceUID,
+		"ts":           e.timestamp().UTC().Format(time.RFC3339Nano),
+		"event_name":   e.Record.GetEventName(),
+		"slug":         e.attr(AttrHolonsSlug),
+		"instance_uid": e.attr(AttrHolonsInstanceUID),
 	}
-	if e.SessionID != "" {
-		rec["session_id"] = e.SessionID
+	if sessionID := e.attr(AttrHolonsSessionID); sessionID != "" {
+		rec["session_id"] = sessionID
 	}
-	if len(e.Payload) > 0 {
-		rec["payload"] = e.Payload
+	payload := userAttributesMap(e.Record.GetAttributes())
+	if len(payload) > 0 {
+		rec["payload"] = payload
 	}
-	if len(e.Chain) > 0 {
-		hops := make([]map[string]string, len(e.Chain))
-		for i, h := range e.Chain {
-			hops[i] = map[string]string{"slug": h.Slug, "instance_uid": h.InstanceUID}
-		}
-		rec["chain"] = hops
+	if len(e.Record.GetChain()) > 0 {
+		rec["chain"] = e.Record.GetChain()
 	}
 	return rec
 }

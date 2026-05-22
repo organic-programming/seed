@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package observability.cascade.kotlin.v1;
+
+import "holons/v1/manifest.proto";
+import "observability_cascade/v1/service.proto";
+
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "8e57cf8c-7f7c-4231-85d6-73f42967fe35"
+    given_name: "Observability"
+    family_name: "Cascade-Kotlin"
+    motto: "Validates Kotlin observability cascade observability."
+    composer: "B. ALTER"
+    status: "draft"
+    born: "2026-05-13"
+    version: "0.1.0"
+  }
+  description: "A Kotlin composite program that validates observability-cascade observability across three modes and patterns."
+  lang: "kotlin"
+  kind: "composite"
+  transport: "tcp"
+  contract: {
+    proto: "observability_cascade/v1/service.proto"
+    service: "observability_cascade.v1.ObservabilityCascadeService"
+    rpcs: ["RunDefault", "RunLiveStream", "RunMultiPattern"]
+  }
+  build: {
+    runner: "gradle"
+    codegen: {
+      languages: ["kotlin-java", "kotlin-java-grpc", "kotlin", "kotlin-grpc"]
+    }
+    members: {
+      id: "kotlin-node"
+      path: "../observability-cascade-kotlin-node"
+      type: "holon"
+    }
+    members: {
+      id: "go-node"
+      path: "../observability-cascade-go-node"
+      type: "holon"
+    }
+  }
+  requires: {
+    commands: ["java", "gradle"]
+    files: ["build.gradle.kts", "settings.gradle.kts"]
+    sdk_prebuilts: ["kotlin"]
+  }
+  artifacts: {
+    primary: ".op/build/observability-cascade-kotlin.holon"
+  }
+};

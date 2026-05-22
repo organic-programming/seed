@@ -8,11 +8,12 @@ require 'securerandom'
 require 'set'
 require 'thread'
 require 'time'
+require 'webrick'
 
 module Holons
   module Observability
     FAMILIES = {
-      logs: :logs, metrics: :metrics, events: :events, prom: :prom, otel: :otel
+      logs: :logs, metrics: :metrics, events: :events, prom: :prom
     }.freeze
 
     V1_TOKENS = %w[logs metrics events prom all].to_set.freeze
@@ -25,29 +26,49 @@ module Holons
       end
     end
 
-    LEVELS = { trace: 1, debug: 2, info: 3, warn: 4, error: 5, fatal: 6 }.freeze
-    LEVEL_LABELS = { 1 => 'TRACE', 2 => 'DEBUG', 3 => 'INFO',
-                     4 => 'WARN', 5 => 'ERROR', 6 => 'FATAL' }.freeze
-    PROTO_LOG_LEVEL_NUMBERS = {
-      LOG_LEVEL_UNSPECIFIED: 0, TRACE: 1, DEBUG: 2, INFO: 3,
-      WARN: 4, ERROR: 5, FATAL: 6
+    LEVELS = { trace: 1, debug: 5, info: 9, warn: 13, error: 17, fatal: 21 }.freeze
+    LEVEL_LABELS = {
+      1 => 'TRACE', 5 => 'DEBUG', 9 => 'INFO',
+      13 => 'WARN', 17 => 'ERROR', 21 => 'FATAL'
+    }.freeze
+    SEVERITY_NUMBERS = {
+      SEVERITY_NUMBER_UNSPECIFIED: 0,
+      SEVERITY_NUMBER_TRACE: 1,
+      SEVERITY_NUMBER_DEBUG: 5,
+      SEVERITY_NUMBER_INFO: 9,
+      SEVERITY_NUMBER_WARN: 13,
+      SEVERITY_NUMBER_ERROR: 17,
+      SEVERITY_NUMBER_FATAL: 21
     }.freeze
 
-    EVENT_TYPES = {
-      unspecified: 0, instance_spawned: 1, instance_ready: 2, instance_exited: 3,
-      instance_crashed: 4, session_started: 5, session_ended: 6,
-      handler_panic: 7, config_reloaded: 8
+    EVENT_INSTANCE_SPAWNED = 'instance.spawned'
+    EVENT_INSTANCE_READY = 'instance.ready'
+    EVENT_INSTANCE_EXITED = 'instance.exited'
+    EVENT_INSTANCE_CRASHED = 'instance.crashed'
+    EVENT_SESSION_STARTED = 'session.started'
+    EVENT_SESSION_ENDED = 'session.ended'
+    EVENT_HANDLER_PANIC = 'handler.panic'
+    EVENT_CONFIG_RELOADED = 'config.reloaded'
+    EVENT_NAMES = {
+      instance_spawned: EVENT_INSTANCE_SPAWNED,
+      instance_ready: EVENT_INSTANCE_READY,
+      instance_exited: EVENT_INSTANCE_EXITED,
+      instance_crashed: EVENT_INSTANCE_CRASHED,
+      session_started: EVENT_SESSION_STARTED,
+      session_ended: EVENT_SESSION_ENDED,
+      handler_panic: EVENT_HANDLER_PANIC,
+      config_reloaded: EVENT_CONFIG_RELOADED
     }.freeze
-    EVENT_TYPE_LABELS = {
-      1 => 'INSTANCE_SPAWNED', 2 => 'INSTANCE_READY', 3 => 'INSTANCE_EXITED',
-      4 => 'INSTANCE_CRASHED', 5 => 'SESSION_STARTED', 6 => 'SESSION_ENDED',
-      7 => 'HANDLER_PANIC', 8 => 'CONFIG_RELOADED'
-    }.freeze
-    PROTO_EVENT_TYPE_NUMBERS = {
-      EVENT_TYPE_UNSPECIFIED: 0, INSTANCE_SPAWNED: 1, INSTANCE_READY: 2,
-      INSTANCE_EXITED: 3, INSTANCE_CRASHED: 4, SESSION_STARTED: 5,
-      SESSION_ENDED: 6, HANDLER_PANIC: 7, CONFIG_RELOADED: 8
-    }.freeze
+    CANONICAL_EVENT_NAMES = EVENT_NAMES.values.to_set.freeze
+
+    ATTR_HOLONS_SLUG = 'holons.slug'
+    ATTR_HOLONS_INSTANCE_UID = 'holons.instance_uid'
+    ATTR_HOLONS_SESSION_ID = 'holons.session_id'
+    ATTR_SERVICE_NAME = 'service.name'
+    ATTR_SERVICE_INSTANCE_ID = 'service.instance.id'
+    ATTR_RPC_METHOD = 'rpc.method'
+    ATTR_LOGGER_NAME = 'logger.name'
+    ATTR_CODE_CALLER = 'code.caller'
 
     DEFAULT_BUCKETS = [
       50e-6, 100e-6, 250e-6, 500e-6,
@@ -61,8 +82,6 @@ module Holons
       raw.split(',').each do |p|
         tok = p.strip
         next if tok.empty?
-        raise InvalidTokenError.new(tok, 'otel export is reserved for v2; not implemented in v1') if tok == 'otel'
-        raise InvalidTokenError.new(tok, 'sessions are reserved for v2; not implemented in v1') if tok == 'sessions'
         raise InvalidTokenError.new(tok, 'unknown OP_OBS token') unless V1_TOKENS.include?(tok)
         if tok == 'all'
           out.merge(%i[logs metrics events prom])
@@ -74,26 +93,43 @@ module Holons
     end
 
     def self.check_env(env = ENV)
-      sessions = (env['OP_SESSIONS'] || '').strip
-      raise InvalidTokenError.new(sessions, 'sessions are reserved for v2; not implemented in v1') unless sessions.empty?
       raw = (env['OP_OBS'] || '').strip
       return if raw.empty?
       raw.split(',').each do |p|
         tok = p.strip
         next if tok.empty?
-        raise InvalidTokenError.new(tok, 'otel export is reserved for v2; not implemented in v1') if tok == 'otel'
-        raise InvalidTokenError.new(tok, 'sessions are reserved for v2; not implemented in v1') if tok == 'sessions'
         raise InvalidTokenError.new(tok, 'unknown OP_OBS token') unless V1_TOKENS.include?(tok)
       end
     end
 
-    def self.append_direct_child(src, child_slug, child_uid)
-      (src || []) + [{ slug: child_slug, instance_uid: child_uid }]
+    def self.append_direct_child(src, child_slug)
+      base = src.respond_to?(:to_a) ? src.to_a : Array(src)
+      out = base.map(&:to_s)
+      slug = child_slug.to_s
+      out << slug unless slug.empty?
+      out
     end
 
-    def self.enrich_for_multilog(wire, src_slug, src_uid)
-      append_direct_child(wire, src_slug, src_uid)
+    def self.enrich_for_multilog(wire, src_slug)
+      append_direct_child(wire, src_slug)
     end
+
+    LogRecordEnvelope = Struct.new(:record, :private, keyword_init: true) do
+      def timestamp
+        return Time.at(0) if record.nil? || record.time_unix_nano.to_i.zero?
+
+        Time.at(0, record.time_unix_nano.to_i, :nsec)
+      end
+    end
+
+    ContextValues = Struct.new(:session_id, :rpc_method, keyword_init: true) do
+      def initialize(**opts)
+        super
+        self.session_id ||= ''
+        self.rpc_method ||= ''
+      end
+    end
+    CONTEXT_KEY = :holons_observability_context
 
     # --- LogRing ---
 
@@ -121,12 +157,22 @@ module Holons
       end
 
       def drain; synchronize { @buf.dup }; end
-      def drain_since(cutoff); synchronize { @buf.select { |e| e[:timestamp] >= cutoff } }; end
+      def drain_since(cutoff); synchronize { @buf.select { |e| e.timestamp >= cutoff } }; end
       def size; synchronize { @buf.size }; end
 
       def subscribe(&fn)
         synchronize { @subs << fn }
         -> { synchronize { @subs.delete(fn) } }
+      end
+
+      def replay_and_watch(cutoff = nil, &fn)
+        synchronize do
+          # Snapshot and subscription registration are one critical section:
+          # follow=true streams must not drop entries at the replay/live seam.
+          replay = cutoff.nil? ? @buf.dup : @buf.select { |e| e.timestamp >= cutoff }
+          @subs << fn
+          [replay, -> { synchronize { @subs.delete(fn) } }]
+        end
       end
     end
 
@@ -155,11 +201,21 @@ module Holons
       end
 
       def drain; synchronize { @buf.dup }; end
-      def drain_since(cutoff); synchronize { @buf.select { |e| e[:timestamp] >= cutoff } }; end
+      def drain_since(cutoff); synchronize { @buf.select { |e| e.timestamp >= cutoff } }; end
 
       def subscribe(&fn)
         synchronize { @subs << fn }
         -> { synchronize { @subs.delete(fn) } }
+      end
+
+      def replay_and_watch(cutoff = nil, &fn)
+        synchronize do
+          # Snapshot and subscription registration are one critical section:
+          # follow=true streams must not drop events at the replay/live seam.
+          replay = cutoff.nil? ? @buf.dup : @buf.select { |e| e.timestamp >= cutoff }
+          @subs << fn
+          [replay, -> { synchronize { @subs.delete(fn) } }]
+        end
       end
 
       def close; synchronize { @closed = true; @subs.clear }; end
@@ -194,9 +250,10 @@ module Holons
     end
 
     class HistogramSnapshot
-      attr_reader :bounds, :counts, :total, :sum
-      def initialize(bounds, counts, total, sum)
+      attr_reader :bounds, :counts, :total, :sum, :min, :max
+      def initialize(bounds, counts, total, sum, min, max)
         @bounds = bounds; @counts = counts; @total = total; @sum = sum
+        @min = min; @max = max
       end
 
       def quantile(q)
@@ -219,26 +276,31 @@ module Holons
         @counts = Array.new(@bounds.size, 0)
         @total = 0
         @sum = 0.0
+        @min = 0.0
+        @max = 0.0
       end
 
       def observe(v)
+        value = v.to_f
         synchronize do
+          @min = value if @total.zero? || value < @min
+          @max = value if @total.zero? || value > @max
           @total += 1
-          @sum += v
-          @bounds.each_with_index { |b, i| @counts[i] += 1 if v <= b }
+          @sum += value
+          @bounds.each_with_index { |b, i| @counts[i] += 1 if value <= b }
         end
       end
 
       def observe_duration(seconds); observe(seconds); end
 
       def snapshot
-        synchronize { HistogramSnapshot.new(@bounds.dup, @counts.dup, @total, @sum) }
+        synchronize { HistogramSnapshot.new(@bounds.dup, @counts.dup, @total, @sum, @min, @max) }
       end
     end
 
     def self.metric_key(name, labels)
       return name if labels.nil? || labels.empty?
-      "#{name}|" + labels.sort.map { |k, v| "#{k}=#{v}" }.join(',')
+      "#{name}|" + labels.sort_by { |k, _| k.to_s }.map { |k, v| "#{k}=#{v}" }.join(',')
     end
 
     class Registry
@@ -271,7 +333,7 @@ module Holons
     Config = Struct.new(
       :slug, :default_log_level, :prom_addr, :redacted_fields,
       :logs_ring_size, :events_ring_size, :run_dir,
-      :instance_uid, :organism_uid, :organism_slug,
+      :instance_uid, :session_id, :organism_uid, :organism_slug,
       keyword_init: true
     ) do
       def initialize(**opts)
@@ -284,6 +346,7 @@ module Holons
         self.events_ring_size ||= 256
         self.run_dir ||= ''
         self.instance_uid ||= ''
+        self.session_id ||= ''
         self.organism_uid ||= ''
         self.organism_slug ||= ''
       end
@@ -299,42 +362,48 @@ module Holons
       def set_level(l); @mu.synchronize { @level = l }; end
       def enabled?(l); @obs && l >= @mu.synchronize { @level }; end
 
-      def log(lvl, message, fields = nil)
+      def log(lvl, message, fields = nil, private: false, **keyword_fields)
         return unless enabled?(lvl)
+
         redact = @obs.cfg.redacted_fields.to_set
         out = {}
-        (fields || {}).each do |k, v|
+        merged_fields = {}
+        (fields || {}).each { |k, v| merged_fields[k] = v }
+        keyword_fields.each { |k, v| merged_fields[k] = v }
+        merged_fields.each do |k, v|
           next if k.nil? || k.to_s.empty?
-          out[k.to_s] = redact.include?(k.to_s) ? '<redacted>' : v.to_s
+          key = k.to_s
+          out[key] = redact.include?(key) ? '<redacted>' : v
         end
-        entry = {
-          timestamp: Time.now,
-          level: lvl,
+        ctx = Observability.current_context
+        session_id = ctx.session_id.empty? ? @obs.cfg.session_id : ctx.session_id
+        record = Observability.build_log_record(
           slug: @obs.cfg.slug,
           instance_uid: @obs.cfg.instance_uid,
-          session_id: '',
-          rpc_method: '',
-          message: message,
-          fields: out,
-          caller: '',
-          chain: []
-        }
-        @obs.log_ring&.push(entry)
+          logger_name: @name,
+          severity_number: lvl,
+          body: message.to_s,
+          attributes: out,
+          session_id: session_id,
+          rpc_method: ctx.rpc_method
+        )
+        @obs.log_ring&.push(LogRecordEnvelope.new(record: record, private: private ? true : false))
       end
 
       %i[trace debug info warn error fatal].each do |m|
-        define_method(m) { |msg, fields = nil| log(LEVELS[m], msg, fields) }
+        define_method(m) { |msg, fields = nil, private: false, **keyword_fields| log(LEVELS[m], msg, fields, private: private, **keyword_fields) }
       end
     end
 
     class Instance
-      attr_reader :cfg, :families, :log_ring, :event_bus, :registry
+      attr_reader :cfg, :families, :log_ring, :event_bus, :registry, :start_wall
       def initialize(cfg, families)
         @cfg = cfg
         @families = families
         @log_ring = families.include?(:logs) ? LogRing.new(cfg.logs_ring_size) : nil
         @event_bus = families.include?(:events) ? EventBus.new(cfg.events_ring_size) : nil
         @registry = families.include?(:metrics) ? Registry.new : nil
+        @start_wall = Time.now
         @loggers = {}
         @mu = Monitor.new
       end
@@ -354,15 +423,29 @@ module Holons
       def gauge(name, help = '', labels = {}); @registry&.gauge(name, help, labels); end
       def histogram(name, help = '', labels = {}, bounds = nil); @registry&.histogram(name, help, labels, bounds); end
 
-      def emit(type, payload = nil)
+      def emit(event_name, payload = nil, private: false, **keyword_payload)
         return unless @event_bus
+
         redact = @cfg.redacted_fields.to_set
         p = {}
-        (payload || {}).each { |k, v| p[k.to_s] = redact.include?(k.to_s) ? '<redacted>' : v.to_s }
-        @event_bus.emit({
-          timestamp: Time.now, type: type, slug: @cfg.slug,
-          instance_uid: @cfg.instance_uid, session_id: '', payload: p, chain: []
-        })
+        merged_payload = {}
+        (payload || {}).each { |k, v| merged_payload[k] = v }
+        keyword_payload.each { |k, v| merged_payload[k] = v }
+        merged_payload.each do |k, v|
+          key = k.to_s
+          p[key] = redact.include?(key) ? '<redacted>' : v
+        end
+        canonical_name = Observability.canonical_event_name(event_name)
+        ctx = Observability.current_context
+        session_id = ctx.session_id.empty? ? @cfg.session_id : ctx.session_id
+        record = Observability.build_event_record(
+          slug: @cfg.slug,
+          instance_uid: @cfg.instance_uid,
+          event_name: canonical_name,
+          attributes: p,
+          session_id: session_id
+        )
+        @event_bus.emit(LogRecordEnvelope.new(record: record, private: private ? true : false))
       end
 
       def close; @event_bus&.close; end
@@ -381,6 +464,7 @@ module Holons
       families = parse_op_obs(env['OP_OBS'])
       cfg.slug = File.basename($PROGRAM_NAME) if cfg.slug.nil? || cfg.slug.empty?
       cfg.instance_uid = SecureRandom.uuid if cfg.instance_uid.nil? || cfg.instance_uid.empty?
+      cfg.session_id = SecureRandom.uuid if cfg.session_id.nil? || cfg.session_id.empty?
       cfg.run_dir = derive_run_dir(cfg.run_dir, cfg.slug, cfg.instance_uid) unless cfg.run_dir.to_s.empty?
       inst = Instance.new(cfg, families)
       @mu.synchronize { @current = inst }
@@ -398,6 +482,18 @@ module Holons
 
     def self.current
       @mu.synchronize { @current } || Instance.new(Config.new, Set.new)
+    end
+
+    def self.current_context
+      Thread.current[CONTEXT_KEY] || ContextValues.new
+    end
+
+    def self.with_context(session_id: '', rpc_method: '')
+      previous = Thread.current[CONTEXT_KEY]
+      Thread.current[CONTEXT_KEY] = ContextValues.new(session_id: session_id.to_s, rpc_method: rpc_method.to_s)
+      yield
+    ensure
+      Thread.current[CONTEXT_KEY] = previous
     end
 
     def self.reset
@@ -432,13 +528,19 @@ module Holons
         def logs(request, call)
           raise ::GRPC::FailedPrecondition, 'logs family is not enabled (OP_OBS)' unless @inst.enabled?(:logs) && @inst.log_ring
 
-          entries = request.since.nil? ? @inst.log_ring.drain : @inst.log_ring.drain_since(Time.now - Holons::Observability.duration_seconds(request.since))
           Enumerator.new do |y|
+            q = Queue.new
+            cutoff = request.since.nil? ? nil : Time.now - Holons::Observability.duration_seconds(request.since)
+            entries = nil
+            unsubscribe = nil
+            if request.follow
+              entries, unsubscribe = @inst.log_ring.replay_and_watch(cutoff) { |entry| q << entry }
+            else
+              entries = cutoff.nil? ? @inst.log_ring.drain : @inst.log_ring.drain_since(cutoff)
+            end
             Holons::Observability.write_matching_logs(y, entries, request)
             next unless request.follow
 
-            q = Queue.new
-            unsubscribe = @inst.log_ring.subscribe { |entry| q << entry }
             begin
               loop do
                 break if call.respond_to?(:cancelled?) && call.cancelled?
@@ -449,7 +551,7 @@ module Holons
                 Holons::Observability.write_matching_logs(y, [entry], request)
               end
             ensure
-              unsubscribe.call
+              unsubscribe&.call
             end
           end
         end
@@ -457,27 +559,37 @@ module Holons
         def metrics(request, _call)
           raise ::GRPC::FailedPrecondition, 'metrics family is not enabled (OP_OBS)' unless @inst.enabled?(:metrics) && @inst.registry
 
-          samples = Holons::Observability.to_proto_metric_samples(@inst.registry).select do |sample|
-            request.name_prefixes.empty? || request.name_prefixes.any? { |prefix| sample.name.start_with?(prefix) }
+          Enumerator.new do |y|
+            metrics = Holons::Observability.to_proto_metrics(
+              @inst.registry,
+              @inst.cfg.slug,
+              @inst.cfg.instance_uid,
+              @inst.start_wall
+            )
+            metrics.each do |metric|
+              next unless request.name_prefixes.empty? || request.name_prefixes.any? { |prefix| metric.name.start_with?(prefix) }
+
+              y << metric
+            end
           end
-          ::Holons::V1::MetricsSnapshot.new(
-            captured_at: Holons::Observability.to_proto_timestamp(Time.now),
-            slug: @inst.cfg.slug,
-            instance_uid: @inst.cfg.instance_uid,
-            samples: samples
-          )
         end
 
         def events(request, call)
           raise ::GRPC::FailedPrecondition, 'events family is not enabled (OP_OBS)' unless @inst.enabled?(:events) && @inst.event_bus
 
-          events = request.since.nil? ? @inst.event_bus.drain : @inst.event_bus.drain_since(Time.now - Holons::Observability.duration_seconds(request.since))
           Enumerator.new do |y|
+            q = Queue.new
+            cutoff = request.since.nil? ? nil : Time.now - Holons::Observability.duration_seconds(request.since)
+            events = nil
+            unsubscribe = nil
+            if request.follow
+              events, unsubscribe = @inst.event_bus.replay_and_watch(cutoff) { |event| q << event }
+            else
+              events = cutoff.nil? ? @inst.event_bus.drain : @inst.event_bus.drain_since(cutoff)
+            end
             Holons::Observability.write_matching_events(y, events, request)
             next unless request.follow
 
-            q = Queue.new
-            unsubscribe = @inst.event_bus.subscribe { |event| q << event }
             begin
               loop do
                 break if call.respond_to?(:cancelled?) && call.cancelled?
@@ -488,7 +600,7 @@ module Holons
                 Holons::Observability.write_matching_events(y, [event], request)
               end
             ensure
-              unsubscribe.call
+              unsubscribe&.call
             end
           end
         end
@@ -496,23 +608,29 @@ module Holons
     end
 
     def self.write_matching_logs(stream, entries, request)
-      min_level = log_level_number(request.min_level)
+      min_level = severity_number(request.min_severity_number)
       min_level = LEVELS[:info] if min_level.zero?
       entries.each do |entry|
-        next if entry[:level] < min_level
-        next if !request.session_ids.empty? && !request.session_ids.include?(entry[:session_id])
-        next if !request.rpc_methods.empty? && !request.rpc_methods.include?(entry[:rpc_method])
+        record = entry.record
+        next if record.nil?
+        next if entry.private
+        next if severity_number(record.severity_number) < min_level
+        next if !request.session_ids.empty? && !request.session_ids.include?(attribute_string(record.attributes, ATTR_HOLONS_SESSION_ID))
+        next if !request.rpc_methods.empty? && !request.rpc_methods.include?(attribute_string(record.attributes, ATTR_RPC_METHOD))
 
-        stream << to_proto_log_entry(entry)
+        stream << to_proto_log_record(entry)
       end
     end
 
     def self.write_matching_events(stream, events, request)
-      wanted = request.types.map { |type| event_type_number(type) }.to_set
+      wanted = request.event_names.to_set
       events.each do |event|
-        next if !wanted.empty? && !wanted.include?(event[:type])
+        record = event.record
+        next if record.nil?
+        next if event.private
+        next if !wanted.empty? && !wanted.include?(record.event_name)
 
-        stream << to_proto_event(event)
+        stream << to_proto_log_record(event)
       end
     end
 
@@ -523,108 +641,547 @@ module Holons
       nil
     end
 
-    def self.to_proto_log_entry(entry)
-      ::Holons::V1::LogEntry.new(
-        ts: to_proto_timestamp(entry[:timestamp]),
-        level: entry[:level],
-        slug: entry[:slug],
-        instance_uid: entry[:instance_uid],
-        session_id: entry[:session_id],
-        rpc_method: entry[:rpc_method],
-        message: entry[:message],
-        fields: entry[:fields],
-        caller: entry[:caller],
-        chain: entry[:chain].map { |hop| to_proto_hop(hop) }
+    def self.to_proto_log_record(entry)
+      clone_log_record(entry.record)
+    end
+
+    def self.from_proto_log_record(record)
+      LogRecordEnvelope.new(record: clone_log_record(record), private: false)
+    end
+
+    def self.clone_log_record(record)
+      require_observability_proto!
+      return ::Holons::V1::LogRecord.new if record.nil?
+
+      ::Holons::V1::LogRecord.decode(::Holons::V1::LogRecord.encode(record))
+    end
+
+    def self.build_log_record(slug:, instance_uid:, logger_name:, severity_number:, body:, attributes: {}, session_id: '', rpc_method: '', chain: [])
+      require_observability_proto!
+      now = Time.now
+      attrs = resource_attributes(slug, instance_uid)
+      attrs << key_value(ATTR_LOGGER_NAME, logger_name) unless logger_name.to_s.empty?
+      attrs << key_value(ATTR_HOLONS_SESSION_ID, session_id) unless session_id.to_s.empty?
+      attrs << key_value(ATTR_RPC_METHOD, rpc_method) unless rpc_method.to_s.empty?
+      attributes.each { |key, value| attrs << key_value(key, value) unless key.to_s.empty? }
+      ::Holons::V1::LogRecord.new(
+        time_unix_nano: time_unix_nano(now),
+        observed_time_unix_nano: time_unix_nano(now),
+        severity_number: severity_number,
+        severity_text: severity_text(severity_number),
+        body: to_any_value(body.to_s),
+        attributes: attrs,
+        chain: Array(chain).map(&:to_s)
       )
     end
 
-    def self.to_proto_metric_samples(registry)
-      samples = []
+    def self.build_event_record(slug:, instance_uid:, event_name:, attributes: {}, session_id: '', chain: [])
+      require_observability_proto!
+      now = Time.now
+      attrs = resource_attributes(slug, instance_uid)
+      attrs << key_value(ATTR_HOLONS_SESSION_ID, session_id) unless session_id.to_s.empty?
+      attributes.each { |key, value| attrs << key_value(key, value) unless key.to_s.empty? }
+      ::Holons::V1::LogRecord.new(
+        time_unix_nano: time_unix_nano(now),
+        observed_time_unix_nano: time_unix_nano(now),
+        severity_number: LEVELS[:info],
+        severity_text: LEVEL_LABELS.fetch(LEVELS[:info]),
+        body: to_any_value(event_name),
+        attributes: attrs,
+        event_name: event_name,
+        chain: Array(chain).map(&:to_s)
+      )
+    end
+
+    def self.to_proto_metrics(registry, slug = '', instance_uid = '', start_time = Time.now)
+      require_observability_proto!
+      metrics = []
+      start_nano = time_unix_nano(start_time)
+      now_nano = time_unix_nano(Time.now)
       registry.counters.each do |counter|
-        samples << ::Holons::V1::MetricSample.new(
+        metrics << ::Holons::V1::Metric.new(
           name: counter.name,
-          help: counter.help,
-          labels: counter.labels,
-          counter: counter.value
+          description: counter.help,
+          sum: ::Holons::V1::Sum.new(
+            aggregation_temporality: :AGGREGATION_TEMPORALITY_CUMULATIVE,
+            is_monotonic: true,
+            data_points: [
+              ::Holons::V1::NumberDataPoint.new(
+                start_time_unix_nano: start_nano,
+                time_unix_nano: now_nano,
+                as_int: counter.value,
+                attributes: metric_attributes(slug, instance_uid, counter.labels)
+              )
+            ]
+          )
         )
       end
       registry.gauges.each do |gauge|
-        samples << ::Holons::V1::MetricSample.new(
+        metrics << ::Holons::V1::Metric.new(
           name: gauge.name,
-          help: gauge.help,
-          labels: gauge.labels,
-          gauge: gauge.value
+          description: gauge.help,
+          gauge: ::Holons::V1::Gauge.new(
+            data_points: [
+              ::Holons::V1::NumberDataPoint.new(
+                start_time_unix_nano: start_nano,
+                time_unix_nano: now_nano,
+                as_double: gauge.value,
+                attributes: metric_attributes(slug, instance_uid, gauge.labels)
+              )
+            ]
+          )
         )
       end
       registry.histograms.each do |histogram|
-        samples << ::Holons::V1::MetricSample.new(
+        snapshot = histogram.snapshot
+        metrics << ::Holons::V1::Metric.new(
           name: histogram.name,
-          help: histogram.help,
-          labels: histogram.labels,
-          histogram: to_proto_histogram(histogram.snapshot)
+          description: histogram.help,
+          histogram: ::Holons::V1::Histogram.new(
+            aggregation_temporality: :AGGREGATION_TEMPORALITY_CUMULATIVE,
+            data_points: [
+              ::Holons::V1::HistogramDataPoint.new(
+                start_time_unix_nano: start_nano,
+                time_unix_nano: now_nano,
+                attributes: metric_attributes(slug, instance_uid, histogram.labels),
+                count: snapshot.total,
+                sum: snapshot.sum,
+                bucket_counts: histogram_bucket_counts(snapshot),
+                explicit_bounds: snapshot.bounds,
+                min: snapshot.min,
+                max: snapshot.max
+              )
+            ]
+          )
         )
       end
-      samples
+      metrics
     end
 
-    def self.to_proto_event(event)
-      ::Holons::V1::EventInfo.new(
-        ts: to_proto_timestamp(event[:timestamp]),
-        type: event[:type],
-        slug: event[:slug],
-        instance_uid: event[:instance_uid],
-        session_id: event[:session_id],
-        payload: event[:payload],
-        chain: event[:chain].map { |hop| to_proto_hop(hop) }
-      )
+    def self.histogram_bucket_counts(snapshot)
+      counts = []
+      previous = 0
+      snapshot.counts.each do |count|
+        delta = count - previous
+        counts << [delta, 0].max
+        previous = count
+      end
+      counts << [snapshot.total - previous, 0].max
+      counts
     end
 
-    def self.to_proto_histogram(snapshot)
-      ::Holons::V1::HistogramSample.new(
-        count: snapshot.total,
-        sum: snapshot.sum,
-        buckets: snapshot.bounds.each_with_index.map do |bound, idx|
-          ::Holons::V1::Bucket.new(upper_bound: bound, count: snapshot.counts[idx])
-        end
-      )
+    def self.metric_attributes(slug, instance_uid, labels)
+      resource_attributes(slug, instance_uid) + sorted_attributes(labels || {})
     end
 
-    def self.to_proto_hop(hop)
-      ::Holons::V1::ChainHop.new(
-        slug: hop[:slug] || hop['slug'] || '',
-        instance_uid: hop[:instance_uid] || hop['instance_uid'] || ''
-      )
+    def self.resource_attributes(slug, instance_uid)
+      attrs = []
+      unless slug.to_s.empty?
+        attrs << key_value(ATTR_HOLONS_SLUG, slug)
+        attrs << key_value(ATTR_SERVICE_NAME, slug)
+      end
+      unless instance_uid.to_s.empty?
+        attrs << key_value(ATTR_HOLONS_INSTANCE_UID, instance_uid)
+        attrs << key_value(ATTR_SERVICE_INSTANCE_ID, instance_uid)
+      end
+      attrs
     end
 
-    def self.to_proto_timestamp(time)
-      utc = time.utc
-      ::Google::Protobuf::Timestamp.new(seconds: utc.to_i, nanos: utc.nsec)
+    def self.sorted_attributes(labels)
+      labels.keys.map(&:to_s).sort.map do |key|
+        value = labels.key?(key) ? labels[key] : labels[key.to_sym]
+        key_value(key, value)
+      end
+    end
+
+    def self.key_value(key, value)
+      require_observability_proto!
+      ::Holons::V1::KeyValue.new(key: key.to_s, value: to_any_value(value))
+    end
+
+    def self.to_any_value(value)
+      require_observability_proto!
+      case value
+      when TrueClass, FalseClass
+        ::Holons::V1::AnyValue.new(bool_value: value)
+      when Integer
+        ::Holons::V1::AnyValue.new(int_value: value)
+      when Float
+        ::Holons::V1::AnyValue.new(double_value: value)
+      when String, Symbol
+        ::Holons::V1::AnyValue.new(string_value: value.to_s)
+      else
+        ::Holons::V1::AnyValue.new(string_value: value.to_s)
+      end
+    end
+
+    def self.any_value_to_ruby(value)
+      return '' if value.nil?
+
+      case value.value
+      when :bool_value
+        value.bool_value
+      when :int_value
+        value.int_value
+      when :double_value
+        value.double_value
+      when :string_value
+        value.string_value
+      else
+        ''
+      end
+    end
+
+    def self.any_value_string(value)
+      any_value_to_ruby(value).to_s
+    end
+
+    def self.attribute_value(attributes, key)
+      attributes.find { |attr| attr.key == key.to_s }&.value
+    end
+
+    def self.attribute_string(attributes, key)
+      any_value_string(attribute_value(attributes, key))
+    end
+
+    def self.attributes_hash(attributes, include_system: false)
+      attributes.each_with_object({}) do |attr, out|
+        next if attr.nil?
+        next if !include_system && system_attribute?(attr.key)
+
+        out[attr.key] = any_value_to_ruby(attr.value)
+      end
+    end
+
+    def self.set_chain(record, chain)
+      record.chain.clear
+      Array(chain).each { |hop| record.chain << hop.to_s }
+      record
+    end
+
+    def self.system_attribute?(key)
+      [
+        ATTR_HOLONS_SLUG, ATTR_HOLONS_INSTANCE_UID, ATTR_HOLONS_SESSION_ID,
+        ATTR_SERVICE_NAME, ATTR_SERVICE_INSTANCE_ID, ATTR_RPC_METHOD,
+        ATTR_LOGGER_NAME, ATTR_CODE_CALLER
+      ].include?(key.to_s)
+    end
+
+    def self.body_string(record)
+      any_value_string(record&.body)
+    end
+
+    def self.record_slug(record)
+      return '' if record.nil?
+
+      attribute_string(record.attributes, ATTR_HOLONS_SLUG)
+    end
+
+    def self.record_instance_uid(record)
+      return '' if record.nil?
+
+      attribute_string(record.attributes, ATTR_HOLONS_INSTANCE_UID)
+    end
+
+    def self.time_unix_nano(time)
+      (time.to_r * 1_000_000_000).to_i
     end
 
     def self.duration_seconds(duration)
       duration.seconds.to_f + (duration.nanos.to_f / 1_000_000_000.0)
     end
 
-    def self.log_level_number(value)
+    def self.severity_number(value)
       return value.to_i unless value.is_a?(Symbol)
 
-      PROTO_LOG_LEVEL_NUMBERS.fetch(value, 0)
+      SEVERITY_NUMBERS.fetch(value, 0)
     end
 
-    def self.event_type_number(value)
-      return value.to_i unless value.is_a?(Symbol)
+    def self.severity_text(value)
+      LEVEL_LABELS.fetch(severity_number(value), 'UNSPECIFIED')
+    end
 
-      PROTO_EVENT_TYPE_NUMBERS.fetch(value, 0)
+    def self.canonical_event_name(value)
+      name = value.is_a?(Symbol) ? EVENT_NAMES.fetch(value, '') : value.to_s
+      raise ArgumentError, "unknown observability event_name: #{value}" unless CANONICAL_EVENT_NAMES.include?(name)
+
+      name
+    end
+
+    # --- Prometheus exposition ---
+
+    class PromServer
+      def initialize(addr = ':0')
+        @addr = addr.to_s.empty? ? ':0' : addr.to_s
+        @server = nil
+        @thread = nil
+        @mu = Monitor.new
+      end
+
+      def start
+        @mu.synchronize do
+          return addr_url_unlocked unless @server.nil?
+
+          host, port = Holons::Observability.parse_prom_addr(@addr)
+          logger = WEBrick::Log.new(File::NULL)
+          @server = WEBrick::HTTPServer.new(
+            BindAddress: host,
+            Port: port,
+            Logger: logger,
+            AccessLog: [],
+            StartCallback: nil
+          )
+          @server.mount_proc('/metrics') { |_request, response| write_metrics_response(response) }
+          @thread = Thread.new { @server.start }
+          addr_url_unlocked
+        end
+      end
+
+      def close
+        server = nil
+        thread = nil
+        @mu.synchronize do
+          server = @server
+          thread = @thread
+          @server = nil
+          @thread = nil
+        end
+        return if server.nil?
+
+        server.shutdown
+        thread&.join(1)
+      rescue StandardError
+        nil
+      end
+
+      private
+
+      def write_metrics_response(response)
+        obs = Holons::Observability.current
+        response['Content-Type'] = 'text/plain; version=0.0.4'
+        if !obs.enabled?(:metrics)
+          response.status = 503
+          response.body = "# metrics family disabled (OP_OBS)\n"
+        elsif !obs.enabled?(:prom)
+          response.status = 503
+          response.body = "# prom family disabled (OP_OBS)\n"
+        else
+          response.status = 200
+          response.body = Holons::Observability.to_prometheus_text(obs)
+        end
+      end
+
+      def addr_url_unlocked
+        return '' if @server.nil? || @server.listeners.empty?
+
+        addr = @server.listeners.first.addr
+        port = addr[1]
+        host = Holons::Observability.advertised_prom_host(addr[3] || addr[2].to_s)
+        "http://#{host}:#{port}/metrics"
+      end
+    end
+
+    def self.to_prometheus_text(obs)
+      return "# metrics family disabled (OP_OBS)\n" unless obs.enabled?(:metrics) && obs.registry
+
+      groups = {}
+      ensure_group = lambda do |name, help, type|
+        groups[name] ||= { name: name, help: help, type: type, counters: [], gauges: [], histograms: [] }
+        groups[name][:help] = help if groups[name][:help].to_s.empty? && !help.to_s.empty?
+        groups[name]
+      end
+
+      obs.registry.counters.each { |counter| ensure_group.call(counter.name, counter.help, 'counter')[:counters] << counter }
+      obs.registry.gauges.each { |gauge| ensure_group.call(gauge.name, gauge.help, 'gauge')[:gauges] << gauge }
+      obs.registry.histograms.each { |histogram| ensure_group.call(histogram.name, histogram.help, 'histogram')[:histograms] << histogram }
+
+      injected = { 'slug' => obs.cfg.slug.to_s }
+      injected['instance_uid'] = obs.cfg.instance_uid.to_s unless obs.cfg.instance_uid.to_s.empty?
+
+      lines = []
+      groups.keys.sort.each do |name|
+        group = groups[name]
+        lines << "# HELP #{name} #{prom_escape_help(group[:help].to_s)}"
+        lines << "# TYPE #{name} #{group[:type]}"
+        group[:counters].each do |counter|
+          lines << "#{counter.name}#{prom_labels(merge_prom_labels(counter.labels, injected))} #{counter.value}"
+        end
+        group[:gauges].each do |gauge|
+          lines << "#{gauge.name}#{prom_labels(merge_prom_labels(gauge.labels, injected))} #{format_prom_float(gauge.value)}"
+        end
+        group[:histograms].each do |histogram|
+          labels = merge_prom_labels(histogram.labels, injected)
+          snapshot = histogram.snapshot
+          snapshot.bounds.each_with_index do |bound, idx|
+            bucket_labels = labels.merge('le' => format_prom_float(bound))
+            lines << "#{histogram.name}_bucket#{prom_labels(bucket_labels)} #{snapshot.counts[idx]}"
+          end
+          lines << "#{histogram.name}_bucket#{prom_labels(labels.merge('le' => '+Inf'))} #{snapshot.total}"
+          lines << "#{histogram.name}_sum#{prom_labels(labels)} #{format_prom_float(snapshot.sum)}"
+          lines << "#{histogram.name}_count#{prom_labels(labels)} #{snapshot.total}"
+        end
+      end
+      lines.empty? ? '' : "#{lines.join("\n")}\n"
+    end
+
+    def self.parse_prom_addr(raw)
+      trimmed = raw.to_s.strip
+      trimmed = ':0' if trimmed.empty?
+      return ['0.0.0.0', Integer(trimmed[1..] || '0', 10)] if trimmed.start_with?(':')
+
+      host, separator, port_text = trimmed.rpartition(':')
+      raise ArgumentError, %(invalid Prometheus address "#{raw}") if separator.empty? || port_text.empty?
+
+      [host.empty? ? '0.0.0.0' : host, Integer(port_text, 10)]
+    end
+
+    def self.advertised_prom_host(host)
+      case host.to_s
+      when '', '0.0.0.0'
+        '127.0.0.1'
+      when '::'
+        '::1'
+      else
+        host.to_s
+      end
+    end
+
+    def self.merge_prom_labels(base, extra)
+      out = {}
+      extra.each { |key, value| out[key.to_s] = value.to_s unless value.to_s.empty? }
+      (base || {}).each { |key, value| out[key.to_s] = value.to_s }
+      out
+    end
+
+    def self.prom_labels(labels)
+      return '' if labels.nil? || labels.empty?
+
+      '{' + labels.keys.sort.map { |key| %(#{key}="#{prom_escape_value(labels[key])}") }.join(',') + '}'
+    end
+
+    def self.prom_escape_value(value)
+      value.to_s.gsub('\\', '\\\\\\').gsub("\n", '\\n').gsub('"', '\\"')
+    end
+
+    def self.prom_escape_help(value)
+      value.to_s.gsub('\\', '\\\\\\').gsub("\n", '\\n')
+    end
+
+    def self.format_prom_float(value)
+      number = value.to_f
+      return '+Inf' if number.infinite? == 1
+      return '-Inf' if number.infinite? == -1
+      return 'NaN' if number.nan?
+
+      format('%g', number)
+    end
+
+    # --- Member observability relay ---
+
+    class MemberRelay
+      def initialize(child_slug:, child_uid:, stub:, observability: nil, retry_delay: 2.0)
+        @child_slug = child_slug.to_s
+        @child_uid = child_uid.to_s
+        @stub = stub
+        @observability = observability || Holons::Observability.current
+        @retry_delay = retry_delay.to_f
+        @stop = false
+        @threads = []
+        @mu = Mutex.new
+      end
+
+      def start
+        obs = @observability
+        return unless obs.enabled?(:logs) || obs.enabled?(:events)
+
+        if obs.enabled?(:logs) && obs.log_ring
+          @threads << Thread.new { pump_logs }
+        end
+        if obs.enabled?(:events) && obs.event_bus
+          @threads << Thread.new { pump_events }
+        end
+        @threads.each { |thread| thread.abort_on_exception = false }
+        self
+      end
+
+      def stop
+        @mu.synchronize { @stop = true }
+        @threads.each { |thread| thread.join(0.2) }
+        @threads.each do |thread|
+          next unless thread.alive?
+
+          thread.kill
+          thread.join(0.2)
+        end
+      rescue StandardError
+        nil
+      end
+
+      private
+
+      def stopped?
+        @mu.synchronize { @stop }
+      end
+
+      def pump_logs
+        until stopped?
+          begin
+            @stub.logs(::Holons::V1::LogsRequest.new(follow: true)).each do |proto|
+              return if stopped?
+
+              obs = @observability
+              next unless obs.enabled?(:logs) && obs.log_ring
+
+              entry = Holons::Observability.from_proto_log_record(proto)
+              Holons::Observability.set_chain(entry.record, Holons::Observability.append_direct_child(entry.record.chain, @child_slug))
+              obs.log_ring.push(entry)
+            end
+          rescue StandardError => e
+            warn("warning: observability relay events: #{e.message}") if ENV["HOLONS_DEBUG_RELAY"]
+            sleep_retry
+          end
+        end
+      end
+
+      def pump_events
+        until stopped?
+          begin
+            @stub.events(::Holons::V1::EventsRequest.new(follow: true)).each do |proto|
+              return if stopped?
+
+              obs = @observability
+              next unless obs.enabled?(:events) && obs.event_bus
+
+              event = Holons::Observability.from_proto_log_record(proto)
+              Holons::Observability.set_chain(event.record, Holons::Observability.append_direct_child(event.record.chain, @child_slug))
+              obs.event_bus.emit(event)
+            end
+          rescue StandardError
+            sleep_retry
+          end
+        end
+      end
+
+      def sleep_retry
+        deadline = Time.now + @retry_delay
+        sleep 0.05 while !stopped? && Time.now < deadline
+      end
     end
 
     def self.require_grpc_observability_support!
       return if defined?(@grpc_observability_loaded) && @grpc_observability_loaded
 
-      ensure_generated_proto_load_path!
-      require 'google/protobuf/timestamp_pb'
-      require_relative '../gen/holons/v1/observability_pb'
+      require_observability_proto!
       require_relative '../gen/holons/v1/observability_services_pb'
       @grpc_observability_loaded = true
+    end
+
+    def self.require_observability_proto!
+      return if defined?(@observability_proto_loaded) && @observability_proto_loaded
+
+      ensure_generated_proto_load_path!
+      require_relative '../gen/holons/v1/observability_pb'
+      @observability_proto_loaded = true
     end
 
     def self.ensure_generated_proto_load_path!
@@ -650,33 +1207,41 @@ module Holons
     end
 
     def self.append_log(fp, e)
+      record = e.record
       rec = {
         kind: 'log',
-        ts: e[:timestamp].utc.iso8601(9),
-        level: LEVEL_LABELS[e[:level]],
-        slug: e[:slug],
-        instance_uid: e[:instance_uid],
-        message: e[:message]
+        ts: e.timestamp.utc.iso8601(9),
+        level: record.severity_text,
+        slug: record_slug(record),
+        instance_uid: record_instance_uid(record),
+        message: body_string(record)
       }
-      rec[:session_id] = e[:session_id] unless e[:session_id].empty?
-      rec[:rpc_method] = e[:rpc_method] unless e[:rpc_method].empty?
-      rec[:fields] = e[:fields] unless e[:fields].empty?
-      rec[:caller] = e[:caller] unless e[:caller].empty?
-      rec[:chain] = e[:chain] unless e[:chain].empty?
+      session_id = attribute_string(record.attributes, ATTR_HOLONS_SESSION_ID)
+      rpc_method = attribute_string(record.attributes, ATTR_RPC_METHOD)
+      caller = attribute_string(record.attributes, ATTR_CODE_CALLER)
+      fields = attributes_hash(record.attributes)
+      rec[:session_id] = session_id unless session_id.empty?
+      rec[:rpc_method] = rpc_method unless rpc_method.empty?
+      rec[:fields] = fields unless fields.empty?
+      rec[:caller] = caller unless caller.empty?
+      rec[:chain] = record.chain unless record.chain.empty?
       File.open(fp, 'a') { |f| f.puts(JSON.generate(rec)) } rescue nil
     end
 
     def self.append_event(fp, e)
+      record = e.record
       rec = {
         kind: 'event',
-        ts: e[:timestamp].utc.iso8601(9),
-        type: EVENT_TYPE_LABELS[e[:type]],
-        slug: e[:slug],
-        instance_uid: e[:instance_uid]
+        ts: e.timestamp.utc.iso8601(9),
+        event_name: record.event_name,
+        slug: record_slug(record),
+        instance_uid: record_instance_uid(record)
       }
-      rec[:session_id] = e[:session_id] unless e[:session_id].empty?
-      rec[:payload] = e[:payload] unless e[:payload].empty?
-      rec[:chain] = e[:chain] unless e[:chain].empty?
+      session_id = attribute_string(record.attributes, ATTR_HOLONS_SESSION_ID)
+      payload = attributes_hash(record.attributes)
+      rec[:session_id] = session_id unless session_id.empty?
+      rec[:payload] = payload unless payload.empty?
+      rec[:chain] = record.chain unless record.chain.empty?
       File.open(fp, 'a') { |f| f.puts(JSON.generate(rec)) } rescue nil
     end
 

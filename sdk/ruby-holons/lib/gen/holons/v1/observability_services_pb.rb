@@ -7,9 +7,18 @@ require 'holons/v1/observability_pb'
 module Holons
   module V1
     module HolonObservability
-      # HolonObservability is auto-registered by the SDK's serve runner
-      # when OP_OBS is set. Provides structured logs, metrics snapshots,
-      # and lifecycle events. See OBSERVABILITY.md.
+      # HolonObservability emits OTLP-shaped records through the SDK-managed
+      # observability service. Events are LogRecord values with event_name set.
+      #
+      # Canonical event_name values for this wave:
+      #   instance.spawned
+      #   instance.ready
+      #   instance.exited
+      #   instance.crashed
+      #   session.started
+      #   session.ended
+      #   handler.panic
+      #   config.reloaded
       class Service
 
         include ::GRPC::GenericService
@@ -18,15 +27,9 @@ module Holons
         self.unmarshal_class_method = :decode
         self.service_name = 'holons.v1.HolonObservability'
 
-        # Logs streams log entries. If follow=true, the stream stays open
-        # and emits new entries as they arrive. If follow=false, drains
-        # the current ring buffer and ends.
-        rpc :Logs, ::Holons::V1::LogsRequest, stream(::Holons::V1::LogEntry)
-        # Metrics returns a point-in-time snapshot of all current metrics.
-        # Unary, not streaming — scraping cadence is the caller's concern.
-        rpc :Metrics, ::Holons::V1::MetricsRequest, ::Holons::V1::MetricsSnapshot
-        # Events streams lifecycle events. If follow=true, stays open.
-        rpc :Events, ::Holons::V1::EventsRequest, stream(::Holons::V1::EventInfo)
+        rpc :Logs, ::Holons::V1::LogsRequest, stream(::Holons::V1::LogRecord)
+        rpc :Metrics, ::Holons::V1::MetricsRequest, stream(::Holons::V1::Metric)
+        rpc :Events, ::Holons::V1::EventsRequest, stream(::Holons::V1::LogRecord)
       end
 
       Stub = Service.rpc_stub_class

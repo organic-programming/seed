@@ -12,15 +12,23 @@ import java.net.InetSocketAddress
 import java.net.Socket
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.Duration
 import java.util.Collections
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 import kotlin.io.path.exists
+import kotlinx.coroutines.runBlocking
 
 /** Standard gRPC server runner utilities. */
 object Serve {
+    data class MemberRef(
+        val slug: String,
+        val uid: String = "",
+        val address: String,
+    )
+
     data class Options(
         val describe: Boolean = true,
         val reflect: Boolean = false,
@@ -28,6 +36,8 @@ object Serve {
         val onListen: ((String) -> Unit)? = null,
         val shutdownGracePeriodSeconds: Long = 10,
         val env: Map<String, String>? = null,
+        val slug: String = "",
+        val memberEndpoints: List<MemberRef> = emptyList(),
     )
 
     data class ParsedFlags(
@@ -59,6 +69,7 @@ object Serve {
                 server.shutdownNow()
                 server.awaitTermination(gracePeriodSeconds, TimeUnit.SECONDS)
             }
+            CurrentTransport.clear()
         }
     }
 
@@ -115,64 +126,74 @@ object Serve {
         options: Options = Options(),
     ): RunningServer {
         val parsed = Transport.parseURI(listenUri.ifBlank { Transport.DEFAULT_URI })
-        val resolvedServices = services.toMutableList()
-        val extraDefinitions = mutableListOf<ServerServiceDefinition>()
-        val describeEnabled =
-            try {
-                maybeAddDescribe(extraDefinitions, options)
-            } catch (error: Exception) {
-                val message = error.message ?: error::class.simpleName ?: "unknown error"
-                options.logger("HolonMeta registration failed: $message")
-                throw error
-            }
-        val reflectionEnabled = maybeAddReflection(extraDefinitions, options)
-        val obs = maybeAddObservability(extraDefinitions, options)
-
-        return when (parsed.scheme) {
-            "tcp" -> {
-                val host = parsed.host ?: "0.0.0.0"
-                val port = parsed.port ?: 9090
-                val bound = bindTcpServer(host, port, resolvedServices, extraDefinitions)
-                startObservabilityRuntime(obs, bound.publicUri, "tcp")
-                announce(bound.publicUri, describeEnabled, reflectionEnabled, options)
-                RunningServer(bound.server, bound.publicUri, options.logger)
-            }
-            "stdio" -> {
-                val bound = bindTcpServer("127.0.0.1", 0, resolvedServices, extraDefinitions)
-                lateinit var running: RunningServer
-                val bridge = StdioServerBridge("127.0.0.1", parseTarget(bound.publicUri).second) {
-                    running.stop(options.shutdownGracePeriodSeconds)
+        CurrentTransport.set(parsed.scheme)
+        return try {
+            val resolvedServices = services.toMutableList()
+            val extraDefinitions = mutableListOf<ServerServiceDefinition>()
+            val describeEnabled =
+                try {
+                    maybeAddDescribe(extraDefinitions, options)
+                } catch (error: Exception) {
+                    val message = error.message ?: error::class.simpleName ?: "unknown error"
+                    options.logger("HolonMeta registration failed: $message")
+                    throw error
                 }
-                running = RunningServer(
-                    bound.server,
-                    "stdio://",
-                    options.logger,
-                    auxiliaryStop = { bridge.close() },
+            val reflectionEnabled = maybeAddReflection(extraDefinitions, options)
+            val obs = maybeAddObservability(extraDefinitions, options)
+
+            when (parsed.scheme) {
+                "tcp" -> {
+                    val host = parsed.host ?: "0.0.0.0"
+                    val port = parsed.port ?: 9090
+                    val bound = bindTcpServer(host, port, resolvedServices, extraDefinitions)
+                    val auxiliary = startAuxiliaryRuntime(obs, bound.publicUri, "tcp", options)
+                    announce(bound.publicUri, describeEnabled, reflectionEnabled, options)
+                    RunningServer(bound.server, bound.publicUri, options.logger, auxiliaryStop = auxiliary)
+                }
+                "stdio" -> {
+                    val bound = bindTcpServer("127.0.0.1", 0, resolvedServices, extraDefinitions)
+                    lateinit var running: RunningServer
+                    val bridge = StdioServerBridge("127.0.0.1", parseTarget(bound.publicUri).second) {
+                        running.stop(options.shutdownGracePeriodSeconds)
+                    }
+                    running = RunningServer(
+                        bound.server,
+                        "stdio://",
+                        options.logger,
+                        auxiliaryStop = combineStops(
+                            { bridge.close() },
+                            startAuxiliaryRuntime(obs, "stdio://", "stdio", options),
+                        ),
+                    )
+                    bridge.start()
+                    announce("stdio://", describeEnabled, reflectionEnabled, options)
+                    running
+                }
+                "unix" -> {
+                    val bound = bindTcpServer("127.0.0.1", 0, resolvedServices, extraDefinitions)
+                    val (host, port) = parseTarget(bound.publicUri)
+                    val path = parsed.path ?: error("unix path missing")
+                    val publicUri = "unix://$path"
+                    val bridge = UnixServerBridge(path, host, port)
+                    bridge.start()
+                    announce(publicUri, describeEnabled, reflectionEnabled, options)
+                    RunningServer(
+                        bound.server,
+                        publicUri,
+                        options.logger,
+                        auxiliaryStop = combineStops(
+                            { bridge.close() },
+                            startAuxiliaryRuntime(obs, publicUri, "unix", options),
+                        ),
+                    )
+                }
+                else -> throw IllegalArgumentException(
+                    "Serve.run(...) currently supports tcp://, unix:// and stdio:// only: $listenUri",
                 )
-                bridge.start()
-                startObservabilityRuntime(obs, "stdio://", "stdio")
-                announce("stdio://", describeEnabled, reflectionEnabled, options)
-                running
             }
-            "unix" -> {
-                val bound = bindTcpServer("127.0.0.1", 0, resolvedServices, extraDefinitions)
-                val (host, port) = parseTarget(bound.publicUri)
-                val path = parsed.path ?: error("unix path missing")
-                val publicUri = "unix://$path"
-                val bridge = UnixServerBridge(path, host, port)
-                bridge.start()
-                startObservabilityRuntime(obs, publicUri, "unix")
-                announce(publicUri, describeEnabled, reflectionEnabled, options)
-                RunningServer(
-                    bound.server,
-                    publicUri,
-                    options.logger,
-                    auxiliaryStop = { bridge.close() },
-                )
-            }
-            else -> throw IllegalArgumentException(
-                "Serve.run(...) currently supports tcp://, unix:// and stdio:// only: $listenUri",
-            )
+        } catch (error: Throwable) {
+            CurrentTransport.clear()
+            throw error
         }
     }
 
@@ -225,7 +246,13 @@ object Serve {
         if (env["OP_OBS"].orEmpty().isBlank()) {
             return null
         }
-        val obs = Observability.fromEnvMap(Observability.Config(), env)
+        val current = Observability.current()
+        val wantedSlug = observabilitySlug(options)
+        if (current.families.isNotEmpty() && (wantedSlug.isEmpty() || wantedSlug == current.cfg.slug)) {
+            definitions += Observability.service(current)
+            return current
+        }
+        val obs = Observability.fromEnvMap(Observability.Config(slug = wantedSlug), env)
         if (obs.families.isEmpty()) {
             return null
         }
@@ -233,13 +260,108 @@ object Serve {
         return obs
     }
 
-    private fun startObservabilityRuntime(obs: Observability.Instance?, publicUri: String, transport: String) {
+    private fun observabilitySlug(options: Options): String {
+        options.slug.trim().takeIf { it.isNotEmpty() }?.let { return it }
+        val manifest = Describe.staticResponse()?.manifest ?: return ""
+        manifest.artifacts.binary.trim().takeIf { it.isNotEmpty() }?.let { return it }
+        val given = manifest.identity.givenName.trim()
+        val family = manifest.identity.familyName.trim()
+        return listOf(given, family)
+            .filter { it.isNotEmpty() }
+            .joinToString("-")
+            .lowercase()
+    }
+
+    private fun startAuxiliaryRuntime(
+        obs: Observability.Instance?,
+        publicUri: String,
+        transport: String,
+        options: Options,
+    ): (() -> Unit)? {
+        val promServer = startPromServer(obs, options)
+        val metricsAddr = promServer?.addrUrl().orEmpty()
+        startObservabilityRuntime(obs, publicUri, transport, metricsAddr)
+        val relays = startMemberRelays(obs, options.memberEndpoints, options)
+        if (promServer == null && relays.isEmpty()) {
+            return null
+        }
+        return {
+            relays.forEach { runCatching { it.close() } }
+            runCatching { promServer?.close() }
+        }
+    }
+
+    private fun startPromServer(obs: Observability.Instance?, options: Options): Observability.PromServer? {
+        if (obs == null || !obs.enabled(Observability.Family.PROM)) {
+            return null
+        }
+        val promServer = Observability.PromServer(obs.cfg.promAddr.ifBlank { ":0" })
+        return try {
+            promServer.start()
+            promServer
+        } catch (error: Exception) {
+            options.logger("warning: prom HTTP bind failed: ${error.message}")
+            null
+        }
+    }
+
+    private fun startMemberRelays(
+        obs: Observability.Instance?,
+        members: List<MemberRef>,
+        options: Options,
+    ): List<Observability.MemberRelay> {
+        if (obs == null ||
+            (!obs.enabled(Observability.Family.LOGS) && !obs.enabled(Observability.Family.EVENTS))
+        ) {
+            return emptyList()
+        }
+        val relays = mutableListOf<Observability.MemberRelay>()
+        for (raw in members) {
+            val member = raw.copy(
+                slug = raw.slug.trim(),
+                uid = raw.uid.trim(),
+                address = raw.address.trim(),
+            )
+            if (member.slug.isEmpty() || member.address.isEmpty()) {
+                options.logger(
+                    "warning: observability relay skipped incomplete member ref: " +
+                        "slug=\"${member.slug}\" uid=\"${member.uid}\" address=\"${member.address}\"",
+                )
+                continue
+            }
+            try {
+                val channel = runBlocking {
+                    Connect.connect(
+                        member.address,
+                        ConnectOptions(timeout = Duration.ofSeconds(5), transport = "tcp", start = false),
+                    )
+                }
+                val identity = Observability.resolveMemberIdentity(channel, member.slug, member.uid)
+                val relay = Observability.MemberRelay(identity.slug, identity.uid, channel, obs)
+                relay.start()
+                relays += relay
+            } catch (error: Exception) {
+                options.logger("warning: observability relay start ${member.slug}/${member.uid}: ${error.message}")
+            }
+        }
+        return relays
+    }
+
+    private fun startObservabilityRuntime(
+        obs: Observability.Instance?,
+        publicUri: String,
+        transport: String,
+        metricsAddr: String,
+    ) {
         if (obs == null || obs.cfg.runDir.isEmpty()) {
             return
         }
         Observability.enableDiskWriters(obs.cfg.runDir)
         if (obs.enabled(Observability.Family.EVENTS)) {
-            obs.emit(Observability.EventType.INSTANCE_READY, mapOf("listener" to publicUri))
+            obs.emit(
+                Observability.EventName.INSTANCE_READY,
+                mapOf("listener" to publicUri, "metrics_addr" to metricsAddr),
+            )
         }
         val meta = Observability.MetaJson(
             slug = obs.cfg.slug,
@@ -247,6 +369,7 @@ object Serve {
             pid = ProcessHandle.current().pid(),
             transport = transport,
             address = publicUri,
+            metricsAddr = metricsAddr,
             logPath = if (obs.enabled(Observability.Family.LOGS)) {
                 Path.of(obs.cfg.runDir, "stdout.log").toString()
             } else {
@@ -256,6 +379,14 @@ object Serve {
             organismSlug = obs.cfg.organismSlug,
         )
         runCatching { Observability.writeMetaJson(obs.cfg.runDir, meta) }
+    }
+
+    private fun combineStops(vararg stops: (() -> Unit)?): () -> Unit = {
+        stops.forEach { stop ->
+            if (stop != null) {
+                runCatching { stop() }
+            }
+        }
     }
 
     private fun advertisedHost(host: String): String =

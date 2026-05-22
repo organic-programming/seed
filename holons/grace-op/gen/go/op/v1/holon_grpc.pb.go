@@ -46,7 +46,6 @@ const (
 	OPService_ModGraph_FullMethodName             = "/op.v1.OPService/ModGraph"
 	OPService_Tools_FullMethodName                = "/op.v1.OPService/Tools"
 	OPService_Env_FullMethodName                  = "/op.v1.OPService/Env"
-	OPService_Worktree_FullMethodName             = "/op.v1.OPService/Worktree"
 	OPService_InstallSdkPrebuilt_FullMethodName   = "/op.v1.OPService/InstallSdkPrebuilt"
 	OPService_ListSdkPrebuilts_FullMethodName     = "/op.v1.OPService/ListSdkPrebuilts"
 	OPService_UninstallSdkPrebuilt_FullMethodName = "/op.v1.OPService/UninstallSdkPrebuilt"
@@ -120,8 +119,6 @@ type OPServiceClient interface {
 	Tools(ctx context.Context, in *ToolsRequest, opts ...grpc.CallOption) (*ToolsResponse, error)
 	// Env resolves OP environment paths and shell setup.
 	Env(ctx context.Context, in *EnvRequest, opts ...grpc.CallOption) (*EnvResponse, error)
-	// Worktree creates, bootstraps, or diagnoses OP worktree isolation.
-	Worktree(ctx context.Context, in *WorktreeRequest, opts ...grpc.CallOption) (*WorktreeResponse, error)
 	// InstallSdkPrebuilt installs a native SDK prebuilt into $OPPATH/sdk.
 	InstallSdkPrebuilt(ctx context.Context, in *InstallSdkPrebuiltRequest, opts ...grpc.CallOption) (*SdkPrebuiltResponse, error)
 	// ListSdkPrebuilts lists installed or available SDK prebuilts.
@@ -415,16 +412,6 @@ func (c *oPServiceClient) Env(ctx context.Context, in *EnvRequest, opts ...grpc.
 	return out, nil
 }
 
-func (c *oPServiceClient) Worktree(ctx context.Context, in *WorktreeRequest, opts ...grpc.CallOption) (*WorktreeResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(WorktreeResponse)
-	err := c.cc.Invoke(ctx, OPService_Worktree_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *oPServiceClient) InstallSdkPrebuilt(ctx context.Context, in *InstallSdkPrebuiltRequest, opts ...grpc.CallOption) (*SdkPrebuiltResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SdkPrebuiltResponse)
@@ -550,8 +537,6 @@ type OPServiceServer interface {
 	Tools(context.Context, *ToolsRequest) (*ToolsResponse, error)
 	// Env resolves OP environment paths and shell setup.
 	Env(context.Context, *EnvRequest) (*EnvResponse, error)
-	// Worktree creates, bootstraps, or diagnoses OP worktree isolation.
-	Worktree(context.Context, *WorktreeRequest) (*WorktreeResponse, error)
 	// InstallSdkPrebuilt installs a native SDK prebuilt into $OPPATH/sdk.
 	InstallSdkPrebuilt(context.Context, *InstallSdkPrebuiltRequest) (*SdkPrebuiltResponse, error)
 	// ListSdkPrebuilts lists installed or available SDK prebuilts.
@@ -655,9 +640,6 @@ func (UnimplementedOPServiceServer) Tools(context.Context, *ToolsRequest) (*Tool
 }
 func (UnimplementedOPServiceServer) Env(context.Context, *EnvRequest) (*EnvResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Env not implemented")
-}
-func (UnimplementedOPServiceServer) Worktree(context.Context, *WorktreeRequest) (*WorktreeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method Worktree not implemented")
 }
 func (UnimplementedOPServiceServer) InstallSdkPrebuilt(context.Context, *InstallSdkPrebuiltRequest) (*SdkPrebuiltResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method InstallSdkPrebuilt not implemented")
@@ -1184,24 +1166,6 @@ func _OPService_Env_Handler(srv interface{}, ctx context.Context, dec func(inter
 	return interceptor(ctx, in, info, handler)
 }
 
-func _OPService_Worktree_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(WorktreeRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(OPServiceServer).Worktree(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: OPService_Worktree_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(OPServiceServer).Worktree(ctx, req.(*WorktreeRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _OPService_InstallSdkPrebuilt_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(InstallSdkPrebuiltRequest)
 	if err := dec(in); err != nil {
@@ -1424,10 +1388,6 @@ var OPService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Env",
 			Handler:    _OPService_Env_Handler,
-		},
-		{
-			MethodName: "Worktree",
-			Handler:    _OPService_Worktree_Handler,
 		},
 		{
 			MethodName: "InstallSdkPrebuilt",

@@ -13,8 +13,8 @@ import (
 )
 
 // runObserveOptions describes the observability-related flags carried
-// by `op run`. In v1 they translate to the OP_OBS / OP_PROM_ADDR env
-// vars the SDK consumes; OTLP is parsed only to reject the reserved flag.
+// by `op run`. They translate to the OP_OBS / OP_PROM_ADDR env vars
+// the SDK consumes.
 type runObserveOptions struct {
 	// Observe is a comma-separated subset of logs,metrics,events,prom,all.
 	// Empty means inherit OP_OBS from the parent env (or no observability).
@@ -28,21 +28,13 @@ type runObserveOptions struct {
 	// in --observe, the SDK picks an ephemeral port itself).
 	Prom string
 
-	// OTel endpoint ("host:port"). Reserved for v2 and rejected by op
-	// before spawning in v1.
-	OTel string
-
-	// Session mode. Empty ignores; "1" enables sessions; "metrics"
-	// enables session metrics too (see SESSIONS.md).
-	Sessions string
-
 	// JSON asks op run to emit a single JSON object for the UID return
 	// contract (INSTANCES.md §UID Return Contract).
 	JSON bool
 }
 
-// extractRunObserveFlags scans args for --observe / --prom / --otel /
-// --sessions / --json, removes them, and returns the options plus the
+// extractRunObserveFlags scans args for --observe / --prom / --json,
+// removes them, and returns the options plus the
 // remaining args.
 func extractRunObserveFlags(args []string) ([]string, runObserveOptions) {
 	var opts runObserveOptions
@@ -72,17 +64,6 @@ func extractRunObserveFlags(args []string) ([]string, runObserveOptions) {
 					opts.Observe += ",prom"
 				}
 			}
-		case strings.HasPrefix(a, "--otel="):
-			opts.OTel = strings.TrimPrefix(a, "--otel=")
-			if opts.Observe == "" {
-				opts.Observe = "metrics,otel"
-			} else if !strings.Contains(opts.Observe, "otel") {
-				opts.Observe += ",otel"
-			}
-		case a == "--sessions":
-			opts.Sessions = "1"
-		case strings.HasPrefix(a, "--sessions="):
-			opts.Sessions = strings.TrimPrefix(a, "--sessions=")
 		case a == "--json":
 			opts.JSON = true
 		default:
@@ -166,12 +147,6 @@ func injectObservabilityEnv(cmd *exec.Cmd, uid, runRoot string, opts runObserveO
 	if opts.Prom != "" {
 		set("OP_PROM_ADDR", opts.Prom)
 	}
-	if opts.OTel != "" {
-		set("OP_OTEL_ENDPOINT", opts.OTel)
-	}
-	if opts.Sessions != "" {
-		set("OP_SESSIONS", opts.Sessions)
-	}
 	cmd.Env = env
 }
 
@@ -204,13 +179,15 @@ func emitUIDReturn(uid, slug, address string, pid int, metricsAddr string, jsonM
 // the allocated UID and registry root for later use. Returns ("", "")
 // as a no-op signal when observability is not requested.
 func applyRunObservability(cmd *exec.Cmd, slug string, opts runObserveOptions) (uid, runRoot string, err error) {
+	if opts.Observe == "" {
+		if envObserve := strings.TrimSpace(os.Getenv("OP_OBS")); envObserve != "" {
+			opts.Observe = envObserve
+		}
+	}
 	// Fast path: no observability requested and no JSON UID contract
 	// needed — leave the command untouched to preserve existing behaviour.
-	if opts.Observe == "" && opts.Prom == "" && opts.OTel == "" && opts.Sessions == "" && !opts.JSON {
+	if opts.Observe == "" && opts.Prom == "" && !opts.JSON {
 		return "", "", nil
-	}
-	if err := validateRunObserveV1(opts); err != nil {
-		return "", "", err
 	}
 	runRoot, err = resolveRunRoot()
 	if err != nil {
@@ -220,16 +197,4 @@ func applyRunObservability(cmd *exec.Cmd, slug string, opts runObserveOptions) (
 	injectObservabilityEnv(cmd, uid, runRoot, opts)
 	emitUIDReturn(uid, slug, "", 0, "", opts.JSON)
 	return uid, runRoot, nil
-}
-
-func validateRunObserveV1(opts runObserveOptions) error {
-	if opts.OTel != "" {
-		return fmt.Errorf("--otel is reserved for observability v2; use --prom in v1")
-	}
-	for _, tok := range strings.Split(opts.Observe, ",") {
-		if strings.TrimSpace(tok) == "otel" {
-			return fmt.Errorf("OP_OBS token %q is reserved for observability v2; use --prom in v1", tok)
-		}
-	}
-	return nil
 }

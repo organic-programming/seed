@@ -158,6 +158,36 @@ func TestSdkInstallAllSequentialOrder(t *testing.T) {
 	}
 }
 
+func TestSdkBuildRejectsMissingVersion(t *testing.T) {
+	cases := []struct {
+		name string
+		args []string
+	}{
+		{name: "all/missing", args: []string{"all"}},
+		{name: "all/blank", args: []string{"all", "--version", "   "}},
+		{name: "single/missing", args: []string{"go"}},
+		{name: "single/blank", args: []string{"go", "--version", "   "}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cmd := newSdkBuildCmd()
+			var stdout, stderr bytes.Buffer
+			cmd.SetOut(&stdout)
+			cmd.SetErr(&stderr)
+			cmd.SetArgs(tc.args)
+			cmd.SilenceUsage = true
+			cmd.SilenceErrors = true
+			err := cmd.Execute()
+			if err == nil {
+				t.Fatalf("op sdk build %v without --version: want error, got nil", tc.args)
+			}
+			if !strings.Contains(err.Error(), "--version") {
+				t.Fatalf("error %q does not mention --version requirement", err.Error())
+			}
+		})
+	}
+}
+
 func TestSdkBuildAllRejectsTargetForCrossOnPureHostSdk(t *testing.T) {
 	var called []string
 	target := "x86_64-pc-windows-msvc"

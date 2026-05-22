@@ -16,6 +16,13 @@
     <PackageReference Include="Grpc.AspNetCore.Server.Reflection" Version="2.76.0" />
     <PackageReference Include="Grpc.Core.Api" Version="2.76.0" />
     <PackageReference Include="Grpc.Net.Client" Version="2.76.0" />
+    <PackageReference Include="Grpc.Tools" Version="2.76.0" PrivateAssets="All" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Protobuf Include="../../../examples/observability-cascade/_protos/relay/v1/relay.proto"
+              ProtoRoot="../../../examples/observability-cascade/_protos"
+              GrpcServices="Both" />
   </ItemGroup>
 
 </Project>
