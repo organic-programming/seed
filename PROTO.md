@@ -635,3 +635,4 @@ This single file is the complete truth. From it, `op` derives:
 - **`op man` output** — user guide rendered from the `guide` field
 - **MCP tools** — JSON Schema from messages and meta-annotations
 - **`Describe` response** — embedded in the binary at build time
+
