@@ -11,10 +11,18 @@
 *.swo
 *~
 
+# Claude Code — keep team config, ignore personal & runtime state
+.claude/settings.local.json
+.claude/.credentials.json
+.claude/scheduled_tasks.lock
+.claude/*.log
+.claude/.DS_Store
+# Personal CLAUDE.md override (not shared)
+CLAUDE.local.md
+
 # Tool state
 .op/
 .codex/
-.claude/settings.*
 .gemini/.env
 .runtime/
 .build/
