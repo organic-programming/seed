@@ -29,6 +29,7 @@ type connectTestServer struct {
 	holonsv1.UnimplementedHolonMetaServer
 }
 
+// UnaryCall
 func (s *connectTestServer) UnaryCall(_ context.Context, in *testgrpc.SimpleRequest) (*testgrpc.SimpleResponse, error) {
 	payload := in.GetPayload()
 	if payload == nil {
