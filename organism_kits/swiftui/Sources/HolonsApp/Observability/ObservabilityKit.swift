@@ -3,6 +3,58 @@ import Network
 import Combine
 import Holons
 
+extension LogRecord {
+    var level: Level {
+        Level(rawValue: Int32(record.severityNumber.rawValue)) ?? parseLevel(record.severityText)
+    }
+
+    var slug: String {
+        let holonSlug = attribute(AttrHolonsSlug)
+        return holonSlug.isEmpty ? attribute(AttrServiceName) : holonSlug
+    }
+
+    var instanceUid: String {
+        let holonUID = attribute(AttrHolonsInstanceUID)
+        return holonUID.isEmpty ? attribute(AttrServiceInstanceID) : holonUID
+    }
+
+    var message: String {
+        bodyString
+    }
+
+    var fields: [String: String] {
+        attributeDictionary(excluding: Self.resourceAttributeKeys)
+    }
+
+    var eventName: String {
+        record.eventName.isEmpty ? bodyString : record.eventName
+    }
+
+    var payload: [String: String] {
+        attributeDictionary(excluding: Self.resourceAttributeKeys)
+    }
+
+    var chain: [String] {
+        record.chain
+    }
+
+    private static let resourceAttributeKeys: Set<String> = [
+        AttrHolonsSlug,
+        AttrServiceName,
+        AttrHolonsInstanceUID,
+        AttrServiceInstanceID,
+        AttrHolonsSessionID,
+    ]
+
+    private func attributeDictionary(excluding excludedKeys: Set<String>) -> [String: String] {
+        var out: [String: String] = [:]
+        for attribute in record.attributes where !excludedKeys.contains(attribute.key) {
+            out[attribute.key] = anyValueString(attribute.value)
+        }
+        return out
+    }
+}
+
 public enum GateOverride: String, CaseIterable, Identifiable, Sendable {
     case defaultValue
     case on
@@ -124,7 +176,7 @@ public final class RuntimeGate: ObservableObject {
 public final class ConsoleController: ObservableObject {
     public let obs: Observability
     public let gate: RuntimeGate
-    @Published public private(set) var entries: [LogEntry]
+    @Published public private(set) var entries: [LogRecord]
     @Published public var minLevel: Level = .trace
     @Published public var query: String = ""
     private nonisolated(unsafe) var unsubscribe: (() -> Void)?
@@ -138,7 +190,7 @@ public final class ConsoleController: ObservableObject {
         }
     }
 
-    public var filteredEntries: [LogEntry] {
+    public var filteredEntries: [LogRecord] {
         guard gate.familyEnabled(.logs) else { return [] }
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         return entries.filter { entry in
@@ -300,10 +352,10 @@ public struct ExportController {
 
     public func exportBundle(to dir: URL) throws -> URL {
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        try (kit.obs.logRing?.drain() ?? []).map(logJSON).joined(separator: "\n").appending("\n")
-            .write(to: dir.appendingPathComponent("logs.jsonl"), atomically: true, encoding: .utf8)
-        try (kit.obs.eventBus?.drain() ?? []).map(eventJSON).joined(separator: "\n").appending("\n")
-            .write(to: dir.appendingPathComponent("events.jsonl"), atomically: true, encoding: .utf8)
+        let logs = (kit.obs.logRing?.drain() ?? []).map { logJSON($0) }.joined(separator: "\n").appending("\n")
+        try logs.write(to: dir.appendingPathComponent("logs.jsonl"), atomically: true, encoding: .utf8)
+        let events = (kit.obs.eventBus?.drain() ?? []).map { eventJSON($0) }.joined(separator: "\n").appending("\n")
+        try events.write(to: dir.appendingPathComponent("events.jsonl"), atomically: true, encoding: .utf8)
         try prometheusText(kit.obs).write(to: dir.appendingPathComponent("metrics.prom"), atomically: true, encoding: .utf8)
         let metadata = [
             "slug": kit.slug,
@@ -386,7 +438,7 @@ private func labels(_ labels: [String: String]) -> String {
     return "{" + labels.keys.sorted().map { "\($0)=\"\(labels[$0] ?? "")\"" }.joined(separator: ",") + "}"
 }
 
-private func logJSON(_ entry: LogEntry) -> String {
+private func logJSON(_ entry: LogRecord) -> String {
     let object: [String: Any] = [
         "ts": ISO8601DateFormatter().string(from: entry.timestamp),
         "level": entry.level.name,
@@ -402,7 +454,7 @@ private func logJSON(_ entry: LogEntry) -> String {
 private func eventJSON(_ event: Event) -> String {
     let object: [String: Any] = [
         "ts": ISO8601DateFormatter().string(from: event.timestamp),
-        "type": event.type.protoName,
+        "event_name": event.eventName,
         "slug": event.slug,
         "instance_uid": event.instanceUid,
         "payload": event.payload,

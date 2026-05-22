@@ -266,38 +266,41 @@ public struct LogConsoleView: View {
 
             Divider()
 
-            List(controller.filteredEntries.indices, id: \.self) { index in
-                let entry = controller.filteredEntries[index]
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 8) {
-                        Text(entry.level.name)
-                            .font(.system(.caption, design: .monospaced).weight(.bold))
-                            .foregroundStyle(levelColor(entry.level))
-                        Text(entry.slug)
-                            .font(.system(.caption, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                        Text(entry.timestamp.formatted(date: .omitted, time: .standard))
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                        if !entry.chain.isEmpty {
-                            Text(chainText(entry.chain))
-                                .font(.system(.caption2, design: .monospaced))
+            let entries = controller.filteredEntries
+            List {
+                ForEach(entries.indices, id: \.self) { index in
+                    let entry = entries[index]
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 8) {
+                            Text(entry.level.name)
+                                .font(.system(.caption, design: .monospaced).weight(.bold))
+                                .foregroundStyle(levelColor(entry.level))
+                            Text(entry.slug)
+                                .font(.system(.caption, design: .monospaced))
                                 .foregroundStyle(.secondary)
+                            Text(entry.timestamp.formatted(date: .omitted, time: .standard))
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                            if !entry.chain.isEmpty {
+                                Text(chainText(entry.chain))
+                                    .font(.system(.caption2, design: .monospaced))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+
+                        Text(entry.message)
+                            .font(.body)
+                            .textSelection(.enabled)
+
+                        if !entry.fields.isEmpty {
+                            Text(entry.fields.keys.sorted().map { "\($0)=\(entry.fields[$0] ?? "")" }.joined(separator: " "))
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                                .textSelection(.enabled)
                         }
                     }
-
-                    Text(entry.message)
-                        .font(.body)
-                        .textSelection(.enabled)
-
-                    if !entry.fields.isEmpty {
-                        Text(entry.fields.keys.sorted().map { "\($0)=\(entry.fields[$0] ?? "")" }.joined(separator: " "))
-                            .font(.system(.caption, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                            .textSelection(.enabled)
-                    }
+                    .padding(.vertical, 6)
                 }
-                .padding(.vertical, 6)
             }
             .listStyle(.plain)
         }
@@ -366,34 +369,37 @@ public struct EventsView: View {
     }
 
     public var body: some View {
-        List(controller.events.indices, id: \.self) { index in
-            let event = controller.events[index]
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 8) {
-                    Text(event.type.protoName)
-                        .font(.system(.caption, design: .monospaced).weight(.bold))
-                        .foregroundStyle(.blue)
-                    Text(event.slug)
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                    Text(event.timestamp.formatted(date: .omitted, time: .standard))
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                    if !event.chain.isEmpty {
-                        Text(chainText(event.chain))
-                            .font(.system(.caption2, design: .monospaced))
+        let events = controller.events
+        List {
+            ForEach(events.indices, id: \.self) { index in
+                let event = events[index]
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        Text(event.eventName)
+                            .font(.system(.caption, design: .monospaced).weight(.bold))
+                            .foregroundStyle(.blue)
+                        Text(event.slug)
+                            .font(.system(.caption, design: .monospaced))
                             .foregroundStyle(.secondary)
+                        Text(event.timestamp.formatted(date: .omitted, time: .standard))
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                        if !event.chain.isEmpty {
+                            Text(chainText(event.chain))
+                                .font(.system(.caption2, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    if !event.payload.isEmpty {
+                        Text(event.payload.keys.sorted().map { "\($0)=\(event.payload[$0] ?? "")" }.joined(separator: " "))
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
                     }
                 }
-
-                if !event.payload.isEmpty {
-                    Text(event.payload.keys.sorted().map { "\($0)=\(event.payload[$0] ?? "")" }.joined(separator: " "))
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                        .textSelection(.enabled)
-                }
+                .padding(.vertical, 6)
             }
-            .padding(.vertical, 6)
         }
         .listStyle(.plain)
     }
@@ -528,6 +534,6 @@ private func levelColor(_ level: Level) -> Color {
     }
 }
 
-private func chainText(_ chain: [Hop]) -> String {
-    chain.map { "\($0.slug):\($0.instanceUid)" }.joined(separator: " > ")
+private func chainText(_ chain: [String]) -> String {
+    chain.joined(separator: " > ")
 }
