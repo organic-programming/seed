@@ -18,6 +18,9 @@ entries:
 - catalogue: clem-ader
   suite: ader-self
   profile: smoke
+- catalogue: gabriel-greeting-app-swiftui
+  suite: swiftui-smoke
+  profile: smoke
 - catalogue: gabriel-greeting-app-flutter
   suite: flutter-smoke
   profile: smoke
