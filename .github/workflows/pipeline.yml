@@ -288,7 +288,7 @@ jobs:
       - name: Upload Go codegen SDK bootstrap artifact
         uses: actions/upload-artifact@v4
         with:
-          name: sdk-go-bootstrap-${{ steps.host.outputs.target }}
+          name: go-protoc-codegen-toolchain-${{ steps.host.outputs.target }}
           path: dist/sdk-prebuilts/go/${{ steps.host.outputs.target }}/*
           if-no-files-found: error
           retention-days: 1
@@ -356,7 +356,7 @@ jobs:
       - name: Download Go codegen SDK bootstrap artifact
         uses: actions/download-artifact@v4
         with:
-          name: sdk-go-bootstrap-${{ steps.host.outputs.target }}
+          name: go-protoc-codegen-toolchain-${{ steps.host.outputs.target }}
           path: ${{ runner.temp }}/go-codegen-sdk
 
       - name: Install Go codegen SDK artifact into isolated OPPATH
