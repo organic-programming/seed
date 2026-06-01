@@ -19,7 +19,8 @@ This document covers `op`-specific CLI behavior.
 | `--cached` | `$OPPATH/cache` packages | |
 | `--root <path>` | override scan root | **preempts any other scoping flag** |
 | `--limit <n>` | limit discovery results | `op list` only; `0` means no limit |
-| `--timeout <ms>` | discovery/connect timeout | applies to all commands; `0` means no timeout |
+| `--connect-timeout <ms>` | discovery/connect timeout | applies to all commands; `0` means no timeout; hidden flag |
+| `--timeout <ms>` | RPC execution timeout | invoke calls only (per call); `0` means no timeout; env `OPTIMEOUT` |
 | `--no-cache` | resolution cache | bypasses resolution cache reads and refreshes cache on success |
 | `--purge-cache` | resolution cache | deletes `$OPPATH/resolutions/` before continuing; bare `op --purge-cache` exits 0 |
 

@@ -73,6 +73,8 @@ func newInvokeCmd() *cobra.Command {
 
 	cmd.Flags().Bool("clean", false, "clean a holon target before invoking it")
 	cmd.Flags().Bool("no-build", false, "do not auto-build a missing holon artifact")
+	cmd.Flags().Int("timeout", 0, "per-call RPC execution timeout in milliseconds (0 = no limit); excludes connect/build")
+	mustBindPFlag(viperKeyExecTimeout, cmd.Flags().Lookup("timeout"))
 
 	return cmd
 }

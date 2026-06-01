@@ -52,14 +52,28 @@ func (c activeConnection) close() error {
 	return c.disconnect()
 }
 
-type invokeExecutor func(index int, call invokeCall) (*internalgrpc.CallResult, error)
+type invokeExecutor func(ctx context.Context, index int, call invokeCall) (*internalgrpc.CallResult, error)
 
 var invokeRemoteRPC = internalgrpc.InvokeConn
 var invokeLocalCatalogRPC = invokeConnViaLocalCatalog
 
-func emitInvokeResults(format Format, errPrefix string, calls []invokeCall, invoke invokeExecutor) int {
+// newExecContext bounds a single RPC call's execution. A non-positive timeout
+// means no execution deadline — op waits indefinitely for the holon's response.
+func newExecContext(execTimeout time.Duration) (context.Context, context.CancelFunc) {
+	if execTimeout <= 0 {
+		return context.WithCancel(context.Background())
+	}
+	return context.WithTimeout(context.Background(), execTimeout)
+}
+
+// emitInvokeResults runs each call under its own execution deadline (execTimeout,
+// applied per call) and prints the results. The connect/build budget is owned by
+// the caller and is intentionally independent of execTimeout.
+func emitInvokeResults(format Format, errPrefix string, calls []invokeCall, execTimeout time.Duration, invoke invokeExecutor) int {
 	for i, call := range calls {
-		result, err := invoke(i, call)
+		ctx, cancel := newExecContext(execTimeout)
+		result, err := invoke(ctx, i, call)
+		cancel()
 		if err != nil {
 			if len(calls) > 1 {
 				fmt.Fprintf(os.Stderr, "%s: call %d/%d [%s]: %v\n", errPrefix, i+1, len(calls), call.method, err)
@@ -95,10 +109,7 @@ func runConnectedRPC(
 	}
 	defer func() { _ = conn.close() }()
 
-	ctx, cancel := context.WithTimeout(context.Background(), connectDispatchTimeout)
-	defer cancel()
-
-	return emitInvokeResults(format, errPrefix, calls, func(_ int, call invokeCall) (*internalgrpc.CallResult, error) {
+	return emitInvokeResults(format, errPrefix, calls, currentExecTimeout(), func(ctx context.Context, _ int, call invokeCall) (*internalgrpc.CallResult, error) {
 		return invokeConnectedHolonCall(ctx, conn.conn, holonName, call)
 	})
 }

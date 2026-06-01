@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 
 	sdkgrpc "github.com/organic-programming/go-holons/pkg/grpcclient"
 	"github.com/organic-programming/grace-op/internal/grpcclient"
@@ -66,10 +65,7 @@ func cmdDirectBinary(format Format, binaryPath string, args []string) int {
 		}
 	}()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	return emitInvokeResults(format, "op", calls, func(_ int, call invokeCall) (*grpcclient.CallResult, error) {
+	return emitInvokeResults(format, "op", calls, currentExecTimeout(), func(ctx context.Context, _ int, call invokeCall) (*grpcclient.CallResult, error) {
 		return grpcclient.InvokeConn(ctx, conn, call.method, call.inputJSON)
 	})
 }

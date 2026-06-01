@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"reflect"
 	"strings"
@@ -252,7 +253,7 @@ func TestMultiCallOutputIsJSONLines(t *testing.T) {
 	}
 
 	output := captureStdout(t, func() {
-		code := emitInvokeResults(FormatJSON, "op invoke", calls, func(index int, call invokeCall) (*internalgrpc.CallResult, error) {
+		code := emitInvokeResults(FormatJSON, "op invoke", calls, 0, func(_ context.Context, index int, call invokeCall) (*internalgrpc.CallResult, error) {
 			return &internalgrpc.CallResult{
 				Output: "{\n  \"method\": \"" + call.method + "\",\n  \"value\": " + string('1'+rune(index)) + "\n}\n",
 			}, nil
