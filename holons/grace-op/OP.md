@@ -21,8 +21,9 @@ Global flags (must come before <holon> or URI):
 Holon dispatch (transport chain):
   op <holon> <command> [args]            dispatch via the SDK auto-connect chain
   op <holon> --clean <method> [--no-build] [json]
-  op <holon> <method> [--no-build] [json]
+  op <holon> <method> [--no-build] [--timeout <ms>] [json]
                                          call a holon RPC; auto-build compiled slugs if needed
+                                         (--timeout bounds the call only, not connect/build)
   op <binary-path> <method> [json]       call an executable directly (no discovery)
 
 Direct gRPC URI dispatch:
@@ -76,9 +77,10 @@ Run flags:
   --target <...>                               pass build target through if a build is needed
   --mode <debug|release|profile>               pass build mode through if a build is needed
 
-Dispatch flag:
+Dispatch flags:
   --clean                                      clean the slug target before auto-building and calling
   --no-build                                   fail if a slug-based RPC target is missing its built binary
+  --timeout <ms>                               per-call RPC execution timeout (0 = no limit); excludes connect/build
 
   op discover                            list available holons
   op serve [--listen tcp://:9090]        start OP's own gRPC server
@@ -1457,7 +1459,7 @@ configuration files.
 |---|---|
 | `op <holon> <command> [args]` | Transport-chain dispatch |
 | `op <holon> --clean <method> [--no-build] [json]` | Clean the slug target, auto-build it, then call the RPC |
-| `op <holon> <method> [--no-build] [json]` | Call a holon RPC; auto-build compiled slug targets if needed |
+| `op <holon> <method> [--no-build] [--timeout <ms>] [json]` | Call a holon RPC; auto-build compiled slug targets if needed. `--timeout` caps the call only (0 = no limit) |
 | `op grpc://<host:port> [method]` | gRPC over TCP |
 | `op grpc://<slug> <method> [--no-build] [json]` | gRPC auto-connect for slug targets |
 | `op stdio://<holon> <method>` | gRPC over stdio pipe |

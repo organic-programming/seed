@@ -3621,16 +3621,35 @@ func TestOpListWithLimit(t *testing.T) {
 	}
 }
 
-func TestParseGlobalOptionsWithTimeout(t *testing.T) {
-	opts, args, err := parseGlobalOptions([]string{"--timeout", "3000", "list"})
+func TestParseGlobalOptionsWithConnectTimeout(t *testing.T) {
+	opts, args, err := parseGlobalOptions([]string{"--connect-timeout", "3000", "list"})
 	if err != nil {
 		t.Fatalf("parseGlobalOptions returned error: %v", err)
 	}
 	if opts.timeout != 3000 {
-		t.Fatalf("timeout = %d, want 3000", opts.timeout)
+		t.Fatalf("connect timeout = %d, want 3000", opts.timeout)
+	}
+	if opts.execTimeout != 0 {
+		t.Fatalf("exec timeout = %d, want 0", opts.execTimeout)
 	}
 	if !reflect.DeepEqual(args, []string{"list"}) {
 		t.Fatalf("args = %v, want [list]", args)
+	}
+}
+
+func TestParseGlobalOptionsWithExecTimeout(t *testing.T) {
+	opts, args, err := parseGlobalOptions([]string{"--timeout", "5000", "gabriel-greeting-go", "SayHello"})
+	if err != nil {
+		t.Fatalf("parseGlobalOptions returned error: %v", err)
+	}
+	if opts.execTimeout != 5000 {
+		t.Fatalf("exec timeout = %d, want 5000", opts.execTimeout)
+	}
+	if opts.timeout != 0 {
+		t.Fatalf("connect timeout = %d, want 0", opts.timeout)
+	}
+	if !reflect.DeepEqual(args, []string{"gabriel-greeting-go", "SayHello"}) {
+		t.Fatalf("args = %v, want [gabriel-greeting-go SayHello]", args)
 	}
 }
 

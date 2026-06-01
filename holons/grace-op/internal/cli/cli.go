@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/organic-programming/grace-op/api"
 	"github.com/organic-programming/grace-op/internal/holons"
@@ -20,16 +21,17 @@ import (
 var rootCmd *cobra.Command
 
 const (
-	viperKeyFormat  = "output_format"
-	viperKeyQuiet   = "quiet_mode"
-	viperKeyRoot    = "discovery_root"
-	viperKeyBin     = "resolve_bin"
-	viperKeyPath    = "runtime_path"
-	viperKeyOPBIN   = "runtime_bin"
-	viperKeyTimeout = "resolve_timeout"
-	viperKeyOrigin  = "show_origin"
-	viperKeyNoCache = "resolution_no_cache"
-	viperKeyPurge   = "resolution_purge_cache"
+	viperKeyFormat      = "output_format"
+	viperKeyQuiet       = "quiet_mode"
+	viperKeyRoot        = "discovery_root"
+	viperKeyBin         = "resolve_bin"
+	viperKeyPath        = "runtime_path"
+	viperKeyOPBIN       = "runtime_bin"
+	viperKeyTimeout     = "resolve_timeout"
+	viperKeyExecTimeout = "exec_timeout"
+	viperKeyOrigin      = "show_origin"
+	viperKeyNoCache     = "resolution_no_cache"
+	viperKeyPurge       = "resolution_purge_cache"
 )
 
 type commandExitError struct {
@@ -217,14 +219,14 @@ func registerRootPersistentFlags(cmd *cobra.Command) {
 	flags.String("bin", "", "print the resolved binary path and exit")
 	flags.String("path", "", "override OPPATH")
 	flags.String("opbin", "", "override OPBIN")
-	flags.Int("timeout", 0, "discovery timeout in milliseconds")
+	flags.Int("connect-timeout", 0, "discovery/connect timeout in milliseconds (0 = no limit)")
 	flags.Bool("origin", false, "print the resolved origin for matching targets")
 	flags.Bool("no-cache", false, "bypass resolution cache reads and refresh cache on success")
 	flags.Bool("purge-cache", false, "delete the op resolution cache before continuing")
 
 	_ = flags.MarkHidden("path")
 	_ = flags.MarkHidden("opbin")
-	_ = flags.MarkHidden("timeout")
+	_ = flags.MarkHidden("connect-timeout")
 	_ = flags.MarkHidden("origin")
 
 	mustBindPFlag(viperKeyFormat, flags.Lookup("format"))
@@ -233,7 +235,7 @@ func registerRootPersistentFlags(cmd *cobra.Command) {
 	mustBindPFlag(viperKeyBin, flags.Lookup("bin"))
 	mustBindPFlag(viperKeyPath, flags.Lookup("path"))
 	mustBindPFlag(viperKeyOPBIN, flags.Lookup("opbin"))
-	mustBindPFlag(viperKeyTimeout, flags.Lookup("timeout"))
+	mustBindPFlag(viperKeyTimeout, flags.Lookup("connect-timeout"))
 	mustBindPFlag(viperKeyOrigin, flags.Lookup("origin"))
 	mustBindPFlag(viperKeyNoCache, flags.Lookup("no-cache"))
 	mustBindPFlag(viperKeyPurge, flags.Lookup("purge-cache"))
@@ -243,7 +245,8 @@ func registerRootPersistentFlags(cmd *cobra.Command) {
 	mustBindEnv(viperKeyRoot, "OPROOT")
 	mustBindEnv(viperKeyPath, "OPPATH")
 	mustBindEnv(viperKeyOPBIN, "OPBIN")
-	mustBindEnv(viperKeyTimeout, "OPTIMEOUT")
+	mustBindEnv(viperKeyTimeout, "OPCONNECTTIMEOUT")
+	mustBindEnv(viperKeyExecTimeout, "OPTIMEOUT")
 	mustBindEnv(viperKeyOrigin, "OPORIGIN")
 }
 
@@ -274,6 +277,9 @@ func executeRootFallback(cmd *cobra.Command, rawArgs []string) error {
 	if err := applyResolutionCacheOptions(opts); err != nil {
 		return err
 	}
+	// The root fallback parses flags manually (DisableFlagParsing), so the RPC
+	// execution deadline must be republished to viper for the invoke leaves.
+	viper.Set(viperKeyExecTimeout, opts.execTimeout)
 	if len(args) == 0 && opts.purgeCache {
 		return nil
 	}
@@ -337,6 +343,16 @@ func currentRuntimeOptions() commandRuntimeOptions {
 	}
 }
 
+// currentExecTimeout returns the per-call RPC execution deadline configured via
+// --timeout (milliseconds). A non-positive value means no execution deadline.
+func currentExecTimeout() time.Duration {
+	ms := viper.GetInt(viperKeyExecTimeout)
+	if ms <= 0 {
+		return 0
+	}
+	return time.Duration(ms) * time.Millisecond
+}
+
 func manualGlobalOptions(args []string, consumeFormat bool) (internalGlobalOptions, []string, error) {
 	defaults, err := globalOptionsFromEnvironment()
 	if err != nil {
@@ -351,15 +367,16 @@ func globalOptionsFromEnvironment() (internalGlobalOptions, error) {
 		return internalGlobalOptions{}, err
 	}
 	return internalGlobalOptions{
-		format:     format,
-		quiet:      viper.GetBool(viperKeyQuiet),
-		root:       strings.TrimSpace(viper.GetString(viperKeyRoot)),
-		path:       strings.TrimSpace(viper.GetString(viperKeyPath)),
-		opbin:      strings.TrimSpace(viper.GetString(viperKeyOPBIN)),
-		timeout:    viper.GetInt(viperKeyTimeout),
-		origin:     viper.GetBool(viperKeyOrigin),
-		noCache:    viper.GetBool(viperKeyNoCache),
-		purgeCache: viper.GetBool(viperKeyPurge),
+		format:      format,
+		quiet:       viper.GetBool(viperKeyQuiet),
+		root:        strings.TrimSpace(viper.GetString(viperKeyRoot)),
+		path:        strings.TrimSpace(viper.GetString(viperKeyPath)),
+		opbin:       strings.TrimSpace(viper.GetString(viperKeyOPBIN)),
+		timeout:     viper.GetInt(viperKeyTimeout),
+		execTimeout: viper.GetInt(viperKeyExecTimeout),
+		origin:      viper.GetBool(viperKeyOrigin),
+		noCache:     viper.GetBool(viperKeyNoCache),
+		purgeCache:  viper.GetBool(viperKeyPurge),
 	}, nil
 }
 

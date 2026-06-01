@@ -483,17 +483,17 @@ func cmdGRPCWebSocket(format Format, uri string, args []string) int {
 		wsURI += "/grpc"
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	dialCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	conn, err := sdkgrpcclient.DialWebSocket(ctx, wsURI)
+	conn, err := sdkgrpcclient.DialWebSocket(dialCtx, wsURI)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "op grpc: %v\n", err)
 		return 1
 	}
 	defer conn.Close()
 
-	return emitInvokeResults(format, "op grpc", calls, func(_ int, call invokeCall) (*grpcclient.CallResult, error) {
+	return emitInvokeResults(format, "op grpc", calls, currentExecTimeout(), func(ctx context.Context, _ int, call invokeCall) (*grpcclient.CallResult, error) {
 		return grpcclient.InvokeConn(ctx, conn, call.method, call.inputJSON)
 	})
 }
@@ -520,17 +520,17 @@ func cmdGRPCDirect(format Format, address string, args []string) int {
 		return 1
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), connectDispatchTimeout)
+	connectCtx, cancel := context.WithTimeout(context.Background(), connectDispatchTimeout)
 	defer cancel()
 
-	conn, err := sdkgrpcclient.Dial(ctx, normalizeDialTarget(address))
+	conn, err := sdkgrpcclient.Dial(connectCtx, normalizeDialTarget(address))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "op grpc: %v\n", err)
 		return 1
 	}
 	defer conn.Close()
 
-	return emitInvokeResults(format, "op grpc", calls, func(_ int, call invokeCall) (*grpcclient.CallResult, error) {
+	return emitInvokeResults(format, "op grpc", calls, currentExecTimeout(), func(ctx context.Context, _ int, call invokeCall) (*grpcclient.CallResult, error) {
 		return grpcclient.InvokeConn(ctx, conn, call.method, call.inputJSON)
 	})
 }
@@ -1343,16 +1343,17 @@ func emitOriginForExpression(runtimeOpts commandRuntimeOptions, expression strin
 }
 
 type internalGlobalOptions struct {
-	format     Format
-	quiet      bool
-	root       string
-	path       string
-	opbin      string
-	bin        string
-	timeout    int
-	origin     bool
-	noCache    bool
-	purgeCache bool
+	format      Format
+	quiet       bool
+	root        string
+	path        string
+	opbin       string
+	bin         string
+	timeout     int
+	execTimeout int
+	origin      bool
+	noCache     bool
+	purgeCache  bool
 }
 
 func parseGlobalOptions(args []string) (internalGlobalOptions, []string, error) {
@@ -1431,6 +1432,23 @@ func parseGlobalOptionsConfigured(args []string, defaults internalGlobalOptions,
 		case strings.HasPrefix(args[i], "--opbin="):
 			opts.opbin = strings.TrimPrefix(args[i], "--opbin=")
 			i++
+		case args[i] == "--connect-timeout":
+			if i+1 >= len(args) {
+				return internalGlobalOptions{}, nil, fmt.Errorf("--connect-timeout requires milliseconds")
+			}
+			value, parseErr := strconv.Atoi(strings.TrimSpace(args[i+1]))
+			if parseErr != nil || value < 0 {
+				return internalGlobalOptions{}, nil, fmt.Errorf("invalid --connect-timeout %q", args[i+1])
+			}
+			opts.timeout = value
+			i += 2
+		case strings.HasPrefix(args[i], "--connect-timeout="):
+			value, parseErr := strconv.Atoi(strings.TrimSpace(strings.TrimPrefix(args[i], "--connect-timeout=")))
+			if parseErr != nil || value < 0 {
+				return internalGlobalOptions{}, nil, fmt.Errorf("invalid --connect-timeout %q", strings.TrimPrefix(args[i], "--connect-timeout="))
+			}
+			opts.timeout = value
+			i++
 		case args[i] == "--timeout":
 			if i+1 >= len(args) {
 				return internalGlobalOptions{}, nil, fmt.Errorf("--timeout requires milliseconds")
@@ -1439,14 +1457,14 @@ func parseGlobalOptionsConfigured(args []string, defaults internalGlobalOptions,
 			if parseErr != nil || value < 0 {
 				return internalGlobalOptions{}, nil, fmt.Errorf("invalid --timeout %q", args[i+1])
 			}
-			opts.timeout = value
+			opts.execTimeout = value
 			i += 2
 		case strings.HasPrefix(args[i], "--timeout="):
 			value, parseErr := strconv.Atoi(strings.TrimSpace(strings.TrimPrefix(args[i], "--timeout=")))
 			if parseErr != nil || value < 0 {
 				return internalGlobalOptions{}, nil, fmt.Errorf("invalid --timeout %q", strings.TrimPrefix(args[i], "--timeout="))
 			}
-			opts.timeout = value
+			opts.execTimeout = value
 			i++
 		case cfg.consumeFormat && (args[i] == "--format" || args[i] == "-f"):
 			if i+1 >= len(args) {
