@@ -616,6 +616,7 @@ func TestCommandForArtifactDoesNotAddAssemblyEnvForNativeHolons(t *testing.T) {
 }
 
 func TestOpenAppBundleCommandPassesAssemblyEnvOnMacOS(t *testing.T) {
+	const bundlePath = "/tmp/gudule-greeting-hostui-flutter.app"
 	manifest := &holons.LoadedManifest{
 		Name: "gudule-greeting-flutter-rust",
 		Manifest: holons.Manifest{
@@ -625,7 +626,13 @@ func TestOpenAppBundleCommandPassesAssemblyEnvOnMacOS(t *testing.T) {
 		},
 	}
 
-	cmd := openAppBundleCommand("/tmp/gudule-greeting-hostui-flutter.app", manifest)
+	cmd := openAppBundleCommand(bundlePath, manifest)
+	if len(cmd.Args) < 4 || cmd.Args[0] != "open" || cmd.Args[1] != "-n" || cmd.Args[2] != "-W" {
+		t.Fatalf("open args = %v, want a fresh, foreground-waited app launch", cmd.Args)
+	}
+	if got := cmd.Args[len(cmd.Args)-1]; got != bundlePath {
+		t.Fatalf("open bundle path = %q, want %q", got, bundlePath)
+	}
 	args := strings.Join(cmd.Args, " ")
 	if !strings.Contains(args, "OP_ASSEMBLY_FAMILY=Greeting-Flutter-Rust") {
 		t.Fatalf("open args missing family env: %v", cmd.Args)

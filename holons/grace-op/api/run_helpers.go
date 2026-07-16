@@ -165,7 +165,7 @@ func commandForInstalledArtifact(path string, target *holons.Target, listenURI s
 	path = holons.LaunchableArtifactPath(path, manifest)
 	if info, err := os.Stat(path); err == nil && info.IsDir() {
 		if isMacAppBundle(path) && runtime.GOOS == "darwin" {
-			return exec.Command("open", "-W", path), nil
+			return openMacAppBundleCommand(path), nil
 		}
 		return nil, fmt.Errorf("artifact is not directly launchable: %s", path)
 	}
@@ -201,7 +201,7 @@ func commandForArtifact(manifest *holons.LoadedManifest, ctx holons.BuildContext
 		}
 		if info.IsDir() {
 			if isMacAppBundle(artifactPath) && runtime.GOOS == "darwin" {
-				return exec.Command("open", "-W", artifactPath), nil
+				return openMacAppBundleCommand(artifactPath), nil
 			}
 			return nil, fmt.Errorf("artifact is not directly launchable: %s", artifactPath)
 		}
@@ -231,6 +231,12 @@ func commandForArtifact(manifest *holons.LoadedManifest, ctx holons.BuildContext
 
 func serveArgs(listenURI string) []string {
 	return []string{"serve", "--listen", listenURI}
+}
+
+func openMacAppBundleCommand(path string) *exec.Cmd {
+	// Pair -W with -n so LaunchServices cannot satisfy the request by
+	// reusing an older process that has the same stable bundle identifier.
+	return exec.Command("open", "-n", "-W", path)
 }
 
 func runCommandDir(target *holons.Target, manifest *holons.LoadedManifest, artifactPath string) string {

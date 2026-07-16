@@ -947,7 +947,10 @@ func openFileCommand(path string) (*exec.Cmd, error) {
 
 func openAppBundleCommand(path string, manifest *holons.LoadedManifest) *exec.Cmd {
 	normalizeMacOSAppBundleMetadata(path, manifest)
-	args := []string{"-W"}
+	// -W alone may attach to an already-running process with the same bundle
+	// identifier. After a rebuild that would keep the previous code alive, so
+	// force LaunchServices to start the exact bundle we just resolved.
+	args := []string{"-n", "-W"}
 	if manifest != nil && manifest.Manifest.Kind == holons.KindComposite {
 		displayFamily := compositeDisplayFamily(manifest)
 		args = append(args,
