@@ -74,9 +74,6 @@ class SpawnOptions {
     this.downstreamChain = const [],
     this.extraEnv = const {},
     this.withTransitiveObservability = true,
-    this.startupTimeout = const Duration(seconds: 10),
-    this.startupTerminationTimeout = const Duration(seconds: 2),
-    this.startupCancellation,
   });
 
   final String slug;
@@ -86,61 +83,6 @@ class SpawnOptions {
   final List<ChildSpec> downstreamChain;
   final Map<String, String> extraEnv;
   final bool withTransitiveObservability;
-  final Duration startupTimeout;
-
-  /// Grace period given to a child after startup fails or is cancelled.
-  ///
-  /// Members that own subprocesses can require a longer budget to release
-  /// their resources. Callers may tune this independently from
-  /// [startupTimeout] without changing the normal [SpawnedMember.stop] budget.
-  final Duration startupTerminationTimeout;
-  final Future<void>? startupCancellation;
-}
-
-/// Structured failure raised while a spawned member is becoming reachable.
-///
-/// [processExited] distinguishes an early child exit from a readiness timeout
-/// or handshake failure without forcing callers to parse [toString]. When the
-/// process exited, [exitCode] and a bounded tail of its stderr are exposed in
-/// [diagnostic].
-enum MemberStartupFailureKind {
-  processExited,
-  readiness,
-  cancelled,
-}
-
-class MemberStartupException implements Exception {
-  const MemberStartupException({
-    required this.slug,
-    required this.uid,
-    required this.kind,
-    required this.retryable,
-    this.exitCode,
-    required this.diagnostic,
-    this.cause,
-  });
-
-  final String slug;
-  final String uid;
-  final MemberStartupFailureKind kind;
-  final bool retryable;
-  final int? exitCode;
-  final String diagnostic;
-  final Object? cause;
-
-  bool get processExited => kind == MemberStartupFailureKind.processExited;
-  bool get cancelled => kind == MemberStartupFailureKind.cancelled;
-
-  @override
-  String toString() {
-    final status = switch (kind) {
-      MemberStartupFailureKind.processExited =>
-        'process exited${exitCode == null ? '' : ' with code $exitCode'}',
-      MemberStartupFailureKind.readiness => 'startup failed',
-      MemberStartupFailureKind.cancelled => 'startup cancelled',
-    };
-    return 'MemberStartupException: $slug/$uid $status: $diagnostic';
-  }
 }
 
 class SpawnedMember {
@@ -160,25 +102,14 @@ class SpawnedMember {
   final grpc_api.ClientChannel conn;
   final Process _process;
   final observability.MemberRelay? _relay;
-  Future<void>? _stopFuture;
+  bool _stopped = false;
 
-  Future<void> stop({Duration timeout = const Duration(seconds: 3)}) {
-    final existing = _stopFuture;
-    if (existing != null) return existing;
-    final operation = _stopProcess(timeout);
-    _stopFuture = operation;
-    return operation;
-  }
-
-  Future<void> _stopProcess(Duration timeout) async {
-    if (timeout < Duration.zero) {
-      throw ArgumentError.value(timeout, 'timeout', 'must not be negative');
+  Future<void> stop({Duration timeout = const Duration(seconds: 3)}) async {
+    if (_stopped) {
+      return;
     }
-    try {
-      await _relay?.stop().timeout(const Duration(seconds: 1));
-    } on Object {
-      // Channel and process teardown below remain authoritative.
-    }
+    _stopped = true;
+    await _relay?.stop();
     try {
       await conn.shutdown().timeout(const Duration(seconds: 1));
     } on Object {
@@ -202,9 +133,6 @@ Future<SpawnedMember> spawnMember({
   List<ChildSpec> downstreamChain = const [],
   Map<String, String> extraEnv = const {},
   bool withTransitiveObservability = true,
-  Duration startupTimeout = const Duration(seconds: 10),
-  Duration startupTerminationTimeout = const Duration(seconds: 2),
-  Future<void>? startupCancellation,
 }) {
   return spawnMemberWithOptions(SpawnOptions(
     slug: slug,
@@ -214,9 +142,6 @@ Future<SpawnedMember> spawnMember({
     downstreamChain: downstreamChain,
     extraEnv: extraEnv,
     withTransitiveObservability: withTransitiveObservability,
-    startupTimeout: startupTimeout,
-    startupTerminationTimeout: startupTerminationTimeout,
-    startupCancellation: startupCancellation,
   ));
 }
 
@@ -230,20 +155,6 @@ Future<SpawnedMember> spawnMemberWithOptions(SpawnOptions opts) async {
   final binary = opts.binaryPath.trim();
   if (binary.isEmpty) {
     throw ArgumentError('spawn member $slug requires a binary path');
-  }
-  if (opts.startupTimeout <= Duration.zero) {
-    throw ArgumentError.value(
-      opts.startupTimeout,
-      'startupTimeout',
-      'must be greater than zero',
-    );
-  }
-  if (opts.startupTerminationTimeout < Duration.zero) {
-    throw ArgumentError.value(
-      opts.startupTerminationTimeout,
-      'startupTerminationTimeout',
-      'must not be negative',
-    );
   }
   final uid = opts.instanceUid.trim().isNotEmpty
       ? opts.instanceUid.trim()
@@ -280,100 +191,63 @@ Future<SpawnedMember> spawnMemberWithOptions(SpawnOptions opts) async {
     workingDirectory: File(binary).absolute.parent.path,
     environment: env,
   );
-  final stderrTail = _BoundedByteTail(_startupStderrTailBytes);
-  final stderrDone = process.stderr.forEach(stderrTail.add).then<void>(
-        (_) {},
-        onError: (Object _, StackTrace __) {},
-      );
+  unawaited(process.stderr.drain<void>());
   if (transportName != 'stdio') {
     unawaited(process.stdout.drain<void>());
   }
 
-  grpc_api.ClientChannel? channel;
-  observability.MemberRelay? relay;
+  late grpc_api.ClientChannel channel;
   var advertised = listenUri;
-  try {
-    if (transportName == 'stdio') {
-      final connector = StdioTransportConnector.fromProcess(process);
-      channel = ClientTransportConnectorChannel(
-        connector,
-        options: const ChannelOptions(
-          credentials: ChannelCredentials.insecure(),
-          idleTimeout: null,
-        ),
-      );
-      advertised = 'stdio://';
-    } else {
-      final meta = await _waitMetaOrProcessExit(
-        runRoot: env['OP_RUN_DIR']!,
-        slug: slug,
-        uid: uid,
-        timeout: opts.startupTimeout,
-        process: process,
-        stderrTail: stderrTail,
-        stderrDone: stderrDone,
-        startupCancellation: opts.startupCancellation,
-      );
+  if (transportName == 'stdio') {
+    final connector = StdioTransportConnector.fromProcess(process);
+    channel = ClientTransportConnectorChannel(
+      connector,
+      options: const ChannelOptions(
+        credentials: ChannelCredentials.insecure(),
+        idleTimeout: null,
+      ),
+    );
+    advertised = 'stdio://';
+  } else {
+    try {
+      final meta = await _waitMeta(env['OP_RUN_DIR']!, slug, uid);
       advertised = meta.address;
-      channel = await _waitDialOrProcessExit(
-        target: _normalizeDialTarget(advertised),
-        slug: slug,
-        uid: uid,
-        timeout: opts.startupTimeout,
-        process: process,
-        stderrTail: stderrTail,
-        stderrDone: stderrDone,
-        startupCancellation: opts.startupCancellation,
+      channel = await _dialReady(_normalizeDialTarget(advertised));
+    } on Object {
+      process.kill(ProcessSignal.sigterm);
+      await process.exitCode.timeout(
+        const Duration(seconds: 2),
+        onTimeout: () {
+          process.kill(ProcessSignal.sigkill);
+          return process.exitCode;
+        },
       );
+      rethrow;
     }
-
-    if (opts.withTransitiveObservability) {
-      relay = observability.MemberRelay(
-        childSlug: slug,
-        childUid: uid,
-        channel: channel,
-        observability: observability.current(),
-        forceStreams: true,
-      );
-      await _waitRelayOrProcessExit(
-        relay: relay,
-        slug: slug,
-        uid: uid,
-        process: process,
-        stderrTail: stderrTail,
-        stderrDone: stderrDone,
-        startupCancellation: opts.startupCancellation,
-      );
-    }
-
-    return SpawnedMember(
-      slug: slug,
-      uid: uid,
-      listenUri: advertised,
-      conn: channel,
-      process: process,
-      relay: relay,
-    );
-  } on Object catch (error, stackTrace) {
-    await _cleanupFailedStartup(
-      process: process,
-      channel: channel,
-      relay: relay,
-      terminationTimeout: opts.startupTerminationTimeout,
-    );
-    await _settleStderr(stderrDone);
-    final startupError = error is MemberStartupException
-        ? error
-        : MemberStartupException(
-            slug: slug,
-            uid: uid,
-            kind: MemberStartupFailureKind.readiness,
-            retryable: true,
-            diagnostic: _startupDiagnostic(error, stderrTail.text),
-            cause: error,
-          );
-    Error.throwWithStackTrace(startupError, stackTrace);
   }
+
+  observability.MemberRelay? relay;
+  if (opts.withTransitiveObservability) {
+    relay = observability.MemberRelay(
+      childSlug: slug,
+      childUid: uid,
+      channel: channel,
+      observability: observability.current(),
+      forceStreams: true,
+    );
+    await relay.start();
+    await _waitRelayedReady(uid);
+    await Future<void>.delayed(const Duration(milliseconds: 25));
+  }
+
+  return SpawnedMember(
+    slug: slug,
+    uid: uid,
+    listenUri: advertised,
+    conn: channel,
+    process: process,
+    relay: relay,
+  );
 }
 
 class CascadeOptions {
@@ -473,291 +347,11 @@ class _Meta {
   final String address;
 }
 
-const int _startupStderrTailBytes = 16 * 1024;
-
-class _BoundedByteTail {
-  _BoundedByteTail(this.maxBytes);
-
-  final int maxBytes;
-  final List<int> _bytes = <int>[];
-
-  void add(List<int> chunk) {
-    if (chunk.isEmpty || maxBytes <= 0) return;
-    if (chunk.length >= maxBytes) {
-      _bytes
-        ..clear()
-        ..addAll(chunk.sublist(chunk.length - maxBytes));
-      return;
-    }
-    final overflow = _bytes.length + chunk.length - maxBytes;
-    if (overflow > 0) {
-      _bytes.removeRange(0, overflow);
-    }
-    _bytes.addAll(chunk);
-  }
-
-  String get text => utf8.decode(_bytes, allowMalformed: true).trim();
-}
-
-class _StartupWaitCancellation {
-  final Completer<void> _completer = Completer<void>();
-  bool _cancelled = false;
-
-  bool get isCancelled => _cancelled;
-  Future<void> get whenCancelled => _completer.future;
-
-  void cancel() {
-    if (_cancelled) return;
-    _cancelled = true;
-    _completer.complete();
-  }
-}
-
-class _StartupWaitCancelled implements Exception {
-  const _StartupWaitCancelled();
-}
-
-Future<_Meta> _waitMetaOrProcessExit({
-  required String runRoot,
-  required String slug,
-  required String uid,
-  required Duration timeout,
-  required Process process,
-  required _BoundedByteTail stderrTail,
-  required Future<void> stderrDone,
-  Future<void>? startupCancellation,
-}) =>
-    _waitStartupOperation<_Meta>(
-      slug: slug,
-      uid: uid,
-      process: process,
-      stderrTail: stderrTail,
-      stderrDone: stderrDone,
-      startupCancellation: startupCancellation,
-      emptyExitDiagnostic: 'child exited before publishing meta.json',
-      operation: (cancellation) => _waitMeta(
-        runRoot,
-        slug,
-        uid,
-        timeout: timeout,
-        cancellation: cancellation,
-      ),
-    );
-
-Future<grpc_api.ClientChannel> _waitDialOrProcessExit({
-  required String target,
-  required String slug,
-  required String uid,
-  required Duration timeout,
-  required Process process,
-  required _BoundedByteTail stderrTail,
-  required Future<void> stderrDone,
-  Future<void>? startupCancellation,
-}) =>
-    _waitStartupOperation<grpc_api.ClientChannel>(
-      slug: slug,
-      uid: uid,
-      process: process,
-      stderrTail: stderrTail,
-      stderrDone: stderrDone,
-      startupCancellation: startupCancellation,
-      emptyExitDiagnostic:
-          'child exited before completing the startup handshake',
-      operation: (cancellation) => _dialReady(
-        target,
-        timeout: timeout,
-        cancellation: cancellation,
-      ),
-    );
-
-Future<void> _waitRelayOrProcessExit({
-  required observability.MemberRelay relay,
-  required String slug,
-  required String uid,
-  required Process process,
-  required _BoundedByteTail stderrTail,
-  required Future<void> stderrDone,
-  Future<void>? startupCancellation,
-}) =>
-    _waitStartupOperation<void>(
-      slug: slug,
-      uid: uid,
-      process: process,
-      stderrTail: stderrTail,
-      stderrDone: stderrDone,
-      startupCancellation: startupCancellation,
-      emptyExitDiagnostic:
-          'child exited while initializing transitive observability',
-      operation: (cancellation) async {
-        await relay.start();
-        if (cancellation.isCancelled) {
-          throw const _StartupWaitCancelled();
-        }
-        await _waitRelayedReady(uid, cancellation: cancellation);
-        await _waitStartupDelay(
-          const Duration(milliseconds: 25),
-          cancellation,
-        );
-      },
-    );
-
-sealed class _StartupOutcome<T> {
-  const _StartupOutcome();
-}
-
-final class _StartupReady<T> extends _StartupOutcome<T> {
-  const _StartupReady(this.value);
-
-  final T value;
-}
-
-final class _StartupFailed<T> extends _StartupOutcome<T> {
-  const _StartupFailed(this.error, this.stackTrace);
-
-  final Object error;
-  final StackTrace stackTrace;
-}
-
-final class _StartupProcessExited<T> extends _StartupOutcome<T> {
-  const _StartupProcessExited(this.exitCode);
-
-  final int exitCode;
-}
-
-final class _StartupCancelled<T> extends _StartupOutcome<T> {
-  const _StartupCancelled();
-}
-
-Future<T> _waitStartupOperation<T>({
-  required String slug,
-  required String uid,
-  required Process process,
-  required _BoundedByteTail stderrTail,
-  required Future<void> stderrDone,
-  required String emptyExitDiagnostic,
-  required Future<T> Function(_StartupWaitCancellation cancellation) operation,
-  Future<void>? startupCancellation,
-}) async {
-  final cancellation = _StartupWaitCancellation();
-  final operationOutcome = operation(cancellation).then<_StartupOutcome<T>>(
-    _StartupReady<T>.new,
-    onError: (Object error, StackTrace stackTrace) =>
-        _StartupFailed<T>(error, stackTrace),
-  );
-  final exitOutcome = process.exitCode.then<_StartupOutcome<T>>(
-    _StartupProcessExited<T>.new,
-  );
-  final outcomes = <Future<_StartupOutcome<T>>>[
-    operationOutcome,
-    exitOutcome,
-  ];
-  if (startupCancellation != null) {
-    outcomes.add(
-      startupCancellation.then<_StartupOutcome<T>>(
-        (_) => _StartupCancelled<T>(),
-        onError: (Object _, StackTrace __) => _StartupCancelled<T>(),
-      ),
-    );
-  }
-  final outcome = await Future.any<_StartupOutcome<T>>(outcomes);
-  cancellation.cancel();
-
-  if (outcome is _StartupReady<T>) {
-    return outcome.value;
-  }
-  if (outcome is _StartupFailed<T>) {
-    if (outcome.error is _StartupWaitCancelled) {
-      throw MemberStartupException(
-        slug: slug,
-        uid: uid,
-        kind: MemberStartupFailureKind.cancelled,
-        retryable: false,
-        diagnostic: 'member startup cancelled',
-      );
-    }
-    Error.throwWithStackTrace(outcome.error, outcome.stackTrace);
-  }
-  if (outcome is _StartupProcessExited<T>) {
-    await _settleStderr(stderrDone);
-    final tail = stderrTail.text;
-    throw MemberStartupException(
-      slug: slug,
-      uid: uid,
-      kind: MemberStartupFailureKind.processExited,
-      retryable: true,
-      exitCode: outcome.exitCode,
-      diagnostic: tail.isEmpty ? emptyExitDiagnostic : tail,
-    );
-  }
-  throw MemberStartupException(
-    slug: slug,
-    uid: uid,
-    kind: MemberStartupFailureKind.cancelled,
-    retryable: false,
-    diagnostic: 'member startup cancelled',
-  );
-}
-
-Future<void> _cleanupFailedStartup({
-  required Process process,
-  required grpc_api.ClientChannel? channel,
-  required observability.MemberRelay? relay,
-  required Duration terminationTimeout,
-}) async {
-  if (relay != null) {
-    try {
-      await relay.stop().timeout(const Duration(seconds: 1));
-    } on Object {
-      // Channel and process teardown below remain authoritative.
-    }
-  }
-  if (channel != null) {
-    try {
-      await channel.shutdown().timeout(const Duration(seconds: 1));
-    } on Object {
-      // Process teardown below remains authoritative.
-    }
-  }
-
-  process.kill(ProcessSignal.sigterm);
-  try {
-    await process.exitCode.timeout(terminationTimeout);
-    return;
-  } on TimeoutException {
-    process.kill(ProcessSignal.sigkill);
-  } on Object {
-    // Fall through to the final kill in case the process state was transient.
-    process.kill(ProcessSignal.sigkill);
-  }
-  try {
-    await process.exitCode.timeout(const Duration(seconds: 1));
-  } on Object {
-    // Preserve the original startup error. SIGKILL is the last local remedy.
-  }
-}
-
-Future<void> _settleStderr(Future<void> stderrDone) async {
-  try {
-    await stderrDone.timeout(const Duration(milliseconds: 100));
-  } on Object {
-    // A descendant can keep the inherited descriptor open. The bytes already
-    // captured remain authoritative and startup failure must stay fail-fast.
-  }
-}
-
-String _startupDiagnostic(Object error, String stderrTail) {
-  final errorText = '$error'.trim();
-  if (stderrTail.isEmpty) return errorText;
-  if (errorText.isEmpty) return stderrTail;
-  return '$errorText\nstderr tail:\n$stderrTail';
-}
-
 Future<_Meta> _waitMeta(
   String runRoot,
   String slug,
   String uid, {
   Duration timeout = const Duration(seconds: 10),
-  _StartupWaitCancellation? cancellation,
 }) async {
   final file = File([
     runRoot,
@@ -768,9 +362,6 @@ Future<_Meta> _waitMeta(
   final deadline = DateTime.now().add(timeout);
   Object? lastError;
   while (DateTime.now().isBefore(deadline)) {
-    if (cancellation?.isCancelled == true) {
-      throw const _StartupWaitCancelled();
-    }
     try {
       final payload =
           jsonDecode(await file.readAsString()) as Map<String, dynamic>;
@@ -783,18 +374,7 @@ Future<_Meta> _waitMeta(
     } on Object catch (error) {
       lastError = error;
     }
-    final delay = Future<void>.delayed(const Duration(milliseconds: 50));
-    if (cancellation == null) {
-      await delay;
-    } else {
-      final cancelled = await Future.any<bool>(<Future<bool>>[
-        delay.then((_) => false),
-        cancellation.whenCancelled.then((_) => true),
-      ]);
-      if (cancelled) {
-        throw const _StartupWaitCancelled();
-      }
-    }
+    await Future<void>.delayed(const Duration(milliseconds: 50));
   }
   throw StateError(
       'meta not ready for $slug/$uid: ${lastError ?? 'not found'}');
@@ -803,7 +383,6 @@ Future<_Meta> _waitMeta(
 Future<void> _waitRelayedReady(
   String uid, {
   Duration timeout = const Duration(seconds: 1),
-  _StartupWaitCancellation? cancellation,
 }) async {
   final obs = observability.current();
   if (!obs.enabled(observability.Family.events) || obs.eventBus == null) {
@@ -811,54 +390,24 @@ Future<void> _waitRelayedReady(
   }
   final deadline = DateTime.now().add(timeout);
   while (DateTime.now().isBefore(deadline)) {
-    if (cancellation?.isCancelled == true) {
-      throw const _StartupWaitCancelled();
-    }
     final ready = obs.eventBus!.drain().any((event) =>
         event.eventName == observability.eventInstanceReady &&
         event.instanceUid == uid);
     if (ready) {
       return;
     }
-    await _waitStartupDelay(
-      const Duration(milliseconds: 10),
-      cancellation,
-    );
+    await Future<void>.delayed(const Duration(milliseconds: 10));
   }
   throw StateError('transitive observability not ready for $uid');
-}
-
-Future<void> _waitStartupDelay(
-  Duration duration,
-  _StartupWaitCancellation? cancellation,
-) async {
-  if (cancellation?.isCancelled == true) {
-    throw const _StartupWaitCancelled();
-  }
-  if (cancellation == null) {
-    await Future<void>.delayed(duration);
-    return;
-  }
-  final cancelled = await Future.any<bool>(<Future<bool>>[
-    Future<void>.delayed(duration).then((_) => false),
-    cancellation.whenCancelled.then((_) => true),
-  ]);
-  if (cancelled) {
-    throw const _StartupWaitCancelled();
-  }
 }
 
 Future<grpc_api.ClientChannel> _dialReady(
   String target, {
   Duration timeout = const Duration(seconds: 10),
-  _StartupWaitCancellation? cancellation,
 }) async {
   final deadline = DateTime.now().add(timeout);
   Object? lastError;
   while (DateTime.now().isBefore(deadline)) {
-    if (cancellation?.isCancelled == true) {
-      throw const _StartupWaitCancelled();
-    }
     final channel = _dialTarget(target);
     try {
       await describe_pb.HolonMetaClient(channel)
@@ -869,18 +418,7 @@ Future<grpc_api.ClientChannel> _dialReady(
       lastError = error;
       await channel.shutdown();
     }
-    final delay = Future<void>.delayed(const Duration(milliseconds: 50));
-    if (cancellation == null) {
-      await delay;
-    } else {
-      final cancelled = await Future.any<bool>(<Future<bool>>[
-        delay.then((_) => false),
-        cancellation.whenCancelled.then((_) => true),
-      ]);
-      if (cancelled) {
-        throw const _StartupWaitCancelled();
-      }
-    }
+    await Future<void>.delayed(const Duration(milliseconds: 50));
   }
   throw StateError('${lastError ?? 'dial timeout'}');
 }
