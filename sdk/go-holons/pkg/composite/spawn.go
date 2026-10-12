@@ -12,12 +12,12 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	holonsv1 "github.com/organic-programming/go-holons/gen/go/holons/v1"
 	"github.com/organic-programming/go-holons/pkg/grpcclient"
 	"github.com/organic-programming/go-holons/pkg/observability"
+	"github.com/organic-programming/go-holons/pkg/processowner"
 	"google.golang.org/grpc"
 )
 
@@ -65,7 +65,7 @@ func (m *SpawnedMember) Stop(ctx context.Context) error {
 		if m.cmd == nil || m.cmd.Process == nil {
 			return
 		}
-		_ = m.cmd.Process.Signal(syscall.SIGTERM)
+		_ = processowner.Terminate(m.cmd)
 		waitCtx := ctx
 		var cancel context.CancelFunc
 		if waitCtx == nil {
@@ -82,7 +82,7 @@ func (m *SpawnedMember) Stop(ctx context.Context) error {
 				stopErr = err
 			}
 		case <-waitCtx.Done():
-			_ = m.cmd.Process.Kill()
+			_ = processowner.Kill(m.cmd)
 			if err := <-m.waitCh; err != nil && stopErr == nil {
 				stopErr = err
 			}
@@ -95,6 +95,9 @@ func (m *SpawnedMember) Stop(ctx context.Context) error {
 }
 
 func SpawnMember(ctx context.Context, opts SpawnOptions) (*SpawnedMember, error) {
+	if err := processowner.Ensure(); err != nil {
+		return nil, err
+	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -149,12 +152,12 @@ func SpawnMember(ctx context.Context, opts SpawnOptions) (*SpawnedMember, error)
 		member.cmd = started
 		member.Conn = conn
 		member.ListenURI = "stdio://"
-		go func() { member.waitCh <- started.Wait() }()
+		go func() { member.waitCh <- processowner.Wait(started) }()
 	} else {
-		if err := cmd.Start(); err != nil {
+		if err := processowner.Start(cmd); err != nil {
 			return nil, fmt.Errorf("spawn member %s: %w", slug, err)
 		}
-		go func() { member.waitCh <- cmd.Wait() }()
+		go func() { member.waitCh <- processowner.Wait(cmd) }()
 		meta, err := waitSpawnMeta(ctx, spawnRunRoot(cmd.Env), slug, uid, 10*time.Second)
 		if err != nil {
 			_ = member.Stop(context.Background())

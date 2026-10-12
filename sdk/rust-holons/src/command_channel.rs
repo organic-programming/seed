@@ -101,7 +101,7 @@ pub(crate) fn start_stdio_command_with_env(
         .stdout(Stdio::piped())
         .stderr(Stdio::null());
 
-    let mut child = command.spawn().map_err(|err| err.to_string())?;
+    let mut child = crate::process_owner::spawn(&mut command)?;
     let stdin = child
         .stdin
         .take()
@@ -178,7 +178,12 @@ fn send_sigterm(pid: u32) -> Result<(), String> {
     send_signal(pid, libc::SIGTERM)
 }
 
-#[cfg(not(unix))]
+#[cfg(windows)]
+fn send_sigterm(pid: u32) -> Result<(), String> {
+    crate::process_owner::terminate(pid)
+}
+
+#[cfg(not(any(unix, windows)))]
 fn send_sigterm(pid: u32) -> Result<(), String> {
     let _ = pid;
     Ok(())
@@ -189,7 +194,12 @@ fn send_sigkill(pid: u32) -> Result<(), String> {
     send_signal(pid, libc::SIGKILL)
 }
 
-#[cfg(not(unix))]
+#[cfg(windows)]
+fn send_sigkill(pid: u32) -> Result<(), String> {
+    crate::process_owner::kill(pid)
+}
+
+#[cfg(not(any(unix, windows)))]
 fn send_sigkill(pid: u32) -> Result<(), String> {
     let _ = pid;
     Ok(())

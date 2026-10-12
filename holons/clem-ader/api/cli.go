@@ -14,6 +14,7 @@ import (
 	aderv1 "github.com/organic-programming/clem-ader/gen/go/ader/v1"
 	"github.com/organic-programming/clem-ader/internal/engine"
 	serverpkg "github.com/organic-programming/clem-ader/internal/server"
+	"github.com/organic-programming/go-holons/pkg/processowner"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -33,6 +34,10 @@ func runCLIContext(ctx context.Context, args []string, outputs ...io.Writer) int
 	}
 	if len(outputs) > 1 && outputs[1] != nil {
 		stderr = outputs[1]
+	}
+	if err := processowner.Ensure(); err != nil {
+		fmt.Fprintln(stderr, err)
+		return 1
 	}
 	cmd := newRootCommand(stdout, stderr)
 	cmd.SetContext(ctx)

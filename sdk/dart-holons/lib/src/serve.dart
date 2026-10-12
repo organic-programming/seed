@@ -173,13 +173,15 @@ Future<void> runWithOptions(
   });
 
   StreamSubscription<ProcessSignal>? sigtermSub;
-  try {
-    sigtermSub = ProcessSignal.sigterm.watch().listen((_) async {
-      options.logger('shutting down gRPC server');
-      await running.stop();
-    });
-  } on UnsupportedError {
-    sigtermSub = null;
+  if (!Platform.isWindows) {
+    try {
+      sigtermSub = ProcessSignal.sigterm.watch().listen((_) async {
+        options.logger('shutting down gRPC server');
+        await running.stop();
+      });
+    } on UnsupportedError {
+      sigtermSub = null;
+    }
   }
 
   try {

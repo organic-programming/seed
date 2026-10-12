@@ -908,6 +908,10 @@ fn package_binary_path(dir: &Path) -> Result<PathBuf, String> {
         .filter_map(Result::ok)
         .map(|entry| entry.path())
         .filter(|path| path.is_file())
+        .filter(|path| {
+            !cfg!(windows) || path.extension().and_then(|ext| ext.to_str())
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("exe"))
+        })
         .collect::<Vec<_>>();
     candidates.sort();
     candidates
@@ -1183,6 +1187,7 @@ fn default_source_discover_bridge(
 }
 
 fn run_op_discover(op_binary: &Path, root: &Path, timeout: u32) -> Result<Option<Output>, String> {
+    crate::process_owner::ensure()?;
     let mut command = ProcessCommand::new(op_binary);
     command
         .arg("discover")
@@ -1235,9 +1240,15 @@ fn collect_output(
 }
 
 fn find_on_path(binary_name: &str) -> Option<PathBuf> {
+    #[cfg(windows)]
+    let binary_name = if binary_name.to_ascii_lowercase().ends_with(".exe") {
+        binary_name.to_string()
+    } else {
+        format!("{binary_name}.exe")
+    };
     let path_var = env::var_os("PATH")?;
     env::split_paths(&path_var)
-        .map(|dir| dir.join(binary_name))
+        .map(|dir| dir.join(&binary_name))
         .find(|candidate| candidate.is_file())
 }
 
@@ -1295,6 +1306,22 @@ mod tests {
     use tempfile::TempDir;
 
     static PROBE_CALLS: AtomicUsize = AtomicUsize::new(0);
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_discovery_uses_executables() {
+        let _lock = acquire_process_guard_blocking();
+        let _state = ProcessStateGuard::capture();
+        let root = TempDir::new().unwrap();
+        let bin = root.path().join("bin").join(package_arch_dir());
+        fs::create_dir_all(&bin).unwrap();
+        fs::write(bin.join("a-library.dll"), []).unwrap();
+        fs::write(bin.join("z-worker.EXE"), []).unwrap();
+        assert_eq!(package_binary_path(root.path()).unwrap(), bin.join("z-worker.EXE"));
+        fs::write(bin.join("op.exe"), []).unwrap();
+        env::set_var("PATH", &bin);
+        assert_eq!(find_on_path("op").unwrap(), bin.join("op.exe"));
+    }
 
     #[test]
     fn test_discover_all_layers() {

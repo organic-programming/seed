@@ -14,12 +14,13 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/organic-programming/go-holons/pkg/discover"
+	"github.com/organic-programming/go-holons/pkg/fileuri"
 	"github.com/organic-programming/go-holons/pkg/grpcclient"
 	"github.com/organic-programming/go-holons/pkg/identity"
+	"github.com/organic-programming/go-holons/pkg/processowner"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 )
@@ -198,6 +199,10 @@ func entryFromRef(ref discover.HolonRef) (discover.HolonEntry, error) {
 	actualPath := dir
 
 	sourceKind := strings.TrimSpace(ref.Info.SourceKind)
+	if runtime.GOOS == "windows" && sourceKind == "binary" && filepath.IsAbs(ref.Info.Entrypoint) {
+		// Legacy discovery caches pointed at the binary's containing directory.
+		actualPath = ref.Info.Entrypoint
+	}
 	if sourceKind == "" {
 		info, statErr := os.Stat(actualPath)
 		switch {
@@ -492,7 +497,7 @@ func (p *processHandle) wait() <-chan error {
 
 	p.waitOnce.Do(func() {
 		go func() {
-			p.waitCh <- p.cmd.Wait()
+			p.waitCh <- processowner.Wait(p.cmd)
 			close(p.waitCh)
 		}()
 	})
@@ -505,8 +510,8 @@ func stopProcess(proc *processHandle) error {
 	}
 
 	waitCh := proc.wait()
-	if err := proc.cmd.Process.Signal(syscall.SIGTERM); err != nil && !errors.Is(err, os.ErrProcessDone) {
-		_ = proc.cmd.Process.Kill()
+	if err := processowner.Terminate(proc.cmd); err != nil && !errors.Is(err, os.ErrProcessDone) {
+		_ = processowner.Kill(proc.cmd)
 		<-waitCh
 		return err
 	}
@@ -515,7 +520,7 @@ func stopProcess(proc *processHandle) error {
 	case <-waitCh:
 		return nil
 	case <-time.After(2 * time.Second):
-		if err := proc.cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
+		if err := processowner.Kill(proc.cmd); err != nil && !errors.Is(err, os.ErrProcessDone) {
 			return err
 		}
 		<-waitCh
@@ -637,21 +642,7 @@ func normalizeDialTarget(target string) string {
 }
 
 func pathFromFileURL(raw string) (string, error) {
-	parsed, err := url.Parse(strings.TrimSpace(raw))
-	if err != nil {
-		return "", err
-	}
-	if parsed.Scheme != "file" {
-		return "", fmt.Errorf("holon URL %q is not a local file target", raw)
-	}
-	path := parsed.Path
-	if parsed.Host != "" && parsed.Host != "localhost" {
-		path = "//" + parsed.Host + path
-	}
-	if path == "" {
-		return "", fmt.Errorf("holon URL %q has no path", raw)
-	}
-	return filepath.Clean(path), nil
+	return fileuri.ToPath(raw)
 }
 
 func defaultUnixSocketURI(slug string) string {
@@ -681,6 +672,9 @@ func socketLabel(slug string) string {
 }
 
 func startAdvertisedHolon(ctx context.Context, cmd *exec.Cmd) (string, *processHandle, error) {
+	if err := processowner.Ensure(); err != nil {
+		return "", nil, err
+	}
 	if cmd == nil {
 		return "", nil, errors.New("start holon: command is required")
 	}
@@ -693,7 +687,7 @@ func startAdvertisedHolon(ctx context.Context, cmd *exec.Cmd) (string, *processH
 		return "", nil, fmt.Errorf("create stderr pipe: %w", err)
 	}
 
-	if err := cmd.Start(); err != nil {
+	if err := processowner.Start(cmd); err != nil {
 		return "", nil, fmt.Errorf("start %s: %w", commandLabel(cmd), err)
 	}
 

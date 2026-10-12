@@ -250,6 +250,7 @@ where
         + 'static,
     Svc::Future: Send + 'static,
 {
+    crate::process_owner::ensure().map_err(boxed_err)?;
     let mut builder = Server::builder().accept_http1(options.accept_http1);
     let obs = observability_from_options(&options)?;
     let obs_service = obs.as_ref().map(|obs| observability::service(obs.clone()));
@@ -320,6 +321,7 @@ where
         + 'static,
     Svc::Future: Send + 'static,
 {
+    crate::process_owner::ensure().map_err(boxed_err)?;
     let mut builder = Server::builder().accept_http1(options.accept_http1);
     let obs = observability_from_options(&options)?;
     let obs_service = obs.as_ref().map(|obs| observability::service(obs.clone()));
@@ -853,7 +855,16 @@ async fn shutdown_signal() {
         }
     }
 
-    #[cfg(not(unix))]
+    #[cfg(windows)]
+    {
+        let mut console_break = tokio::signal::windows::ctrl_break().expect("console break handler");
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {}
+            _ = console_break.recv() => {}
+        }
+    }
+
+    #[cfg(not(any(unix, windows)))]
     {
         let _ = tokio::signal::ctrl_c().await;
     }

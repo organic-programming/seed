@@ -19,6 +19,7 @@ import (
 
 	holonsv1 "github.com/organic-programming/go-holons/gen/go/holons/v1"
 	"github.com/organic-programming/go-holons/pkg/discover"
+	"github.com/organic-programming/go-holons/pkg/fileuri"
 	"github.com/organic-programming/go-holons/pkg/transport"
 	"google.golang.org/grpc"
 	testgrpc "google.golang.org/grpc/interop/grpc_testing"
@@ -167,7 +168,7 @@ func TestConnectReturnsOrigin(t *testing.T) {
 	if result.Origin.Info == nil || result.Origin.Info.Slug != slug {
 		t.Fatalf("origin info = %#v", result.Origin.Info)
 	}
-	if got, want := result.Origin.URL, "file://"+filepath.ToSlash(packageRoot); got != want {
+	if got, want := result.Origin.URL, fileuri.FromPath(packageRoot); got != want {
 		t.Fatalf("origin url = %q, want %q", got, want)
 	}
 }

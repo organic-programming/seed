@@ -32,6 +32,7 @@ import (
 	"github.com/organic-programming/go-holons/pkg/grpcclient"
 	"github.com/organic-programming/go-holons/pkg/holonrpc"
 	"github.com/organic-programming/go-holons/pkg/observability"
+	"github.com/organic-programming/go-holons/pkg/processowner"
 	"github.com/organic-programming/go-holons/pkg/transport"
 
 	"google.golang.org/grpc"
@@ -147,6 +148,9 @@ func RunWithOptions(listenURI string, register RegisterFunc, reflect bool, moreL
 // RunWithServeOptions is like RunWithOptions and also accepts direct
 // organism member endpoints for observability relay.
 func RunWithServeOptions(listenURI string, register RegisterFunc, options ServeOptions, moreListenURIs ...string) (runErr error) {
+	if err := processowner.Ensure(); err != nil {
+		return err
+	}
 	listenURIs := normalizeListenURIs(listenURI, moreListenURIs)
 	currentTransport.Store(transport.Scheme(listenURIs[0]))
 	defer currentTransport.Store("")
