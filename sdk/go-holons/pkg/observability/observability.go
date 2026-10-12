@@ -19,6 +19,8 @@ package observability
 
 import (
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -356,6 +358,13 @@ func defaultSlug() string {
 		return ""
 	}
 	base := os.Args[0]
+	if runtime.GOOS == "windows" {
+		base = filepath.Base(base)
+		if strings.EqualFold(filepath.Ext(base), ".exe") {
+			base = base[:len(base)-4]
+		}
+		return base
+	}
 	if i := strings.LastIndexByte(base, '/'); i >= 0 {
 		base = base[i+1:]
 	}

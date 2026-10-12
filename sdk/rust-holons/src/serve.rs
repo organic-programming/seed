@@ -11,9 +11,7 @@ use std::convert::Infallible;
 use std::env;
 use std::error::Error;
 use std::fs;
-use std::path::Path;
-#[cfg(unix)]
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::process::Command;
 use std::sync::{OnceLock, RwLock};

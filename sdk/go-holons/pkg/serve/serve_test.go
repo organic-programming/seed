@@ -186,6 +186,9 @@ func TestRunServesGRPCOnRandomPort(t *testing.T) {
 }
 
 func TestCurrentTransportTracksRunLifecycle(t *testing.T) {
+	if runIsolatedTransportLifecycle(t) {
+		return
+	}
 	if got := serve.CurrentTransport(); got != "" {
 		t.Fatalf("CurrentTransport before Run = %q, want empty", got)
 	}
@@ -208,7 +211,7 @@ func TestCurrentTransportTracksRunLifecycle(t *testing.T) {
 		t.Fatalf("CurrentTransport during Run = %q, want tcp", got)
 	}
 
-	if err := syscall.Kill(os.Getpid(), syscall.SIGTERM); err != nil {
+	if err := signalTransportLifecycle(); err != nil {
 		t.Fatalf("signal self: %v", err)
 	}
 	select {
@@ -217,7 +220,7 @@ func TestCurrentTransportTracksRunLifecycle(t *testing.T) {
 			t.Fatalf("RunWithOptions returned error: %v", err)
 		}
 	case <-time.After(5 * time.Second):
-		t.Fatal("RunWithOptions did not stop after SIGTERM")
+		t.Fatal("RunWithOptions did not stop after its native shutdown signal")
 	}
 	if got := serve.CurrentTransport(); got != "" {
 		t.Fatalf("CurrentTransport after Run = %q, want empty", got)
@@ -303,6 +306,9 @@ func TestRunPrometheusSharesHTTPListener(t *testing.T) {
 	runRoot := t.TempDir()
 	uid := "prom-http-uid"
 	rootSlug := filepath.Base(os.Args[0])
+	if runtime.GOOS == "windows" {
+		rootSlug = strings.TrimSuffix(rootSlug, ".exe")
+	}
 	t.Setenv("OP_OBS", "metrics,prom")
 	t.Setenv("OP_RUN_DIR", runRoot)
 	t.Setenv("OP_INSTANCE_UID", uid)
@@ -378,6 +384,9 @@ func TestRunWithServeOptionsStartsRelayAndMultilog(t *testing.T) {
 	runRoot := t.TempDir()
 	rootUID := "root-uid"
 	rootSlug := filepath.Base(os.Args[0])
+	if runtime.GOOS == "windows" {
+		rootSlug = strings.TrimSuffix(rootSlug, ".exe")
+	}
 	t.Setenv("OP_OBS", "logs,events")
 	t.Setenv("OP_RUN_DIR", runRoot)
 	t.Setenv("OP_INSTANCE_UID", rootUID)
@@ -837,6 +846,19 @@ func stopServeProcess(t *testing.T, cmd *exec.Cmd, logs *lockedBuffer) {
 	t.Helper()
 
 	if cmd == nil || cmd.Process == nil {
+		return
+	}
+	if runtime.GOOS == "windows" {
+		// These transport tests own only the helper process. Windows does not
+		// implement POSIX SIGTERM; process-tree shutdown has its own Job tests.
+		if err := cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
+			t.Fatalf("stop Windows serve helper: %v", err)
+		}
+		if err := waitProcessExit(cmd, 4*time.Second); err != nil {
+			if cmd.ProcessState == nil || !cmd.ProcessState.Exited() {
+				t.Fatalf("wait Windows serve helper: %v\nlogs:\n%s", err, logs.String())
+			}
+		}
 		return
 	}
 
