@@ -16,7 +16,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -93,12 +92,22 @@ func run(ctx context.Context, opts RunOptions, progress io.Writer) (*RunResult, 
 	if err != nil {
 		return nil, err
 	}
-	tmpStore, err := os.MkdirTemp(os.TempDir(), tempStorePrefix+sanitizeHistoryToken(runtimeCfg.CatalogueName)+"-"+runID+"-")
+	tempPattern := tempStorePrefix + sanitizeHistoryToken(runtimeCfg.CatalogueName) + "-" + runID + "-"
+	runName, snapshotName := "run", "snapshot"
+	if runtime.GOOS == "windows" {
+		// Native CMake/Ninja dependencies still hit MAX_PATH even when Go can
+		// access long paths. The report retains the complete catalogue/run ID;
+		// only the isolated scratch names need to be short. MkdirTemp keeps
+		// concurrent runs unique, and the cleanup ownership prefix is unchanged.
+		tempPattern = tempStorePrefix
+		runName = "r"
+	}
+	tmpStore, err := os.MkdirTemp(os.TempDir(), tempPattern)
 	if err != nil {
 		return nil, err
 	}
-	runArtifactsDir := filepath.Join(tmpStore, "run")
-	snapshotRoot := filepath.Join(runArtifactsDir, "snapshot")
+	runArtifactsDir := filepath.Join(tmpStore, runName)
+	snapshotRoot := filepath.Join(runArtifactsDir, snapshotName)
 	preservedRunDir := filepath.Join(paths.LocalSuiteDir, runID)
 	reportDir := filepath.Join(paths.ReportsDir, runID)
 	logDir := filepath.Join(reportDir, reportLogsDir)
@@ -517,8 +526,21 @@ func snapshotCommitted(ctx context.Context, repoRoot string, snapshotRoot string
 		return err
 	}
 	if err := extractTar(snapshotRoot, stdout); err != nil {
+		if runtime.GOOS == "windows" {
+			_ = stdout.Close()
+			_ = cmd.Process.Kill()
+		}
 		_ = cmd.Wait()
 		return err
+	}
+	if runtime.GOOS == "windows" {
+		// A tar reader stops at its end marker, before Git's trailing padding.
+		// Drain the small Windows pipe before waiting for the producer to exit.
+		if _, err := io.Copy(io.Discard, stdout); err != nil {
+			_ = cmd.Process.Kill()
+			_ = cmd.Wait()
+			return err
+		}
 	}
 	return cmd.Wait()
 }
@@ -1185,17 +1207,6 @@ func removableRunDir(path string) bool {
 		}
 	}
 	return true
-}
-
-func processRunning(pid int) bool {
-	if pid <= 0 {
-		return false
-	}
-	process, err := os.FindProcess(pid)
-	if err != nil {
-		return false
-	}
-	return process.Signal(syscall.Signal(0)) == nil
 }
 
 func symlinkTarget(path string) (string, bool) {

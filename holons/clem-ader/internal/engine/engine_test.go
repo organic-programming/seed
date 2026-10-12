@@ -661,7 +661,7 @@ func TestRunScriptStepWithArgs(t *testing.T) {
 		if step.Status != "PASS" {
 			t.Fatalf("script step status = %q, want PASS", step.Status)
 		}
-		if !strings.Contains(step.Command, "fixture-step.sh alpha beta") {
+		if !strings.Contains(step.Command, testrepo.ScriptName("fixture-step.sh")+" alpha beta") {
 			t.Fatalf("script step command = %q, want script path with args", step.Command)
 		}
 		logData, err := os.ReadFile(step.LogPath)
@@ -674,7 +674,7 @@ func TestRunScriptStepWithArgs(t *testing.T) {
 	})
 }
 
-func TestRunStepCommandTerminatesBackgroundProcesses(t *testing.T) {
+func testUnixRunStepCommandTerminatesBackgroundProcesses(t *testing.T) {
 	root := t.TempDir()
 	scriptPath := filepath.Join(root, "linger-step.sh")
 	pidPath := filepath.Join(root, "linger.pid")

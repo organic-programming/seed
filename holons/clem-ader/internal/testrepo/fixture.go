@@ -4,8 +4,20 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
+
+// ScriptName selects the native fixture extension without changing Unix tests.
+func ScriptName(name string) string {
+	if runtime.GOOS == "windows" {
+		return strings.TrimSuffix(name, ".sh") + ".ps1"
+	}
+	return name
+}
 
 // Create builds a tiny synthetic ader repository suitable for fast tests.
 func Create(t testing.TB) string {
@@ -230,7 +242,13 @@ profiles:
 	writeFile(t, filepath.Join(root, "examples", "hello-world", "gabriel-greeting-go", "go.mod"), "module example.com/fixture/example-go\n\ngo 1.25.1\n")
 	writeFile(t, filepath.Join(root, "examples", "hello-world", "gabriel-greeting-go", "smoke_test.go"), "package greetinggo\n\nimport \"testing\"\n\nfunc TestSmoke(t *testing.T) {}\n")
 
+	if runtime.GOOS == "windows" {
+		prepareWindowsFixture(t, root)
+	}
 	runGit(t, root, "init")
+	if runtime.GOOS == "windows" {
+		runGit(t, root, "config", "core.autocrlf", "false")
+	}
 	runGit(t, root, "config", "user.name", "Codex")
 	runGit(t, root, "config", "user.email", "codex@example.invalid")
 	runGit(t, root, "add", ".")
@@ -240,12 +258,68 @@ profiles:
 
 func writeFile(t testing.TB, path string, content string) {
 	t.Helper()
+	if runtime.GOOS == "windows" {
+		path = strings.ReplaceAll(path, string(filepath.Separator)+"aux"+string(filepath.Separator), string(filepath.Separator)+"support"+string(filepath.Separator))
+		content = strings.ReplaceAll(content, "catalogue: aux", "catalogue: support")
+		content = strings.ReplaceAll(content, "scripts/fixture-step.sh", "scripts/fixture-step.ps1")
+		content = strings.ReplaceAll(content, "scripts/quiet-step.sh", "scripts/quiet-step.ps1")
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
 	}
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatalf("write %s: %v", path, err)
 	}
+}
+
+// Keep the same scenarios and exit-code assertions with native Windows child
+// processes. AUX is a reserved device name, even when used as a directory.
+func prepareWindowsFixture(t testing.TB, root string) {
+	t.Helper()
+	scripts := filepath.Join(root, "holons", "clem-ader", "scripts")
+	writeFile(t, filepath.Join(scripts, "fixture-step.ps1"), "param([string]$First, [string]$Second)\nWrite-Output \"fixture-script:${First}:${Second}\"\n")
+	writeFile(t, filepath.Join(scripts, "quiet-step.ps1"), "$delay = if ($env:ADER_TEST_SILENT_STEP_SLEEP) { [double]$env:ADER_TEST_SILENT_STEP_SLEEP } else { 6 }\nStart-Sleep -Seconds $delay\nWrite-Output 'quiet-step:done'\n")
+	writeFile(t, filepath.Join(scripts, "failing-step.ps1"), "exit 1\n")
+	goBinary, err := exec.LookPath("go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	checksPath := filepath.Join(root, "ader", "catalogues", "fixture", "checks.yaml")
+	data, err := os.ReadFile(checksPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var config struct {
+		Checks map[string]map[string]any `yaml:"checks"`
+	}
+	if err := yaml.Unmarshal(data, &config); err != nil {
+		t.Fatal(err)
+	}
+	for _, check := range config.Checks {
+		command, _ := check["command"].(string)
+		if command == "" {
+			continue
+		}
+		delete(check, "command")
+		if command == "false" {
+			check["script"] = "scripts/failing-step.ps1"
+			continue
+		}
+		parts := strings.Fields(command)
+		if parts[0] != "go" {
+			t.Fatalf("unsupported Windows fixture command %q", command)
+		}
+		for i := range parts {
+			parts[i] = strings.Trim(parts[i], "'")
+		}
+		check["script"] = goBinary
+		check["args"] = parts[1:]
+	}
+	data, err = yaml.Marshal(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, checksPath, string(data))
 }
 
 func writeFileMode(t testing.TB, path string, content string, mode os.FileMode) {

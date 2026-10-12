@@ -109,7 +109,7 @@ func TestRunCLITestShowsPhaseFeedbackAndHeartbeat(t *testing.T) {
 		if !strings.Contains(text, "[01/01] RUN  quiet-script") {
 			t.Fatalf("stderr missing RUN line: %q", text)
 		}
-		if !strings.Contains(text, "[01/01] CMD holons/clem-ader :: scripts/quiet-step.sh") {
+		if !strings.Contains(text, "[01/01] CMD holons/clem-ader :: scripts/"+testrepo.ScriptName("quiet-step.sh")) {
 			t.Fatalf("stderr missing CMD line: %q", text)
 		}
 		if !strings.Contains(text, "[wait] quiet-script still running") || !strings.Contains(text, "no output yet") {
@@ -433,6 +433,7 @@ func TestCLIConfigEnvAndFlagPrecedence(t *testing.T) {
 func TestCLICompletionInstallZshIsIdempotent(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 	t.Setenv("SHELL", "/bin/zsh")
 
 	var stdout bytes.Buffer
