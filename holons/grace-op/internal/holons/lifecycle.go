@@ -2329,6 +2329,7 @@ func buildExecutionEnv(manifest *LoadedManifest, ctx BuildContext) []string {
 	env := recipeExecEnv(manifest, ctx)
 	env = append(env, compositeMemberPackageEnv(manifest)...)
 	env = append(env, sdkPrebuiltEnv(ctx)...)
+	env = append(env, cargoTargetEnv(manifest)...)
 	return env
 }
 
@@ -2339,12 +2340,13 @@ func executePipelineHooks(manifest *LoadedManifest, ctx BuildContext, report *Re
 			cwd = manifest.Dir
 		}
 
-		ctx.Progress.Step(commandString(hook.Argv))
-		report.Commands = append(report.Commands, fmt.Sprintf("(cwd=%s) %s", hook.Cwd, commandString(hook.Argv)))
+		args := cargoHookArgs(manifest, cwd, hook.Argv)
+		ctx.Progress.Step(commandString(args))
+		report.Commands = append(report.Commands, fmt.Sprintf("(cwd=%s) %s", hook.Cwd, commandString(args)))
 
 		if !ctx.DryRun {
-			if out, err := runCommandWithEnv(cwd, hook.Argv, buildExecutionEnv(manifest, ctx)); err != nil {
-				return fmt.Errorf("hook %s failed: %s\n%s", commandString(hook.Argv), err, out)
+			if out, err := runCommandWithEnv(cwd, args, buildExecutionEnv(manifest, ctx)); err != nil {
+				return fmt.Errorf("hook %s failed: %s\n%s", commandString(args), err, out)
 			}
 		}
 	}

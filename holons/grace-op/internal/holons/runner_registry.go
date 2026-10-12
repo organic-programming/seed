@@ -1029,7 +1029,7 @@ func (cargoRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Rep
 		return err
 	}
 
-	targetDir := filepath.Join(manifest.OpRoot(), "build", "cargo")
+	targetDir := cargoTargetDir(manifest)
 	args := []string{"cargo", "build", "--target-dir", targetDir}
 	if normalizeBuildMode(ctx.Mode) != buildModeDebug {
 		args = append(args, "--release")
@@ -1039,14 +1039,17 @@ func (cargoRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Rep
 	if ctx.DryRun {
 		return nil
 	}
-	if err := os.MkdirAll(targetDir, 0o755); err != nil {
+	if err := prepareCargoTargetDir(manifest); err != nil {
 		return fmt.Errorf("create cargo target dir: %w", err)
 	}
-	if output, err := runCommand(manifest.Dir, args); err != nil {
+	if output, err := runCommandWithEnv(manifest.Dir, args, cargoTargetEnv(manifest)); err != nil {
 		return fmt.Errorf("%s\n%s", err, output)
 	}
 	source := filepath.Join(targetDir, cargoModeDir(ctx.Mode), hostExecutableName(manifest.BinaryName()))
 	if err := syncBinaryArtifact(manifest, source); err != nil {
+		return err
+	}
+	if err := bundleCargoWindowsCRT(manifest, report); err != nil {
 		return err
 	}
 	report.Notes = append(report.Notes, "cargo build complete")
@@ -1054,10 +1057,15 @@ func (cargoRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Rep
 }
 
 func (cargoRunner) test(manifest *LoadedManifest, ctx BuildContext, report *Report) error {
-	args := []string{"cargo", "test", "--target-dir", filepath.Join(manifest.OpRoot(), "build", "cargo")}
+	args := []string{"cargo", "test", "--target-dir", cargoTargetDir(manifest)}
 	report.Commands = append(report.Commands, commandString(args))
 	ctx.Progress.Step(commandString(args))
-	if output, err := runCommand(manifest.Dir, args); err != nil {
+	if runtime.GOOS == "windows" {
+		if err := prepareCargoTargetDir(manifest); err != nil {
+			return err
+		}
+	}
+	if output, err := runCommandWithEnv(manifest.Dir, args, cargoTargetEnv(manifest)); err != nil {
 		return fmt.Errorf("%s\n%s", err, output)
 	}
 	report.Notes = append(report.Notes, "cargo test passed")
@@ -1065,6 +1073,9 @@ func (cargoRunner) test(manifest *LoadedManifest, ctx BuildContext, report *Repo
 }
 
 func (cargoRunner) clean(manifest *LoadedManifest, _ BuildContext, report *Report) error {
+	if err := cleanCargoTargetDir(manifest); err != nil {
+		return err
+	}
 	if err := os.RemoveAll(manifest.OpRoot()); err != nil {
 		return err
 	}
