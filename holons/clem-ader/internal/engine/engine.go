@@ -668,10 +668,7 @@ func buildStepCommand(step StepSpec) (*exec.Cmd, error) {
 		if info.IsDir() {
 			return nil, fmt.Errorf("script %s is a directory", step.Script)
 		}
-		if info.Mode()&0o111 == 0 {
-			return nil, fmt.Errorf("script %s is not executable", step.Script)
-		}
-		return exec.Command(step.Script, step.Args...), nil
+		return buildScriptCommand(step, info)
 	}
 	return exec.Command("bash", "-lc", step.Command), nil
 }
@@ -1214,6 +1211,11 @@ func symlinkTarget(path string) (string, bool) {
 }
 
 func replaceShortTempAlias(alias string, target string) error {
+	if runtime.GOOS == "windows" {
+		// Steps and reports already use absolute paths. This optional diagnostic
+		// shortcut must not require symlink privileges on standard Windows accounts.
+		return nil
+	}
 	if err := os.Remove(alias); err != nil && !os.IsNotExist(err) {
 		return err
 	}

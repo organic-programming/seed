@@ -3,9 +3,9 @@
 package engine
 
 import (
-	"errors"
-	"os"
 	"os/exec"
+
+	"github.com/organic-programming/go-holons/pkg/processowner"
 )
 
 func prepareStepCommand(cmd *exec.Cmd) {}
@@ -15,29 +15,22 @@ func startedStepGroupID(cmd *exec.Cmd) int {
 }
 
 func terminateStepProcessGroup(handle *stepProcessHandle) error {
-	return stopStepProcess(handle)
+	if handle == nil {
+		return nil
+	}
+	return processowner.Terminate(handle.cmd)
 }
 
 func killStepProcessGroup(handle *stepProcessHandle) error {
-	return stopStepProcess(handle)
+	if handle == nil {
+		return nil
+	}
+	return processowner.Kill(handle.cmd)
 }
 
 func stepProcessGroupRunning(handle *stepProcessHandle) bool {
 	if handle == nil || handle.cmd == nil {
 		return false
 	}
-	if handle.cmd.ProcessState != nil {
-		return !handle.cmd.ProcessState.Exited()
-	}
-	return handle.cmd.Process != nil
-}
-
-func stopStepProcess(handle *stepProcessHandle) error {
-	if handle == nil || handle.cmd == nil || handle.cmd.Process == nil {
-		return nil
-	}
-	if err := handle.cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
-		return err
-	}
-	return nil
+	return processowner.Running(handle.cmd)
 }
