@@ -117,7 +117,7 @@ func PackageBinaryPath(packageDir, binaryName string) string {
 	if trimmedDir == "" || trimmedBinary == "" {
 		return ""
 	}
-	return filepath.Join(trimmedDir, "bin", runtimeArchitecture(), trimmedBinary)
+	return filepath.Join(trimmedDir, "bin", runtimeArchitecture(), hostExecutableName(trimmedBinary))
 }
 
 func LaunchableArtifactPath(artifactPath string, manifest *LoadedManifest) string {

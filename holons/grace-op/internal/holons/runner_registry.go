@@ -74,7 +74,7 @@ func requireRunnerCommands(commands ...string) error {
 }
 
 func hostExecutableName(name string) string {
-	if runtime.GOOS == "windows" && filepath.Ext(name) == "" {
+	if runtime.GOOS == "windows" && name != "" && filepath.Ext(name) == "" {
 		return name + ".exe"
 	}
 	return name

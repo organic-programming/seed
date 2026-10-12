@@ -10,6 +10,7 @@ import (
 func TestDefaultsUseHomeDirectory(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 	t.Setenv("OPPATH", "")
 	t.Setenv("OPBIN", "")
 
@@ -61,7 +62,7 @@ func TestInitCreatesRuntimeDirectories(t *testing.T) {
 }
 
 func TestShellSnippetContainsExpectedExports(t *testing.T) {
-	snippet := ShellSnippet()
+	snippet := shellSnippetForOS("darwin")
 	for _, expected := range []string{
 		`export OPPATH="${OPPATH:-$HOME/.op}"`,
 		`export OPBIN="${OPBIN:-$OPPATH/bin}"`,
@@ -71,6 +72,18 @@ func TestShellSnippetContainsExpectedExports(t *testing.T) {
 		if !strings.Contains(snippet, expected) {
 			t.Fatalf("ShellSnippet() missing %q in %q", expected, snippet)
 		}
+	}
+}
+
+func TestShellSnippetWindows(t *testing.T) {
+	snippet := shellSnippetForOS("windows")
+	for _, expected := range []string{"$env:USERPROFILE", "if (-not $env:OPPATH)", "if (-not $env:OPBIN)", "$($env:OPBIN);$($env:PATH)"} {
+		if !strings.Contains(snippet, expected) {
+			t.Fatalf("Windows snippet missing %q: %s", expected, snippet)
+		}
+	}
+	if strings.Contains(snippet, "export ") {
+		t.Fatal("Windows snippet contains a POSIX command")
 	}
 }
 

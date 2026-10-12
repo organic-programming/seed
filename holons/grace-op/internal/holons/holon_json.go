@@ -71,7 +71,7 @@ func writeHolonJSON(manifest *LoadedManifest, ctx BuildContext) error {
 		Status:        strings.TrimSpace(manifest.Manifest.Status),
 		Kind:          strings.TrimSpace(manifest.Manifest.Kind),
 		Transport:     strings.TrimSpace(manifest.Manifest.Transport),
-		Entrypoint:    strings.TrimSpace(manifest.BinaryName()),
+		Entrypoint:    hostExecutableName(strings.TrimSpace(manifest.BinaryName())),
 		Architectures: packageArchitectures(pkgDir),
 		Hardened:      ctx.Hardened,
 		Standalone:    runnerProducesStandaloneArtifact(manifest.Manifest.Build.Runner),
@@ -111,7 +111,7 @@ func writeHolonJSONForInstall(manifest *LoadedManifest, pkgDir string) error {
 		return fmt.Errorf("manifest is nil")
 	}
 
-	entrypoint := strings.TrimSpace(manifest.BinaryName())
+	entrypoint := hostExecutableName(strings.TrimSpace(manifest.BinaryName()))
 	if entrypoint == "" {
 		entrypoint = strings.TrimSpace(manifest.Manifest.ArtifactPath())
 		if entrypoint != "" {

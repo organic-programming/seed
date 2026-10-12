@@ -159,7 +159,11 @@ func localSourceTreeSHA256(repoRoot, lang string) (string, bool, error) {
 	libRel := filepath.ToSlash(filepath.Join(".github", "scripts", "lib-codegen-prebuilt.sh"))
 	toolchainRel := seedToolchainFile
 	sdkRel := filepath.ToSlash(filepath.Join("sdk", lang+"-holons"))
-	files, err := sourceTreeFiles(repoRoot, sdkRel, scriptRel, libRel, toolchainRel)
+	roots := []string{sdkRel, scriptRel, libRel, toolchainRel}
+	if runtime.GOOS == "windows" && (lang == "go" || lang == "dart") {
+		roots = append(roots, "holons/grace-op/internal/sdkprebuilts/build_codegen_native.go")
+	}
+	files, err := sourceTreeFiles(repoRoot, roots...)
 	if err != nil {
 		return "", false, nil
 	}
@@ -268,6 +272,9 @@ func runBuildScript(ctx context.Context, scriptPath, lang, target, version strin
 		return err
 	} else if err := writeSharedSeedReleaseSnapshot(seed.SeedRelease, toolchain); err != nil {
 		return err
+	}
+	if runtime.GOOS == "windows" && (lang == "go" || lang == "dart") {
+		return buildWindowsCodegen(ctx, repoRoot, lang, target, version, toolchain, opts)
 	}
 	env := append(os.Environ(),
 		"SDK_TARGET="+target,
