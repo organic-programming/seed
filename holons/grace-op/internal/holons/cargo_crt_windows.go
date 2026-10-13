@@ -9,6 +9,8 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+
+	"github.com/organic-programming/grace-op/internal/buildenv"
 )
 
 var windowsDebugCRT = regexp.MustCompile(`(?i)^(?:ucrtbased|(?:msvcp|vcruntime|concrt|vccorlib)140(?:_\d+)?d(?:_.*)?)\.dll$`)
@@ -17,8 +19,16 @@ var windowsRedistFolder = regexp.MustCompile(`^Microsoft\.VC\d+\.CRT$`)
 
 // MSVC-linked Cargo artifacts need their redistributable CRT beside the entry
 // point. A developer machine's System32 or PATH must not supply package files.
-func bundleCargoWindowsCRT(manifest *LoadedManifest, report *Report) error {
-	output, err := exec.Command("rustc", "-vV").CombinedOutput()
+func bundleCargoWindowsCRT(manifest *LoadedManifest, report *Report, environment ...[]string) error {
+	var prepared []string
+	if len(environment) != 0 {
+		prepared = environment[0]
+	}
+	cmd, err := buildenv.Command(manifest.Dir, []string{"rustc", "-vV"}, prepared)
+	if err != nil {
+		return err
+	}
+	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("identify Cargo CRT toolchain: %w\n%s", err, output)
 	}
@@ -34,7 +44,7 @@ func bundleCargoWindowsCRT(manifest *LoadedManifest, report *Report) error {
 	if !strings.HasSuffix(host, "-windows-msvc") {
 		return nil // GNU uses a different runtime, outside the MSVC CRT package.
 	}
-	redist, err := windowsCRTRedistDirectory(os.Getenv, findWindowsVisualStudio, runtime.GOARCH)
+	redist, err := windowsCRTRedistDirectory(func(key string) string { return buildenv.Value(prepared, key) }, findWindowsVisualStudio, runtime.GOARCH)
 	if err != nil {
 		return err
 	}

@@ -2,4 +2,4 @@
 
 package holons
 
-func bundleCargoWindowsCRT(*LoadedManifest, *Report) error { return nil }
+func bundleCargoWindowsCRT(*LoadedManifest, *Report, ...[]string) error { return nil }

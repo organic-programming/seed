@@ -249,7 +249,7 @@ option (holons.v1.manifest) = {
   platforms: ["macos", "windows"]
   build: {
     runner: "recipe"
-    defaults: { target: "macos" mode: "debug" }
+    defaults: { mode: "debug" }
     members: { id: "app" path: "app" type: "component" }
     targets: { key: "macos" value: { steps: { exec: { cwd: "app" argv: ["pwsh", "-NoProfile", "-NonInteractive", "-File", "build.ps1", "macos"] } } } }
     targets: { key: "windows" value: { steps: { exec: { cwd: "app" argv: ["pwsh", "-NoProfile", "-NonInteractive", "-File", "build.ps1", "windows"] } } } }

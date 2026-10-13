@@ -226,7 +226,7 @@ func writeDescribeSource(templatePath, outputPath string, response *holonsv1.Des
 
 	restore = func() {
 		if originalExists {
-			_ = os.WriteFile(outputPath, original, mode)
+			_ = writeDescribeOutput(outputPath, original, mode)
 			return
 		}
 		_ = os.Remove(outputPath)
@@ -242,7 +242,7 @@ func writeDescribeSource(templatePath, outputPath string, response *holonsv1.Des
 		restore()
 		return func() {}, fmt.Errorf("create output dir for %s: %w", outputPath, err)
 	}
-	if err := os.WriteFile(outputPath, rendered, mode); err != nil {
+	if err := writeDescribeOutput(outputPath, rendered, mode); err != nil {
 		restore()
 		return func() {}, fmt.Errorf("write %s: %w", outputPath, err)
 	}

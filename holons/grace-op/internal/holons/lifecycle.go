@@ -7,7 +7,6 @@ import (
 	"hash/fnv"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -18,6 +17,7 @@ import (
 	"time"
 
 	sdkdiscover "github.com/organic-programming/go-holons/pkg/discover"
+	"github.com/organic-programming/grace-op/internal/buildenv"
 	"github.com/organic-programming/grace-op/internal/identity"
 	"github.com/organic-programming/grace-op/internal/progress"
 	"github.com/organic-programming/grace-op/internal/sdkprebuilts"
@@ -54,6 +54,7 @@ type BuildOptions struct {
 
 // BuildContext is the canonical build request used by runners and artifact resolution.
 type BuildContext struct {
+	Environment      []string
 	Target           string
 	Mode             string
 	Hardened         bool
@@ -153,6 +154,10 @@ func ExecuteLifecycle(op Operation, ref string, opts ...BuildOptions) (report Re
 	ctx, err := resolveBuildContext(target.Manifest, bo)
 	if err != nil {
 		return baseReport(op, target, BuildContext{}), err
+	}
+	ctx.Environment, err = buildenv.Prepare(target.Manifest.Dir)
+	if err != nil {
+		return baseReport(op, target, ctx), err
 	}
 	if op != OperationBuild {
 		ctx.DryRun = false
@@ -1087,7 +1092,7 @@ func preflight(manifest *LoadedManifest, ctx *BuildContext) error {
 	}
 
 	for _, command := range requiredCommands(manifest) {
-		if _, err := exec.LookPath(command); err != nil {
+		if _, err := buildenv.Lookup(ctx.Environment, command); err != nil {
 			return fmt.Errorf("missing required command %q on PATH; %s", command, installHint(command))
 		}
 	}
@@ -1333,7 +1338,7 @@ func missingSDKPrebuiltError(lang, hostTarget string) error {
 
 func sdkPrebuiltEnv(ctx BuildContext) []string {
 	if len(ctx.SDKPrebuiltPaths) == 0 {
-		return nil
+		return ctx.Environment
 	}
 	langs := make([]string, 0, len(ctx.SDKPrebuiltPaths))
 	for lang := range ctx.SDKPrebuiltPaths {
@@ -1341,7 +1346,7 @@ func sdkPrebuiltEnv(ctx BuildContext) []string {
 	}
 	sort.Strings(langs)
 
-	env := make([]string, 0, len(langs))
+	env := append([]string{}, ctx.Environment...)
 	for _, lang := range langs {
 		env = append(env, sdkPrebuiltEnvName(lang)+"="+ctx.SDKPrebuiltPaths[lang])
 	}
@@ -1550,16 +1555,6 @@ func resolveBuildContext(manifest *LoadedManifest, opts BuildOptions) (BuildCont
 	} else {
 		target = canonicalRuntimeTarget()
 	}
-	// Desktop recipes can retain their original macOS default while adding a
-	// native Windows recipe. An implicit Windows invocation should select that
-	// recipe; explicit targets and every non-Windows host keep their semantics.
-	if runtime.GOOS == "windows" && strings.TrimSpace(opts.Target) == "" && target == "macos" &&
-		manifest.Manifest.Kind == KindComposite && manifest.Manifest.Build.Runner == RunnerRecipe {
-		if _, available := manifest.Manifest.Build.Targets["windows"]; available {
-			target = "windows"
-		}
-	}
-
 	if isAggregateBuildTarget(target) && manifest.Manifest.Build.Runner != RunnerRecipe {
 		return BuildContext{}, fmt.Errorf("target %q is only supported for recipe runners", target)
 	}
@@ -2271,10 +2266,9 @@ func runCommand(dir string, args []string) (string, error) {
 }
 
 func runCommandWithEnv(dir string, args []string, extraEnv []string) (string, error) {
-	cmd := exec.Command(args[0], args[1:]...)
-	cmd.Dir = dir
-	if len(extraEnv) != 0 {
-		cmd.Env = append(os.Environ(), extraEnv...)
+	cmd, err := buildenv.Command(dir, args, extraEnv)
+	if err != nil {
+		return "", err
 	}
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -2335,9 +2329,11 @@ func compositeMemberPackageEnv(manifest *LoadedManifest) []string {
 }
 
 func buildExecutionEnv(manifest *LoadedManifest, ctx BuildContext) []string {
-	env := recipeExecEnv(manifest, ctx)
+	env := append(append([]string{}, ctx.Environment...), recipeExecEnv(manifest, ctx)...)
 	env = append(env, compositeMemberPackageEnv(manifest)...)
-	env = append(env, sdkPrebuiltEnv(ctx)...)
+	sdkContext := ctx
+	sdkContext.Environment = nil // Do not reapply inherited variables over this recipe's values.
+	env = append(env, sdkPrebuiltEnv(sdkContext)...)
 	env = append(env, cargoTargetEnv(manifest)...)
 	return env
 }

@@ -28,7 +28,7 @@ func cargoTargetDir(manifest *LoadedManifest) string {
 }
 
 func cargoTargetEnv(manifest *LoadedManifest) []string {
-	if manifest.Manifest.Build.Runner != RunnerCargo || hasCMakeProject(manifest) {
+	if manifest == nil || manifest.Manifest.Build.Runner != RunnerCargo || hasCMakeProject(manifest) {
 		return nil
 	}
 	root := cargoTargetDir(manifest)

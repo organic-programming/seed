@@ -1136,7 +1136,7 @@ func TestInstallCommand(t *testing.T) {
 	})
 
 	installed := filepath.Join(root, ".runtime", "bin", "demo.holon")
-	if _, err := os.Stat(filepath.Join(installed, "bin", runtime.GOOS+"_"+runtime.GOARCH, "demo")); err != nil {
+	if _, err := os.Stat(filepath.Join(installed, "bin", runtime.GOOS+"_"+runtime.GOARCH, hostTestExecutableName("demo"))); err != nil {
 		t.Fatalf("installed package binary missing: %v", err)
 	}
 	if !strings.Contains(output, "Installed: "+installed) {
@@ -1271,7 +1271,7 @@ func TestInstallCommandProtoManifest(t *testing.T) {
 	})
 
 	installed := filepath.Join(root, ".runtime", "bin", "demo-proto.holon")
-	if _, err := os.Stat(filepath.Join(installed, "bin", runtime.GOOS+"_"+runtime.GOARCH, "demo-proto")); err != nil {
+	if _, err := os.Stat(filepath.Join(installed, "bin", runtime.GOOS+"_"+runtime.GOARCH, hostTestExecutableName("demo-proto"))); err != nil {
 		t.Fatalf("installed package binary missing: %v", err)
 	}
 	if !strings.Contains(output, "Installed: "+installed) {
@@ -1310,7 +1310,7 @@ func TestInstallCommandResolvesAliasFromSourceWhenArtifactExists(t *testing.T) {
 	})
 
 	installed := filepath.Join(root, ".runtime", "bin", "demo-proto.holon")
-	if _, err := os.Stat(filepath.Join(installed, "bin", runtime.GOOS+"_"+runtime.GOARCH, "demo-proto")); err != nil {
+	if _, err := os.Stat(filepath.Join(installed, "bin", runtime.GOOS+"_"+runtime.GOARCH, hostTestExecutableName("demo-proto"))); err != nil {
 		t.Fatalf("installed package binary missing: %v", err)
 	}
 	if !strings.Contains(output, "Installed: "+installed) {
@@ -1535,7 +1535,7 @@ func TestBuildCommandInstallBuildsAndInstalls(t *testing.T) {
 	}
 
 	installed := filepath.Join(root, ".runtime", "bin", "demo-proto.holon")
-	if _, err := os.Stat(filepath.Join(installed, "bin", runtime.GOOS+"_"+runtime.GOARCH, "demo-proto")); err != nil {
+	if _, err := os.Stat(filepath.Join(installed, "bin", runtime.GOOS+"_"+runtime.GOARCH, hostTestExecutableName("demo-proto"))); err != nil {
 		t.Fatalf("installed package binary missing: %v", err)
 	}
 	for _, want := range []string{

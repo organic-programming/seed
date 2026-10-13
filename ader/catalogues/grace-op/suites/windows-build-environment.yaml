@@ -1,0 +1,36 @@
+description: Native Windows CLI, Code API and stdio RPC build environments without shell activation, with isolated project PATHs and no process environment pollution.
+defaults:
+  profile: smoke
+steps:
+  prepare:
+    workdir: .
+    prereqs: [pwsh, go, op]
+    script: ader/catalogues/grace-op/scripts/windows-build-environment.ps1
+    args: [-Facet, prepare]
+    lane: regression
+  cli:
+    workdir: .
+    prereqs: [pwsh, go]
+    script: ader/catalogues/grace-op/scripts/windows-build-environment.ps1
+    args: [-Facet, CLI]
+    needs: [prepare]
+    lane: regression
+  api:
+    workdir: .
+    prereqs: [pwsh, go]
+    script: ader/catalogues/grace-op/scripts/windows-build-environment.ps1
+    args: [-Facet, API]
+    needs: [cli]
+    lane: regression
+  rpc:
+    workdir: .
+    prereqs: [pwsh, go]
+    script: ader/catalogues/grace-op/scripts/windows-build-environment.ps1
+    args: [-Facet, RPC]
+    needs: [api]
+    lane: regression
+profiles:
+  smoke:
+    description: Build OP only in the snapshot, then qualify scoped environments and compare all three facets.
+    archive: always
+    steps: [prepare, cli, api, rpc]

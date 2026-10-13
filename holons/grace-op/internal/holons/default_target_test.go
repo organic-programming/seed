@@ -1,11 +1,8 @@
 package holons
 
-import (
-	"runtime"
-	"testing"
-)
+import "testing"
 
-func TestDefaultTargetUsesAvailableWindowsDesktopRecipe(t *testing.T) {
+func TestDefaultTargetRespectsManifestAndNativeHost(t *testing.T) {
 	for _, tc := range []struct {
 		name, kind, runner, defaultTarget, defaultMode, explicitTarget, explicitMode string
 		windowsRecipe                                                                bool
@@ -13,6 +10,7 @@ func TestDefaultTargetUsesAvailableWindowsDesktopRecipe(t *testing.T) {
 	}{
 		{"macos desktop default", KindComposite, RunnerRecipe, "macos", "debug", "", "", true, "macos", "debug"},
 		{"no target default", KindComposite, RunnerRecipe, "", "release", "", "", true, canonicalRuntimeTarget(), "release"},
+		{"native target with explicit mode", KindComposite, RunnerRecipe, "", "debug", "", "release", true, canonicalRuntimeTarget(), "release"},
 		{"explicit macos", KindComposite, RunnerRecipe, "macos", "debug", "macos", "", true, "macos", "debug"},
 		{"explicit linux", KindComposite, RunnerRecipe, "macos", "debug", "linux", "", true, "linux", "debug"},
 		{"explicit all", KindComposite, RunnerRecipe, "macos", "debug", "all", "", true, "all", "debug"},
@@ -34,9 +32,6 @@ func TestDefaultTargetUsesAvailableWindowsDesktopRecipe(t *testing.T) {
 				manifest.Manifest.Build.Targets["windows"] = RecipeTarget{}
 			}
 			wantTarget := tc.wantTarget
-			if runtime.GOOS == "windows" && (tc.name == "macos desktop default" || tc.name == "explicit mode") {
-				wantTarget = "windows"
-			}
 			context, err := ResolveBuildContext(manifest, BuildOptions{Target: tc.explicitTarget, Mode: tc.explicitMode})
 			if err != nil {
 				t.Fatal(err)

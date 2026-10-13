@@ -15,6 +15,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/organic-programming/grace-op/internal/buildenv"
 )
 
 // BuildOptions captures a request to build a SDK prebuilt from local sources.
@@ -465,8 +467,12 @@ func collectCompileBlockers(repoRoot, lang, target string) []string {
 		}
 	}
 
+	environment, err := buildenv.Prepare(repoRoot)
+	if err != nil {
+		return append(blockers, err.Error())
+	}
 	for _, bin := range requiredBinaries(lang, target) {
-		if _, err := exec.LookPath(bin); err != nil {
+		if _, err := buildenv.Lookup(environment, bin); err != nil {
 			blockers = append(blockers, fmt.Sprintf("%s not on PATH", bin))
 		}
 	}

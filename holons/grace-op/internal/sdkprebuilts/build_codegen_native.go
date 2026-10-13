@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/organic-programming/go-holons/pkg/fileuri"
+	"github.com/organic-programming/grace-op/internal/buildenv"
 )
 
 // buildWindowsCodegen builds actual native plugin images from the pinned
@@ -22,6 +23,10 @@ import (
 func buildWindowsCodegen(ctx context.Context, repoRoot, lang, target, version string, toolchain []ToolchainEntry, opts BuildOptions) error {
 	if target != "x86_64-windows-gnu" && target != "x86_64-pc-windows-msvc" {
 		return fmt.Errorf("native Windows %s codegen builder requires a Windows x64 target, got %s", lang, target)
+	}
+	environment, err := buildenv.Prepare(repoRoot)
+	if err != nil {
+		return err
 	}
 	work := filepath.Join(repoRoot, "sdk", lang+"-holons", ".codegen-prebuilt", target)
 	if err := os.MkdirAll(work, 0o755); err != nil {
@@ -45,9 +50,17 @@ func buildWindowsCodegen(ctx context.Context, repoRoot, lang, target, version st
 		return "", fmt.Errorf("%s missing pinned %s version", seedToolchainFile, name)
 	}
 	run := func(dir, program string, args []string, env ...string) error {
-		cmd := exec.CommandContext(ctx, program, args...)
+		resolved, err := buildenv.Lookup(environment, program)
+		if err != nil {
+			return err
+		}
+		cmd := exec.CommandContext(ctx, resolved, args...)
 		cmd.Dir = dir
-		cmd.Env = append(os.Environ(), env...)
+		base := environment
+		if base == nil {
+			base = os.Environ()
+		}
+		cmd.Env = buildenv.Merge(base, env)
 		cmd.Stdout = orDevNull(opts.Stdout)
 		tail := newTailBuffer(40)
 		cmd.Stderr = io.MultiWriter(orDevNull(opts.Stderr), tail)
@@ -77,7 +90,7 @@ func buildWindowsCodegen(ctx context.Context, repoRoot, lang, target, version st
 		if err != nil {
 			return err
 		}
-		dart, err := nativeDartExecutable()
+		dart, err := nativeDartExecutable(environment)
 		if err != nil {
 			return err
 		}
@@ -116,8 +129,12 @@ func buildWindowsCodegen(ctx context.Context, repoRoot, lang, target, version st
 	return archiveNativeCodegen(stage, archive)
 }
 
-func nativeDartExecutable() (string, error) {
-	path, err := exec.LookPath("dart")
+func nativeDartExecutable(environment ...[]string) (string, error) {
+	var prepared []string
+	if len(environment) != 0 {
+		prepared = environment[0]
+	}
+	path, err := buildenv.Lookup(prepared, "dart")
 	if err != nil {
 		return "", err
 	}

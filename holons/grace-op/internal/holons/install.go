@@ -149,6 +149,15 @@ func Install(ref string, opts InstallOptions) (report InstallReport, err error) 
 	// on Unix) so that tools remain directly callable from PATH.
 	if isSelfInstall(target.Manifest) || (opts.Symlink && isHolonPackagePath(installName)) {
 		reporter.Step("copying to " + installedPath + "...")
+		if runtime.GOOS == "windows" && isSelfInstall(target.Manifest) {
+			notes, err := installWindowsSelf(artifactPath, installedPath, target.Manifest.BinaryName())
+			if err != nil {
+				return report, fmt.Errorf("install %s: %w", installName, err)
+			}
+			report.Installed = installedPath
+			report.Notes = append(report.Notes, notes...)
+			return report, nil
+		}
 		if err := copyArtifact(artifactPath, installedPath); err != nil {
 			return report, fmt.Errorf("install %s: %w", installName, err)
 		}
@@ -158,16 +167,6 @@ func Install(ref string, opts InstallOptions) (report InstallReport, err error) 
 		binaryName := target.Manifest.BinaryName()
 		if binaryName == "" {
 			binaryName = report.Binary
-		}
-		if runtime.GOOS == "windows" && isSelfInstall(target.Manifest) {
-			// A standalone copy needs no symlink privilege and allows the package
-			// to be replaced while the installed OP executable is running.
-			launcherPath := filepath.Join(openv.OPBIN(), hostExecutableName(binaryName))
-			if err := installExecutableCopy(PackageBinaryPath(installedPath, binaryName), launcherPath); err != nil {
-				return report, fmt.Errorf("install launcher %s: %w", launcherPath, err)
-			}
-			report.Notes = append(report.Notes, "installed executable "+launcherPath)
-			return report, nil
 		}
 		// Relative symlink: e.g. grace-op.holon/bin/darwin_arm64/op
 		symlinkRel := filepath.Join(installName, "bin", runtimeArchitecture(), hostExecutableName(binaryName))
