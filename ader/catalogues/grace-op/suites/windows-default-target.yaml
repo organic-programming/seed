@@ -1,0 +1,36 @@
+description: Native Windows default-target selection through CLI, Code API and stdio RPC, using an isolated synthetic desktop composite.
+defaults:
+  profile: smoke
+steps:
+  prepare:
+    workdir: .
+    prereqs: [pwsh, go, op]
+    script: ader/catalogues/grace-op/scripts/windows-default-target.ps1
+    args: [-Facet, prepare]
+    lane: regression
+  cli:
+    workdir: .
+    prereqs: [pwsh, go]
+    script: ader/catalogues/grace-op/scripts/windows-default-target.ps1
+    args: [-Facet, CLI]
+    needs: [prepare]
+    lane: regression
+  api:
+    workdir: .
+    prereqs: [pwsh, go]
+    script: ader/catalogues/grace-op/scripts/windows-default-target.ps1
+    args: [-Facet, API]
+    needs: [cli]
+    lane: regression
+  rpc:
+    workdir: .
+    prereqs: [pwsh, go]
+    script: ader/catalogues/grace-op/scripts/windows-default-target.ps1
+    args: [-Facet, RPC]
+    needs: [api]
+    lane: regression
+profiles:
+  smoke:
+    description: Build an isolated OP, execute all three facets, and compare their target, mode and launched fixture output.
+    archive: always
+    steps: [prepare, cli, api, rpc]

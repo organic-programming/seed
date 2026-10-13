@@ -1550,6 +1550,15 @@ func resolveBuildContext(manifest *LoadedManifest, opts BuildOptions) (BuildCont
 	} else {
 		target = canonicalRuntimeTarget()
 	}
+	// Desktop recipes can retain their original macOS default while adding a
+	// native Windows recipe. An implicit Windows invocation should select that
+	// recipe; explicit targets and every non-Windows host keep their semantics.
+	if runtime.GOOS == "windows" && strings.TrimSpace(opts.Target) == "" && target == "macos" &&
+		manifest.Manifest.Kind == KindComposite && manifest.Manifest.Build.Runner == RunnerRecipe {
+		if _, available := manifest.Manifest.Build.Targets["windows"]; available {
+			target = "windows"
+		}
+	}
 
 	if isAggregateBuildTarget(target) && manifest.Manifest.Build.Runner != RunnerRecipe {
 		return BuildContext{}, fmt.Errorf("target %q is only supported for recipe runners", target)
