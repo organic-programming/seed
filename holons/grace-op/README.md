@@ -40,6 +40,11 @@ must match the installed versions. OP validates PATH directories and
 toolchain fails before artifacts are removed. It does not download tools from
 this configuration. Hosts other than Windows ignore the section entirely.
 
+Before cleaning or rebuilding Windows artifacts, OP checks whether application
+or worker executables are running from the holon's outputs or those of its
+dependencies. If so, it reports their paths and PIDs before changing any build
+output. Close those processes normally, then retry. OP does not stop them.
+
 <!--todo write  a synthetic quick start 
 
 # Quickstart

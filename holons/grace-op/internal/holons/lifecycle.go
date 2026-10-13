@@ -175,6 +175,9 @@ func ExecuteLifecycle(op Operation, ref string, opts ...BuildOptions) (report Re
 	if err != nil {
 		return report, err
 	}
+	if err := guardActiveWindowsArtifacts(target.Manifest, ctx, op); err != nil {
+		return report, err
+	}
 
 	if op != OperationClean && op != OperationBuild {
 		reporter.Step("checking manifest...")

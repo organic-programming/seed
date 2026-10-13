@@ -1,0 +1,36 @@
+description: Native Windows CLI, Code API and stdio RPC refuse to clean or rebuild a live output before changing any composite member.
+defaults:
+  profile: smoke
+steps:
+  prepare:
+    workdir: .
+    prereqs: [pwsh, go, op]
+    script: ader/catalogues/grace-op/scripts/windows-live-artifact.ps1
+    args: [-Facet, prepare]
+    lane: regression
+  cli:
+    workdir: .
+    prereqs: [pwsh, go]
+    script: ader/catalogues/grace-op/scripts/windows-live-artifact.ps1
+    args: [-Facet, CLI]
+    needs: [prepare]
+    lane: regression
+  api:
+    workdir: .
+    prereqs: [pwsh, go]
+    script: ader/catalogues/grace-op/scripts/windows-live-artifact.ps1
+    args: [-Facet, API]
+    needs: [cli]
+    lane: regression
+  rpc:
+    workdir: .
+    prereqs: [pwsh, go]
+    script: ader/catalogues/grace-op/scripts/windows-live-artifact.ps1
+    args: [-Facet, RPC]
+    needs: [api]
+    lane: regression
+profiles:
+  smoke:
+    description: Snapshot OP, then prove intact outputs, live processes and successful clean after fixture exit across all three facets.
+    archive: always
+    steps: [prepare, cli, api, rpc]
