@@ -302,6 +302,53 @@ func TestRunServesGRPCAndHTTPConcurrently(t *testing.T) {
 	requireHTTPStreamEchoEventually(t, client, "serve-multi-stream")
 }
 
+func TestRunPrometheusDefaultAndExplicitBindings(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		address   string
+		alternate bool
+	}{
+		{name: "default-loopback"},
+		{name: "explicit-loopback", address: "127.0.0.1:0"},
+		{name: "explicit-wildcard", address: "0.0.0.0:0", alternate: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.alternate && runtime.GOOS == "windows" {
+				t.Skip("wildcard socket binding is skipped on Windows to avoid firewall authorization prompts; explicit configuration is tested without binding")
+			}
+			t.Setenv("OP_OBS", "metrics,prom")
+			t.Setenv("OP_PROM_ADDR", tc.address)
+			t.Setenv("OP_RUN_DIR", t.TempDir())
+			cmd, logs := startServeProcess(t, "run", "tcp://127.0.0.1:0", false)
+			defer stopServeProcess(t, cmd, logs)
+			metricsURL := waitForAdvertisedAddress(t, logs, "http://")
+			parsed, err := url.Parse(metricsURL)
+			if err != nil {
+				t.Fatal(err)
+			}
+			client := &http.Client{Transport: &http.Transport{Proxy: nil}, Timeout: 2 * time.Second}
+			defer client.CloseIdleConnections()
+			resp, err := client.Get("http://127.0.0.1:" + parsed.Port() + "/metrics")
+			if err != nil {
+				t.Fatalf("GET /metrics: %v\nlogs:\n%s", err, logs.String())
+			}
+			resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				t.Fatalf("GET /metrics status=%d", resp.StatusCode)
+			}
+			// Every 127/8 address is local. A connection to another loopback
+			// address succeeds only for the explicitly requested wildcard.
+			conn, err := net.DialTimeout("tcp", net.JoinHostPort("127.0.0.2", parsed.Port()), time.Second)
+			if conn != nil {
+				conn.Close()
+			}
+			if (err == nil) != tc.alternate {
+				t.Fatalf("alternate loopback connection error=%v, want reachable=%v", err, tc.alternate)
+			}
+		})
+	}
+}
+
 func TestRunPrometheusSharesHTTPListener(t *testing.T) {
 	runRoot := t.TempDir()
 	uid := "prom-http-uid"

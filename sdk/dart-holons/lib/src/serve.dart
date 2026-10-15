@@ -384,7 +384,7 @@ Future<(observability.PromServer, String)?> _startPromServer(
   if (obs == null || !obs.enabled(observability.Family.prom)) {
     return null;
   }
-  final addr = obs.cfg.promAddr.isEmpty ? ':0' : obs.cfg.promAddr;
+  final addr = obs.cfg.promAddr.isEmpty ? '127.0.0.1:0' : obs.cfg.promAddr;
   final server = observability.PromServer(addr);
   try {
     final metricsAddr = await server.start();

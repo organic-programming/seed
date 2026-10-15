@@ -188,7 +188,7 @@ func RunWithServeOptions(listenURI string, register RegisterFunc, options ServeO
 	if promEnabled && !promSharesHTTP {
 		addr := os.Getenv("OP_PROM_ADDR")
 		if addr == "" {
-			addr = ":0"
+			addr = "127.0.0.1:0"
 		}
 		ps := observability.NewPromServer(addr)
 		if bound, err := ps.Start(); err != nil {
