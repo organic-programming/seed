@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/organic-programming/grace-op/internal/progress"
+	"google.golang.org/protobuf/proto"
+	descriptorpb "google.golang.org/protobuf/types/descriptorpb"
 )
 
 func TestProtoStageWritesDescriptor(t *testing.T) {
@@ -49,6 +51,54 @@ func TestStageHolonProtosSkipsInternalHolonMembers(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(root, "staged", "holons", "node", "api", "v1", "holon.proto")); !os.IsNotExist(err) {
 		t.Fatalf("internal child proto should not be staged, stat err: %v", err)
+	}
+}
+
+func TestProtoStageSkipsDistributionOutput(t *testing.T) {
+	for _, distDir := range []string{"dist", filepath.Join("app", "dist")} {
+		t.Run(filepath.ToSlash(distDir), func(t *testing.T) {
+			root := t.TempDir()
+			sourceProto := filepath.Join("api", "v1", "video.proto")
+			writeProtoFileForStageTest(t, filepath.Join(root, sourceProto), "video.v1")
+			for _, bundle := range []string{".windows-021334ace3", ".windows-8f62f3291f", "windows-release"} {
+				outputProto := filepath.Join(root, distDir, bundle, "Stenobubble", "data", "AppProto", "video", "v1", "video.proto")
+				writeProtoFileForStageTest(t, outputProto, "video.v1")
+			}
+
+			result, err := protoStage(&LoadedManifest{Dir: root}, progress.Silence())
+			if err != nil {
+				t.Fatalf("proto stage with distribution copies failed: %v", err)
+			}
+			if len(result.HolonProtos) != 1 || result.HolonProtos[0] != sourceProto {
+				t.Fatalf("staged protos = %v, want only %s", result.HolonProtos, sourceProto)
+			}
+			stagedSource, err := os.ReadFile(filepath.Join(result.ProtosDir, sourceProto))
+			if err != nil {
+				t.Fatal(err)
+			}
+			source, err := os.ReadFile(filepath.Join(root, sourceProto))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(stagedSource) != string(source) {
+				t.Fatal("staging changed source proto content")
+			}
+			if _, err := os.Stat(filepath.Join(result.ProtosDir, distDir)); !os.IsNotExist(err) {
+				t.Fatalf("distribution output should not be staged, stat err: %v", err)
+			}
+
+			data, err := os.ReadFile(result.DescriptorPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var descriptors descriptorpb.FileDescriptorSet
+			if err := proto.Unmarshal(data, &descriptors); err != nil {
+				t.Fatal(err)
+			}
+			if len(descriptors.File) != 1 || filepath.FromSlash(descriptors.File[0].GetName()) != sourceProto {
+				t.Fatalf("descriptors = %v, want only %s", descriptors.File, sourceProto)
+			}
+		})
 	}
 }
 
