@@ -4,6 +4,8 @@ import (
 	"errors"
 	"os/exec"
 	"time"
+
+	"github.com/organic-programming/go-holons/pkg/processowner"
 )
 
 const (
@@ -17,8 +19,11 @@ type stepProcessHandle struct {
 }
 
 func startStepProcess(cmd *exec.Cmd) (*stepProcessHandle, error) {
+	if err := processowner.Ensure(); err != nil {
+		return nil, err
+	}
 	prepareStepCommand(cmd)
-	if err := cmd.Start(); err != nil {
+	if err := processowner.Start(cmd); err != nil {
 		return nil, err
 	}
 	return &stepProcessHandle{

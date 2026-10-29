@@ -23,6 +23,7 @@ pub mod gen {
 }
 pub mod identity;
 pub mod observability;
+pub mod process_owner;
 pub mod relay;
 pub mod serve;
 pub mod transport;

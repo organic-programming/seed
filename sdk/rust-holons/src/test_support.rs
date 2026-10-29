@@ -21,6 +21,7 @@ pub(crate) fn acquire_process_guard_blocking() -> MutexGuard<'static, ()> {
 
 pub(crate) struct ProcessStateGuard {
     cwd: PathBuf,
+    path: Option<std::ffi::OsString>,
     oppath: Option<String>,
     opbin: Option<String>,
 }
@@ -29,6 +30,7 @@ impl ProcessStateGuard {
     pub(crate) fn capture() -> Self {
         Self {
             cwd: env::current_dir().unwrap(),
+            path: env::var_os("PATH"),
             oppath: env::var("OPPATH").ok(),
             opbin: env::var("OPBIN").ok(),
         }
@@ -38,6 +40,10 @@ impl ProcessStateGuard {
 impl Drop for ProcessStateGuard {
     fn drop(&mut self) {
         let _ = env::set_current_dir(&self.cwd);
+        match &self.path {
+            Some(value) => env::set_var("PATH", value),
+            None => env::remove_var("PATH"),
+        }
         match &self.oppath {
             Some(value) => env::set_var("OPPATH", value),
             None => env::remove_var("OPPATH"),
@@ -189,6 +195,8 @@ pub(crate) fn write_package_holon(
             .join("bin")
             .join(package_arch_dir())
             .join(Path::new(&entrypoint).file_name().unwrap());
+        #[cfg(windows)]
+        let binary_path = binary_path.with_extension("exe");
         fs::create_dir_all(binary_path.parent().unwrap()).unwrap();
         fs::copy(compiled_fixture_holon_binary(), &binary_path).unwrap();
         #[cfg(unix)]

@@ -17,6 +17,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/organic-programming/grace-op/internal/buildenv"
 	"github.com/organic-programming/grace-op/internal/progress"
 	"github.com/organic-programming/grace-op/internal/sdkprebuilts"
 	"google.golang.org/protobuf/proto"
@@ -165,7 +166,7 @@ func runCodegen(manifest *LoadedManifest, ctx BuildContext, stage *protoStageRes
 	}
 
 	reporter.Step("codegen: running plugins...")
-	emitted, err := invokeCodegenPlugins(context.Background(), plugins, reqBytes)
+	emitted, err := invokeCodegenPlugins(context.Background(), plugins, reqBytes, ctx.Environment)
 	if err != nil {
 		return err
 	}
@@ -741,7 +742,7 @@ func validateCodegenBinary(path string) error {
 	return nil
 }
 
-func invokeCodegenPlugins(ctx context.Context, plugins []resolvedCodegenPlugin, reqBytes []byte) ([]emittedCodegenFile, error) {
+func invokeCodegenPlugins(ctx context.Context, plugins []resolvedCodegenPlugin, reqBytes []byte, environment ...[]string) ([]emittedCodegenFile, error) {
 	type result struct {
 		files []emittedCodegenFile
 		err   error
@@ -754,7 +755,7 @@ func invokeCodegenPlugins(ctx context.Context, plugins []resolvedCodegenPlugin, 
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			files, err := invokeCodegenPlugin(ctx, plugin, reqBytes)
+			files, err := invokeCodegenPlugin(ctx, plugin, reqBytes, environment...)
 			results <- result{files: files, err: err}
 		}()
 	}
@@ -771,7 +772,7 @@ func invokeCodegenPlugins(ctx context.Context, plugins []resolvedCodegenPlugin, 
 	return emitted, nil
 }
 
-func invokeCodegenPlugin(ctx context.Context, plugin resolvedCodegenPlugin, reqBytes []byte) ([]emittedCodegenFile, error) {
+func invokeCodegenPlugin(ctx context.Context, plugin resolvedCodegenPlugin, reqBytes []byte, environment ...[]string) ([]emittedCodegenFile, error) {
 	tmp, err := os.MkdirTemp("", "op-codegen-*")
 	if err != nil {
 		return nil, fmt.Errorf("codegen plugin failed: %s: create temp dir: %w", plugin.Name, err)
@@ -785,11 +786,18 @@ func invokeCodegenPlugin(ctx context.Context, plugin resolvedCodegenPlugin, reqB
 
 	cmd := exec.CommandContext(ctx, plugin.Binary)
 	cmd.Dir = tmp
+	if len(environment) != 0 && environment[0] != nil {
+		cmd.Env = environment[0]
+	}
 	if strings.TrimSpace(plugin.ProtocPath) != "" {
-		cmd.Env = append(os.Environ(),
-			"OP_SDK_PROTOC="+plugin.ProtocPath,
-			"OP_SDK_PROTOC_INCLUDE="+plugin.ProtocInclude,
-		)
+		base := cmd.Env
+		if base == nil {
+			base = os.Environ()
+		}
+		cmd.Env = buildenv.Merge(base, []string{
+			"OP_SDK_PROTOC=" + plugin.ProtocPath,
+			"OP_SDK_PROTOC_INCLUDE=" + plugin.ProtocInclude,
+		})
 	}
 	cmd.Stdin = bytes.NewReader(reqBytes)
 	var stdout bytes.Buffer

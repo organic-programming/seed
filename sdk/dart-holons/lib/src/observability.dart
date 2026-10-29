@@ -648,7 +648,7 @@ class _PromGroup {
 }
 
 (String, int) _parsePromAddr(String raw) {
-  final trimmed = raw.trim().isEmpty ? ':0' : raw.trim();
+  final trimmed = raw.trim().isEmpty ? '127.0.0.1:0' : raw.trim();
   if (trimmed.startsWith(':')) {
     return ('0.0.0.0', int.parse(trimmed.substring(1)));
   }

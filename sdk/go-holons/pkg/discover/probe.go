@@ -16,6 +16,7 @@ import (
 	"time"
 
 	holonsv1 "github.com/organic-programming/go-holons/gen/go/holons/v1"
+	"github.com/organic-programming/go-holons/pkg/fileuri"
 	"github.com/organic-programming/go-holons/pkg/grpcclient"
 	"github.com/organic-programming/go-holons/pkg/identity"
 	"google.golang.org/grpc"
@@ -311,6 +312,9 @@ func packageBinaryPath(dir string) (string, error) {
 		if entry.IsDir() {
 			continue
 		}
+		if runtime.GOOS == "windows" && !strings.EqualFold(filepath.Ext(entry.Name()), ".exe") {
+			continue
+		}
 		candidates = append(candidates, filepath.Join(archDir, entry.Name()))
 	}
 	if len(candidates) == 0 {
@@ -371,21 +375,7 @@ func normalizeDialTarget(target string) string {
 }
 
 func pathFromFileURL(raw string) (string, error) {
-	parsed, err := url.Parse(strings.TrimSpace(raw))
-	if err != nil {
-		return "", err
-	}
-	if parsed.Scheme != "file" {
-		return "", fmt.Errorf("holon URL %q is not a local file target", raw)
-	}
-	path := parsed.Path
-	if parsed.Host != "" && parsed.Host != "localhost" {
-		path = "//" + parsed.Host + path
-	}
-	if path == "" {
-		return "", fmt.Errorf("holon URL %q has no path", raw)
-	}
-	return filepath.Clean(path), nil
+	return fileuri.ToPath(raw)
 }
 
 func terminateCommand(cmd *exec.Cmd) {

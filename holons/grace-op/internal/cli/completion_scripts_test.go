@@ -60,6 +60,7 @@ func TestCompletionCommandPatchesZshScriptForLiteralJSON(t *testing.T) {
 func TestCompletionInstallZshIsIdempotent(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 	t.Setenv("SHELL", "/bin/zsh")
 
 	root := newRootCmd("0.1.0-test")
@@ -106,6 +107,7 @@ func TestCompletionInstallZshIsIdempotent(t *testing.T) {
 func TestCompletionInstallBashWritesBashrc(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 	t.Setenv("SHELL", "/bin/bash")
 
 	root := newRootCmd("0.1.0-test")

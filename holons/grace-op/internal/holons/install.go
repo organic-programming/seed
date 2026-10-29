@@ -145,10 +145,19 @@ func Install(ref string, opts InstallOptions) (report InstallReport, err error) 
 	installedPath := filepath.Join(openv.OPBIN(), installName)
 
 	// Self-install: install as a proper .holon package (like every other
-	// holon), then create a symlink $OPBIN/<binary> → <pkg>/bin/<arch>/<binary>
-	// so that tools remain directly callable from PATH.
+	// holon), then publish a launcher (a regular copy on Windows, a symlink
+	// on Unix) so that tools remain directly callable from PATH.
 	if isSelfInstall(target.Manifest) || (opts.Symlink && isHolonPackagePath(installName)) {
 		reporter.Step("copying to " + installedPath + "...")
+		if runtime.GOOS == "windows" && isSelfInstall(target.Manifest) {
+			notes, err := installWindowsSelf(artifactPath, installedPath, target.Manifest.BinaryName())
+			if err != nil {
+				return report, fmt.Errorf("install %s: %w", installName, err)
+			}
+			report.Installed = installedPath
+			report.Notes = append(report.Notes, notes...)
+			return report, nil
+		}
 		if err := copyArtifact(artifactPath, installedPath); err != nil {
 			return report, fmt.Errorf("install %s: %w", installName, err)
 		}
@@ -160,8 +169,8 @@ func Install(ref string, opts InstallOptions) (report InstallReport, err error) 
 			binaryName = report.Binary
 		}
 		// Relative symlink: e.g. grace-op.holon/bin/darwin_arm64/op
-		symlinkRel := filepath.Join(installName, "bin", runtimeArchitecture(), binaryName)
-		symlinkPath := filepath.Join(openv.OPBIN(), binaryName)
+		symlinkRel := filepath.Join(installName, "bin", runtimeArchitecture(), hostExecutableName(binaryName))
+		symlinkPath := filepath.Join(openv.OPBIN(), hostExecutableName(binaryName))
 		_ = os.Remove(symlinkPath)
 		if err := os.Symlink(symlinkRel, symlinkPath); err != nil {
 			return report, fmt.Errorf("symlink %s: %w", symlinkPath, err)
@@ -308,7 +317,12 @@ func UninstallWithOptions(ref string, opts InstallOptions) (report InstallReport
 	// Self-install holons leave a symlink ($OPBIN/<binary>) alongside the
 	// .holon package; clean it up.
 	if target != nil && target.Manifest != nil && isSelfInstall(target.Manifest) {
-		symlinkPath := filepath.Join(openv.OPBIN(), target.Manifest.BinaryName())
+		symlinkPath := filepath.Join(openv.OPBIN(), hostExecutableName(target.Manifest.BinaryName()))
+		if runtime.GOOS == "windows" {
+			if err := removeInstalledExecutable(symlinkPath); err != nil {
+				return report, fmt.Errorf("remove launcher %s: %w", symlinkPath, err)
+			}
+		}
 		if fi, lErr := os.Lstat(symlinkPath); lErr == nil && fi.Mode()&os.ModeSymlink != 0 {
 			_ = os.Remove(symlinkPath)
 		}
@@ -410,7 +424,7 @@ func copyFile(src, dst string) error {
 }
 
 // isSelfInstall returns true when the holon being installed is op itself.
-// In that case, only the binary is installed (no .holon package directory).
+// It also installs a directly callable launcher alongside the .holon package.
 func isSelfInstall(manifest *LoadedManifest) bool {
 	return manifest != nil && manifest.BinaryName() == "op"
 }

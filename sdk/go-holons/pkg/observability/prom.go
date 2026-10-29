@@ -57,8 +57,12 @@ type PromServer struct {
 }
 
 // NewPromServer constructs (but does not start) a PromServer that will
-// bind to addr when Start is called. Pass ":0" for an ephemeral port.
+// bind to addr when Start is called. An empty address uses an ephemeral
+// loopback port. Pass ":0" explicitly to listen on all interfaces.
 func NewPromServer(addr string) *PromServer {
+	if addr == "" {
+		addr = "127.0.0.1:0"
+	}
 	return &PromServer{addr: addr}
 }
 
@@ -78,10 +82,11 @@ func (p *PromServer) Start() (string, error) {
 	}
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", PromHandler())
-	p.server = &http.Server{Handler: mux, ReadHeaderTimeout: 5 * time.Second}
+	server := &http.Server{Handler: mux, ReadHeaderTimeout: 5 * time.Second}
+	p.server = server
 	p.lis = lis
 	go func() {
-		_ = p.server.Serve(lis)
+		_ = server.Serve(lis)
 	}()
 	return "http://" + lis.Addr().String() + "/metrics", nil
 }

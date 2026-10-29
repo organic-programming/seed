@@ -1,0 +1,14 @@
+description: Native Windows OP self-install replacement with a live executable in an isolated snapshot. This focused check does not claim the full op_install CLI/API/RPC matrix.
+defaults:
+  profile: smoke
+steps:
+  native-self-install:
+    workdir: .
+    prereqs: [pwsh, go]
+    script: ader/catalogues/grace-op/scripts/windows-self-install.ps1
+    lane: regression
+profiles:
+  smoke:
+    description: Exercise explicit OPBIN migration, an invoked OP earlier on PATH, a mapped package executable, invalid-artifact preservation, and existing install/uninstall regressions.
+    archive: always
+    steps: [native-self-install]

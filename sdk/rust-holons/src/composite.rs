@@ -171,8 +171,7 @@ pub async fn spawn_member(opts: SpawnOptions) -> Result<SpawnedMember, String> {
         for (key, value) in &env {
             command.env(key, value);
         }
-        child = command
-            .spawn()
+        child = crate::process_owner::spawn(&mut command)
             .map_err(|err| format!("spawn member {slug}: {err}"))?;
         let meta = wait_spawn_meta(&spawn_run_root(&env), &slug, &uid, Duration::from_secs(10))
             .await

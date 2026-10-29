@@ -506,7 +506,7 @@ func (m *LoadedManifest) HolonPackageDir() string {
 
 func (m *LoadedManifest) BinaryPath() string {
 	if binary := m.BinaryName(); binary != "" {
-		return filepath.Join(m.HolonPackageDir(), "bin", runtimeArchitecture(), binary)
+		return filepath.Join(m.HolonPackageDir(), "bin", runtimeArchitecture(), hostExecutableName(binary))
 	}
 	return ""
 }

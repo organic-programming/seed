@@ -26,6 +26,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/organic-programming/go-holons/pkg/processowner"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -77,6 +79,9 @@ func DialStdio(ctx context.Context, binaryPath string) (*grpc.ClientConn, *exec.
 //
 // The caller must kill the process and close the connection when done.
 func DialStdioCommand(ctx context.Context, cmd *exec.Cmd) (*grpc.ClientConn, *exec.Cmd, error) {
+	if err := processowner.Ensure(); err != nil {
+		return nil, nil, err
+	}
 	if cmd == nil {
 		return nil, nil, fmt.Errorf("stdio command is required")
 	}
@@ -93,7 +98,7 @@ func DialStdioCommand(ctx context.Context, cmd *exec.Cmd) (*grpc.ClientConn, *ex
 		return nil, nil, fmt.Errorf("create stdout pipe: %w", err)
 	}
 
-	if err := cmd.Start(); err != nil {
+	if err := processowner.Start(cmd); err != nil {
 		label := cmd.Path
 		if label == "" && len(cmd.Args) > 0 {
 			label = cmd.Args[0]
@@ -156,8 +161,8 @@ func DialStdioCommand(ctx context.Context, cmd *exec.Cmd) (*grpc.ClientConn, *ex
 		grpc.WithBlock(),
 	)
 	if err != nil {
-		cmd.Process.Kill() //nolint:errcheck
-		cmd.Wait()         //nolint:errcheck
+		_ = processowner.Kill(cmd)
+		_ = processowner.Wait(cmd)
 		if ctx.Err() != nil {
 			return nil, nil, fmt.Errorf("server startup timeout")
 		}

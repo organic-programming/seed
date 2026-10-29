@@ -15,6 +15,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/organic-programming/grace-op/internal/buildenv"
 )
 
 // BuildOptions captures a request to build a SDK prebuilt from local sources.
@@ -159,7 +161,11 @@ func localSourceTreeSHA256(repoRoot, lang string) (string, bool, error) {
 	libRel := filepath.ToSlash(filepath.Join(".github", "scripts", "lib-codegen-prebuilt.sh"))
 	toolchainRel := seedToolchainFile
 	sdkRel := filepath.ToSlash(filepath.Join("sdk", lang+"-holons"))
-	files, err := sourceTreeFiles(repoRoot, sdkRel, scriptRel, libRel, toolchainRel)
+	roots := []string{sdkRel, scriptRel, libRel, toolchainRel}
+	if runtime.GOOS == "windows" && (lang == "go" || lang == "dart") {
+		roots = append(roots, "holons/grace-op/internal/sdkprebuilts/build_codegen_native.go")
+	}
+	files, err := sourceTreeFiles(repoRoot, roots...)
 	if err != nil {
 		return "", false, nil
 	}
@@ -269,6 +275,9 @@ func runBuildScript(ctx context.Context, scriptPath, lang, target, version strin
 	} else if err := writeSharedSeedReleaseSnapshot(seed.SeedRelease, toolchain); err != nil {
 		return err
 	}
+	if runtime.GOOS == "windows" && (lang == "go" || lang == "dart") {
+		return buildWindowsCodegen(ctx, repoRoot, lang, target, version, toolchain, opts)
+	}
 	env := append(os.Environ(),
 		"SDK_TARGET="+target,
 		"SDK_VERSION="+version,
@@ -290,28 +299,33 @@ func runBuildScript(ctx context.Context, scriptPath, lang, target, version strin
 		}
 	}
 
-	// Tee stderr to a tail buffer so we can include the last few lines in the
-	// returned error without dumping the whole ninja log.
-	tailBuf := newTailBuffer(40)
+	// Ninja reports compiler failures on stdout. Keep a tail of both streams
+	// while preserving live output. Separate buffers avoid concurrent writes
+	// from os/exec's stdout and stderr copying goroutines.
+	stdoutTail := newTailBuffer(40)
+	stderrTail := newTailBuffer(40)
 	cmd := exec.CommandContext(ctx, "bash", scriptPath)
 	cmd.Dir = repoRoot
 	cmd.Env = env
-	cmd.Stdout = orDevNull(opts.Stdout)
-	cmd.Stderr = io.MultiWriter(orDevNull(opts.Stderr), tailBuf)
+	cmd.Stdout = io.MultiWriter(orDevNull(opts.Stdout), stdoutTail)
+	cmd.Stderr = io.MultiWriter(orDevNull(opts.Stderr), stderrTail)
 
 	if err := cmd.Run(); err != nil {
-		tail := strings.TrimSpace(tailBuf.String())
-		if tail == "" {
-			return fmt.Errorf("build script %s failed: %w", workspaceRel(repoRoot, scriptPath), err)
+		var output strings.Builder
+		if tail := strings.TrimSpace(stdoutTail.String()); tail != "" {
+			fmt.Fprintf(&output, "\nlast stdout lines:\n%s", tail)
 		}
-		return fmt.Errorf("build script %s failed: %w\nlast stderr lines:\n%s",
-			workspaceRel(repoRoot, scriptPath), err, tail)
+		if tail := strings.TrimSpace(stderrTail.String()); tail != "" {
+			fmt.Fprintf(&output, "\nlast stderr lines:\n%s", tail)
+		}
+		return fmt.Errorf("build script %s failed: %w%s",
+			workspaceRel(repoRoot, scriptPath), err, output.String())
 	}
 	return nil
 }
 
 // tailBuffer keeps the last N lines written to it. Used to capture the
-// trailing portion of a long script's stderr for error reporting.
+// trailing portion of a long script's output for error reporting.
 type tailBuffer struct {
 	lines    []string
 	maxLines int
@@ -458,8 +472,12 @@ func collectCompileBlockers(repoRoot, lang, target string) []string {
 		}
 	}
 
+	environment, err := buildenv.Prepare(repoRoot)
+	if err != nil {
+		return append(blockers, err.Error())
+	}
 	for _, bin := range requiredBinaries(lang, target) {
-		if _, err := exec.LookPath(bin); err != nil {
+		if _, err := buildenv.Lookup(environment, bin); err != nil {
 			blockers = append(blockers, fmt.Sprintf("%s not on PATH", bin))
 		}
 	}

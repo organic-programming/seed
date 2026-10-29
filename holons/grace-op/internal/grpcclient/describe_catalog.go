@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -451,10 +452,38 @@ func (b *syntheticProtoBuilder) populateMessageFields(msg *descriptorpb.Descript
 	}
 
 	descriptors := make([]*descriptorpb.FieldDescriptorProto, 0, len(fields))
+	var usedNames map[string]bool
+	if runtime.GOOS == "windows" {
+		usedNames = make(map[string]bool, len(fields))
+		for _, field := range fields {
+			usedNames[field.GetName()] = true
+		}
+		msg.OneofDecl = nil
+	}
 	for _, field := range fields {
 		descriptor, err := b.buildFieldDescriptor(field)
 		if err != nil {
 			return err
+		}
+		// Describe's cardinality does not distinguish an implicit proto3 scalar
+		// from an explicit optional scalar. Preserve every explicitly supplied
+		// singular scalar, including false/zero/empty, on the wire. Receivers
+		// with implicit presence accept the same encoding; omitted JSON fields
+		// stay absent. Message fields already have presence and collections do
+		// not need it. Synthetic oneofs are protobuf's proto3 optional encoding.
+		// Keep the pre-existing Unix descriptor behavior during the Windows port;
+		// the same presence defect there needs its own compatibility review.
+		if runtime.GOOS == "windows" && descriptor.GetLabel() != descriptorpb.FieldDescriptorProto_LABEL_REPEATED &&
+			descriptor.GetType() != descriptorpb.FieldDescriptorProto_TYPE_MESSAGE &&
+			descriptor.GetType() != descriptorpb.FieldDescriptorProto_TYPE_GROUP {
+			name := "_" + descriptor.GetName()
+			for usedNames[name] {
+				name = "_" + name
+			}
+			usedNames[name] = true
+			descriptor.Proto3Optional = proto.Bool(true)
+			descriptor.OneofIndex = proto.Int32(int32(len(msg.OneofDecl)))
+			msg.OneofDecl = append(msg.OneofDecl, &descriptorpb.OneofDescriptorProto{Name: proto.String(name)})
 		}
 		descriptors = append(descriptors, descriptor)
 	}

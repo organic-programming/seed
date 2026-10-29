@@ -274,15 +274,15 @@ option (holons.v1.manifest) = {
 	if len(first.Children) != 1 {
 		t.Fatalf("first build children = %d, want 1", len(first.Children))
 	}
-	parentBinary := filepath.Join(parentDir, ".op", "build", "composite.holon", "bin", runtimeArchitecture(), "composite")
+	parentBinary := filepath.Join(parentDir, ".op", "build", "composite.holon", "bin", runtimeArchitecture(), hostExecutableName("composite"))
 	if _, err := os.Stat(parentBinary); err != nil {
 		t.Fatalf("parent binary missing: %v", err)
 	}
-	embeddedChildBinary := filepath.Join(parentDir, ".op", "build", "composite.holon", "bin", runtimeArchitecture(), "holons", "node-a", "node-a")
+	embeddedChildBinary := filepath.Join(parentDir, ".op", "build", "composite.holon", "bin", runtimeArchitecture(), "holons", "node-a", hostExecutableName("node-a"))
 	if _, err := os.Stat(embeddedChildBinary); err != nil {
 		t.Fatalf("embedded child binary missing: %v", err)
 	}
-	childBinary := filepath.Join(childDir, ".op", "build", "node-a.holon", "bin", runtimeArchitecture(), "node-a")
+	childBinary := filepath.Join(childDir, ".op", "build", "node-a.holon", "bin", runtimeArchitecture(), hostExecutableName("node-a"))
 	if _, err := os.Stat(childBinary); err != nil {
 		t.Fatalf("child binary missing: %v", err)
 	}

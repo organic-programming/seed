@@ -3,6 +3,7 @@ package env
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -54,8 +55,21 @@ func Init() error {
 	return nil
 }
 
-// ShellSnippet returns a shell fragment suitable for zsh/bash startup files.
+// ShellSnippet returns a PowerShell fragment on Windows and a POSIX shell
+// fragment elsewhere, preserving caller-provided runtime locations.
 func ShellSnippet() string {
+	return shellSnippetForOS(runtime.GOOS)
+}
+
+func shellSnippetForOS(goos string) string {
+	if goos == "windows" {
+		return strings.Join([]string{
+			`if (-not $env:OPPATH) { $env:OPPATH = Join-Path $env:USERPROFILE '.op' }`,
+			`if (-not $env:OPBIN) { $env:OPBIN = Join-Path $env:OPPATH 'bin' }`,
+			`New-Item -ItemType Directory -Force -Path $env:OPBIN | Out-Null`,
+			`$env:PATH = "$($env:OPBIN);$($env:PATH)"`,
+		}, "\n")
+	}
 	return strings.Join([]string{
 		`export OPPATH="${OPPATH:-$HOME/.op}"`,
 		`export OPBIN="${OPBIN:-$OPPATH/bin}"`,

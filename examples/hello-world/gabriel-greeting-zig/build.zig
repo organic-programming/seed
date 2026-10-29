@@ -170,8 +170,12 @@ fn holonsModule(
         .files = &generated_c_sources,
         .flags = &.{ "-std=c99", "-Wno-unused-parameter" },
     });
-    mod.addLibraryPath(nativePath(b, native_root, "lib"));
     mod.link_libc = true;
+    // macOS native archives are compiled with Apple Clang. Link them with
+    // Apple's linker and libc++ after Zig emits its object file.
+    if (target.result.os.tag == .macos) return mod;
+
+    mod.addLibraryPath(nativePath(b, native_root, "lib"));
     mod.linkSystemLibrary("protobuf-c", .{ .use_pkg_config = .no, .preferred_link_mode = .static });
     for (grpc_unsecure_static_libs) |name| {
         mod.linkSystemLibrary(name, .{ .use_pkg_config = .no, .preferred_link_mode = .static });
@@ -187,15 +191,45 @@ fn holonsModule(
         mod.linkSystemLibrary("resolv", .{ .use_pkg_config = .no });
     }
     mod.linkSystemLibrary("c++", .{ .use_pkg_config = .no });
-    if (target.result.os.tag == .macos) {
-        mod.linkFramework("CoreFoundation", .{});
-    }
     return mod;
+}
+
+fn linkMacOSObject(
+    b: *std.Build,
+    object: *std.Build.Step.Compile,
+    target: std.Build.ResolvedTarget,
+    native_root: NativeRoot,
+    name: []const u8,
+) std.Build.LazyPath {
+    // Zig's bundled libc++ headers and Mach-O linker do not support all
+    // newer Apple SDK headers and weak C++ relocations. Keep the native
+    // compiler/linker pair consistent without changing the deployment target.
+    object.bundle_compiler_rt = true;
+    object.bundle_ubsan_rt = true;
+    const arch = switch (target.result.cpu.arch) {
+        .aarch64 => "arm64",
+        .x86_64 => "x86_64",
+        else => @panic("unsupported macOS architecture"),
+    };
+    const minimum = target.result.os.version_range.semver.min;
+    const link = b.addSystemCommand(&.{ "xcrun", "--sdk", "macosx", "clang++", "-arch", arch });
+    link.addArg(b.fmt("-mmacosx-version-min={d}.{d}.{d}", .{ minimum.major, minimum.minor, minimum.patch }));
+    link.addFileArg(object.getEmittedBin());
+    // Explicit archive paths prevent a stale dylib in the prebuilt prefix
+    // from adding an unresolved @rpath dependency to the executable.
+    link.addFileArg(nativePath(b, native_root, "lib/libprotobuf-c.a"));
+    for (grpc_unsecure_static_libs) |lib| {
+        link.addFileArg(nativePath(b, native_root, b.fmt("lib/lib{s}.a", .{lib})));
+    }
+    link.addFileArg(nativePath(b, native_root, "lib/libz.a"));
+    link.addArgs(&.{ "-lresolv", "-framework", "CoreFoundation", "-o" });
+    return link.addOutputFileArg(name);
 }
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+    const is_macos = target.result.os.tag == .macos;
     const native_root = selectedNativeRoot(b);
     const native_ready = checkNativeRoot(b, native_root);
     const holons_mod = holonsModule(b, target, optimize, native_root);
@@ -208,22 +242,36 @@ pub fn build(b: *std.Build) void {
         },
     });
 
-    const exe = b.addExecutable(.{
-        .name = "gabriel-greeting-zig",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("src/main.zig"),
-            .target = target,
-            .optimize = optimize,
-            .imports = &.{
-                .{ .name = "zig_holons", .module = holons_mod },
-                .{ .name = "describe_generated", .module = describe_mod },
-            },
-        }),
+    const root_mod = b.createModule(.{
+        .root_source_file = b.path("src/main.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{
+            .{ .name = "zig_holons", .module = holons_mod },
+            .{ .name = "describe_generated", .module = describe_mod },
+        },
     });
-    exe.step.dependOn(&native_ready.step);
-    b.installArtifact(exe);
+    if (is_macos) {
+        const object = b.addObject(.{
+            .name = "gabriel-greeting-zig",
+            .root_module = root_mod,
+            .use_llvm = true,
+        });
+        object.step.dependOn(&native_ready.step);
+        const binary = linkMacOSObject(b, object, target, native_root, "gabriel-greeting-zig");
+        b.getInstallStep().dependOn(&b.addInstallBinFile(binary, "gabriel-greeting-zig").step);
+    } else {
+        const exe = b.addExecutable(.{
+            .name = "gabriel-greeting-zig",
+            .root_module = root_mod,
+        });
+        exe.step.dependOn(&native_ready.step);
+        b.installArtifact(exe);
+    }
 
     const tests = b.addTest(.{
+        .emit_object = is_macos,
+        .use_llvm = if (is_macos) true else null,
         .root_module = b.createModule(.{
             .root_source_file = b.path("src/greetings.zig"),
             .target = target,
@@ -235,9 +283,17 @@ pub fn build(b: *std.Build) void {
     });
     tests.step.dependOn(&native_ready.step);
 
-    const run_tests = b.addRunArtifact(tests);
     const test_step = b.step("test", "Run gabriel-greeting-zig tests");
-    test_step.dependOn(&run_tests.step);
+    if (is_macos) {
+        const binary = linkMacOSObject(b, tests, target, native_root, "gabriel-greeting-zig-tests");
+        const run_tests = std.Build.Step.Run.create(b, "run gabriel-greeting-zig tests");
+        run_tests.addFileArg(binary);
+        run_tests.stdio = .inherit;
+        test_step.dependOn(&run_tests.step);
+    } else {
+        const run_tests = b.addRunArtifact(tests);
+        test_step.dependOn(&run_tests.step);
+    }
 
     const clean_command = b.addSystemCommand(&.{ "rm", "-rf", ".zig-cache", "zig-out" });
     const clean_step = b.step("clean", "Remove Zig build outputs");

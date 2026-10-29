@@ -10,6 +10,8 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+
+	"github.com/organic-programming/grace-op/internal/buildenv"
 )
 
 var runnerRegistry = map[string]runner{
@@ -64,9 +66,17 @@ func manifestHasPrimaryArtifact(manifest *LoadedManifest) bool {
 	return primary != "" && !isHolonPackagePath(primary)
 }
 
-func requireRunnerCommands(commands ...string) error {
+func requireRunnerCommands(manifest *LoadedManifest, commands ...string) error {
+	var environment []string
+	if manifest != nil {
+		var err error
+		environment, err = buildenv.Prepare(manifest.Dir)
+		if err != nil {
+			return err
+		}
+	}
 	for _, command := range commands {
-		if _, err := exec.LookPath(command); err != nil {
+		if _, err := buildenv.Lookup(environment, command); err != nil {
 			return fmt.Errorf("missing required command %q on PATH; %s", command, installHint(command))
 		}
 	}
@@ -74,7 +84,7 @@ func requireRunnerCommands(commands ...string) error {
 }
 
 func hostExecutableName(name string) string {
-	if runtime.GOOS == "windows" && filepath.Ext(name) == "" {
+	if runtime.GOOS == "windows" && name != "" && filepath.Ext(name) == "" {
 		return name + ".exe"
 	}
 	return name
@@ -932,7 +942,7 @@ type cargoRunner struct{}
 type zigRunner struct{}
 
 func (zigRunner) check(manifest *LoadedManifest, _ BuildContext) error {
-	if err := requireRunnerCommands("zig"); err != nil {
+	if err := requireRunnerCommands(manifest, "zig"); err != nil {
 		return err
 	}
 	if manifest == nil {
@@ -1012,11 +1022,11 @@ func zigArtifactCandidates(manifest *LoadedManifest) []string {
 }
 
 func (cargoRunner) check(manifest *LoadedManifest, _ BuildContext) error {
-	if err := requireRunnerCommands("cargo", "rustc"); err != nil {
+	if err := requireRunnerCommands(manifest, "cargo", "rustc"); err != nil {
 		return err
 	}
 	if hasCMakeProject(manifest) {
-		return requireRunnerCommands("cmake")
+		return requireRunnerCommands(manifest, "cmake")
 	}
 	return nil
 }
@@ -1029,7 +1039,7 @@ func (cargoRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Rep
 		return err
 	}
 
-	targetDir := filepath.Join(manifest.OpRoot(), "build", "cargo")
+	targetDir := cargoTargetDir(manifest)
 	args := []string{"cargo", "build", "--target-dir", targetDir}
 	if normalizeBuildMode(ctx.Mode) != buildModeDebug {
 		args = append(args, "--release")
@@ -1039,14 +1049,17 @@ func (cargoRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Rep
 	if ctx.DryRun {
 		return nil
 	}
-	if err := os.MkdirAll(targetDir, 0o755); err != nil {
+	if err := prepareCargoTargetDir(manifest); err != nil {
 		return fmt.Errorf("create cargo target dir: %w", err)
 	}
-	if output, err := runCommand(manifest.Dir, args); err != nil {
+	if output, err := runCommandWithEnv(manifest.Dir, args, append(append([]string{}, ctx.Environment...), cargoTargetEnv(manifest)...)); err != nil {
 		return fmt.Errorf("%s\n%s", err, output)
 	}
 	source := filepath.Join(targetDir, cargoModeDir(ctx.Mode), hostExecutableName(manifest.BinaryName()))
 	if err := syncBinaryArtifact(manifest, source); err != nil {
+		return err
+	}
+	if err := bundleCargoWindowsCRT(manifest, report, ctx.Environment); err != nil {
 		return err
 	}
 	report.Notes = append(report.Notes, "cargo build complete")
@@ -1054,10 +1067,15 @@ func (cargoRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Rep
 }
 
 func (cargoRunner) test(manifest *LoadedManifest, ctx BuildContext, report *Report) error {
-	args := []string{"cargo", "test", "--target-dir", filepath.Join(manifest.OpRoot(), "build", "cargo")}
+	args := []string{"cargo", "test", "--target-dir", cargoTargetDir(manifest)}
 	report.Commands = append(report.Commands, commandString(args))
 	ctx.Progress.Step(commandString(args))
-	if output, err := runCommand(manifest.Dir, args); err != nil {
+	if runtime.GOOS == "windows" {
+		if err := prepareCargoTargetDir(manifest); err != nil {
+			return err
+		}
+	}
+	if output, err := runCommandWithEnv(manifest.Dir, args, append(append([]string{}, ctx.Environment...), cargoTargetEnv(manifest)...)); err != nil {
 		return fmt.Errorf("%s\n%s", err, output)
 	}
 	report.Notes = append(report.Notes, "cargo test passed")
@@ -1065,6 +1083,9 @@ func (cargoRunner) test(manifest *LoadedManifest, ctx BuildContext, report *Repo
 }
 
 func (cargoRunner) clean(manifest *LoadedManifest, _ BuildContext, report *Report) error {
+	if err := cleanCargoTargetDir(manifest); err != nil {
+		return err
+	}
 	if err := os.RemoveAll(manifest.OpRoot()); err != nil {
 		return err
 	}
@@ -1117,7 +1138,7 @@ func (pythonRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Re
 			report.Commands = append(report.Commands, commandString(args))
 			ctx.Progress.Step(commandString(args))
 			if !ctx.DryRun {
-				if output, err := runCommand(isolatedDir, args); err != nil {
+				if output, err := runCommandWithEnv(isolatedDir, args, ctx.Environment); err != nil {
 					return fmt.Errorf("%s\n%s", err, output)
 				}
 			}
@@ -1255,7 +1276,7 @@ func (pythonRunner) clean(manifest *LoadedManifest, _ BuildContext, report *Repo
 type dartRunner struct{}
 
 func (dartRunner) check(manifest *LoadedManifest, _ BuildContext) error {
-	if err := requireRunnerCommands("dart"); err != nil {
+	if err := requireRunnerCommands(manifest, "dart"); err != nil {
 		return err
 	}
 	if !fileExists(filepath.Join(manifest.Dir, "pubspec.yaml")) {
@@ -1472,7 +1493,7 @@ type swiftPackageRunner struct{}
 var swiftPackageRunCommand = runCommand
 
 func (swiftPackageRunner) check(manifest *LoadedManifest, _ BuildContext) error {
-	if err := requireRunnerCommands("swift", "xcodebuild"); err != nil {
+	if err := requireRunnerCommands(manifest, "swift", "xcodebuild"); err != nil {
 		return err
 	}
 	if hasSwiftPackage(manifest) {
@@ -1642,8 +1663,8 @@ func isSwiftBuildDescriptionCorruption(output string) bool {
 
 type flutterRunner struct{}
 
-func (flutterRunner) check(_ *LoadedManifest, _ BuildContext) error {
-	return requireRunnerCommands("flutter", "dart")
+func (flutterRunner) check(manifest *LoadedManifest, _ BuildContext) error {
+	return requireRunnerCommands(manifest, "flutter", "dart")
 }
 
 func (flutterRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Report) error {
@@ -1674,10 +1695,10 @@ func (flutterRunner) test(manifest *LoadedManifest, ctx BuildContext, report *Re
 	return nil
 }
 
-func (flutterRunner) clean(manifest *LoadedManifest, _ BuildContext, report *Report) error {
+func (flutterRunner) clean(manifest *LoadedManifest, ctx BuildContext, report *Report) error {
 	args := []string{"flutter", "clean"}
 	report.Commands = append(report.Commands, commandString(args))
-	if _, err := exec.LookPath("flutter"); err == nil {
+	if _, err := buildenv.Lookup(ctx.Environment, "flutter"); err == nil {
 		if output, cmdErr := runCommand(manifest.Dir, args); cmdErr != nil {
 			return fmt.Errorf("%s\n%s", cmdErr, output)
 		}
@@ -1727,7 +1748,7 @@ func prepareNPMIsolatedWorkspace(isolatedDir string, manifest *LoadedManifest) e
 type npmRunner struct{}
 
 func (npmRunner) check(manifest *LoadedManifest, _ BuildContext) error {
-	if err := requireRunnerCommands("node", "npm"); err != nil {
+	if err := requireRunnerCommands(manifest, "node", "npm"); err != nil {
 		return err
 	}
 	if _, err := os.Stat(filepath.Join(manifest.Dir, "package.json")); err != nil {
@@ -1761,7 +1782,7 @@ func (npmRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Repor
 		return nil
 	}
 	for _, args := range commands {
-		if output, err := runCommand(isolatedDir, args); err != nil {
+		if output, err := runCommandWithEnv(isolatedDir, args, ctx.Environment); err != nil {
 			return fmt.Errorf("%s\n%s", err, output)
 		}
 	}
@@ -1826,7 +1847,7 @@ func (npmRunner) test(manifest *LoadedManifest, ctx BuildContext, report *Report
 		return nil
 	}
 	for _, args := range commands {
-		if output, err := runCommand(isolatedDir, args); err != nil {
+		if output, err := runCommandWithEnv(isolatedDir, args, ctx.Environment); err != nil {
 			return fmt.Errorf("%s\n%s", err, output)
 		}
 	}
@@ -1899,7 +1920,7 @@ func npmHasBuildScript(manifest *LoadedManifest) bool {
 type gradleRunner struct{}
 
 func (gradleRunner) check(manifest *LoadedManifest, _ BuildContext) error {
-	if err := requireRunnerCommands("java"); err != nil {
+	if err := requireRunnerCommands(manifest, "java"); err != nil {
 		return err
 	}
 	if _, err := gradleInvoker(manifest); err != nil {
@@ -2005,7 +2026,7 @@ func gradleArtifactCandidates(manifest *LoadedManifest) []string {
 type dotnetRunner struct{}
 
 func (dotnetRunner) check(manifest *LoadedManifest, ctx BuildContext) error {
-	if err := requireRunnerCommands("dotnet"); err != nil {
+	if err := requireRunnerCommands(manifest, "dotnet"); err != nil {
 		return err
 	}
 	csproj, err := dotnetProjectFile(manifest)
@@ -2105,8 +2126,8 @@ func requiredDotnetWorkload(projectFile, target string) string {
 
 type qtCMakeRunner struct{}
 
-func (qtCMakeRunner) check(_ *LoadedManifest, _ BuildContext) error {
-	if err := requireRunnerCommands("cmake"); err != nil {
+func (qtCMakeRunner) check(manifest *LoadedManifest, _ BuildContext) error {
+	if err := requireRunnerCommands(manifest, "cmake"); err != nil {
 		return err
 	}
 	_, err := detectQt6Dir()

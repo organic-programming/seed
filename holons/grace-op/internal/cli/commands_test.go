@@ -616,6 +616,7 @@ func TestCommandForArtifactDoesNotAddAssemblyEnvForNativeHolons(t *testing.T) {
 }
 
 func TestOpenAppBundleCommandPassesAssemblyEnvOnMacOS(t *testing.T) {
+	const bundlePath = "/tmp/gudule-greeting-hostui-flutter.app"
 	manifest := &holons.LoadedManifest{
 		Name: "gudule-greeting-flutter-rust",
 		Manifest: holons.Manifest{
@@ -625,7 +626,13 @@ func TestOpenAppBundleCommandPassesAssemblyEnvOnMacOS(t *testing.T) {
 		},
 	}
 
-	cmd := openAppBundleCommand("/tmp/gudule-greeting-hostui-flutter.app", manifest)
+	cmd := openAppBundleCommand(bundlePath, manifest)
+	if len(cmd.Args) < 4 || cmd.Args[0] != "open" || cmd.Args[1] != "-n" || cmd.Args[2] != "-W" {
+		t.Fatalf("open args = %v, want a fresh, foreground-waited app launch", cmd.Args)
+	}
+	if got := cmd.Args[len(cmd.Args)-1]; got != bundlePath {
+		t.Fatalf("open bundle path = %q, want %q", got, bundlePath)
+	}
 	args := strings.Join(cmd.Args, " ")
 	if !strings.Contains(args, "OP_ASSEMBLY_FAMILY=Greeting-Flutter-Rust") {
 		t.Fatalf("open args missing family env: %v", cmd.Args)
@@ -1129,7 +1136,7 @@ func TestInstallCommand(t *testing.T) {
 	})
 
 	installed := filepath.Join(root, ".runtime", "bin", "demo.holon")
-	if _, err := os.Stat(filepath.Join(installed, "bin", runtime.GOOS+"_"+runtime.GOARCH, "demo")); err != nil {
+	if _, err := os.Stat(filepath.Join(installed, "bin", runtime.GOOS+"_"+runtime.GOARCH, hostTestExecutableName("demo"))); err != nil {
 		t.Fatalf("installed package binary missing: %v", err)
 	}
 	if !strings.Contains(output, "Installed: "+installed) {
@@ -1264,7 +1271,7 @@ func TestInstallCommandProtoManifest(t *testing.T) {
 	})
 
 	installed := filepath.Join(root, ".runtime", "bin", "demo-proto.holon")
-	if _, err := os.Stat(filepath.Join(installed, "bin", runtime.GOOS+"_"+runtime.GOARCH, "demo-proto")); err != nil {
+	if _, err := os.Stat(filepath.Join(installed, "bin", runtime.GOOS+"_"+runtime.GOARCH, hostTestExecutableName("demo-proto"))); err != nil {
 		t.Fatalf("installed package binary missing: %v", err)
 	}
 	if !strings.Contains(output, "Installed: "+installed) {
@@ -1303,7 +1310,7 @@ func TestInstallCommandResolvesAliasFromSourceWhenArtifactExists(t *testing.T) {
 	})
 
 	installed := filepath.Join(root, ".runtime", "bin", "demo-proto.holon")
-	if _, err := os.Stat(filepath.Join(installed, "bin", runtime.GOOS+"_"+runtime.GOARCH, "demo-proto")); err != nil {
+	if _, err := os.Stat(filepath.Join(installed, "bin", runtime.GOOS+"_"+runtime.GOARCH, hostTestExecutableName("demo-proto"))); err != nil {
 		t.Fatalf("installed package binary missing: %v", err)
 	}
 	if !strings.Contains(output, "Installed: "+installed) {
@@ -1528,7 +1535,7 @@ func TestBuildCommandInstallBuildsAndInstalls(t *testing.T) {
 	}
 
 	installed := filepath.Join(root, ".runtime", "bin", "demo-proto.holon")
-	if _, err := os.Stat(filepath.Join(installed, "bin", runtime.GOOS+"_"+runtime.GOARCH, "demo-proto")); err != nil {
+	if _, err := os.Stat(filepath.Join(installed, "bin", runtime.GOOS+"_"+runtime.GOARCH, hostTestExecutableName("demo-proto"))); err != nil {
 		t.Fatalf("installed package binary missing: %v", err)
 	}
 	for _, want := range []string{

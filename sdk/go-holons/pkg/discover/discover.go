@@ -4,14 +4,15 @@ package discover
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/organic-programming/go-holons/pkg/fileuri"
 	"github.com/organic-programming/go-holons/pkg/identity"
 )
 
@@ -761,8 +762,12 @@ func matchesExpression(entry HolonEntry, expression *string) bool {
 }
 
 func holonRefFromEntry(entry HolonEntry) HolonRef {
+	path := entry.Dir
+	if runtime.GOOS == "windows" && entry.SourceKind == "binary" && filepath.IsAbs(entry.Entrypoint) {
+		path = entry.Entrypoint
+	}
 	return HolonRef{
-		URL:  fileURL(entry.Dir),
+		URL:  fileURL(path),
 		Info: holonInfoFromEntry(entry),
 	}
 }
@@ -803,7 +808,7 @@ func holonInfoFromEntry(entry HolonEntry) *HolonInfo {
 }
 
 func fileURL(path string) string {
-	return (&url.URL{Scheme: "file", Path: filepath.ToSlash(path)}).String()
+	return fileuri.FromPath(path)
 }
 
 func applyRefLimit(refs []HolonRef, limit int) []HolonRef {

@@ -9,11 +9,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 
 	sdkconnect "github.com/organic-programming/go-holons/pkg/connect"
 	sdkdiscover "github.com/organic-programming/go-holons/pkg/discover"
+	"github.com/organic-programming/go-holons/pkg/fileuri"
 	openv "github.com/organic-programming/grace-op/internal/env"
 	"github.com/organic-programming/grace-op/internal/identity"
 )
@@ -197,6 +199,9 @@ func targetFromRef(ref *sdkdiscover.HolonRef) (*Target, error) {
 	sourceKind := ""
 	if ref.Info != nil {
 		sourceKind = strings.TrimSpace(ref.Info.SourceKind)
+		if runtime.GOOS == "windows" && sourceKind == "binary" && filepath.IsAbs(ref.Info.Entrypoint) {
+			refPath = ref.Info.Entrypoint
+		}
 	}
 
 	dirPath := refPath
@@ -708,6 +713,9 @@ func pathFromRefURL(raw string) (string, error) {
 	trimmed := strings.TrimSpace(raw)
 	if !strings.HasPrefix(strings.ToLower(trimmed), "file://") {
 		return trimmed, nil
+	}
+	if runtime.GOOS == "windows" {
+		return fileuri.ToPath(trimmed)
 	}
 	parsed, err := url.Parse(trimmed)
 	if err != nil {

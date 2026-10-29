@@ -272,7 +272,11 @@ grpc_flags=(
 )
 
 if [[ "$cmake_system" == Darwin ]]; then
+  # CheckSymbolExists strips -Werror from compiler flags. Keep availability
+  # checks strict via CMAKE_REQUIRED_FLAGS so newer SDK declarations (pipe2 in
+  # macOS 27, for example) do not enable APIs absent from the deployment target.
   grpc_flags+=(
+    -DCMAKE_REQUIRED_FLAGS=-Werror=unguarded-availability
     -DCMAKE_OSX_ARCHITECTURES="${cmake_processor}"
     -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET:-13.0}"
   )

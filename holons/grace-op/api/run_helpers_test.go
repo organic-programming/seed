@@ -81,3 +81,12 @@ func TestRunWithIORejectsExplicitStdioListen(t *testing.T) {
 		t.Fatalf("ListenUri = %q, want %q", resp.GetListenUri(), "stdio://")
 	}
 }
+
+func TestOpenMacAppBundleCommandLaunchesNewInstance(t *testing.T) {
+	const bundlePath = "/tmp/liz-stenobubble.app"
+	cmd := openMacAppBundleCommand(bundlePath)
+	want := []string{"open", "-n", "-W", bundlePath}
+	if strings.Join(cmd.Args, "\x00") != strings.Join(want, "\x00") {
+		t.Fatalf("open args = %v, want %v", cmd.Args, want)
+	}
+}

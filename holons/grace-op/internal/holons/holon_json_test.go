@@ -39,7 +39,7 @@ artifacts:
 		t.Fatalf("HolonPackageDir() = %q, want %q", got, wantPkgDir)
 	}
 
-	wantBinaryPath := filepath.Join(wantPkgDir, "bin", runtimeArchitecture(), "demo-holon")
+	wantBinaryPath := filepath.Join(wantPkgDir, "bin", runtimeArchitecture(), hostExecutableName("demo-holon"))
 	if got := manifest.BinaryPath(); got != wantBinaryPath {
 		t.Fatalf("BinaryPath() = %q, want %q", got, wantBinaryPath)
 	}
@@ -119,8 +119,8 @@ artifacts:
 	if payload.Identity.GivenName != "Demo" || payload.Identity.FamilyName != "Holon" || payload.Identity.Motto != "A packaged test holon." {
 		t.Fatalf("Identity = %#v", payload.Identity)
 	}
-	if payload.Entrypoint != "demo-holon" {
-		t.Fatalf("Entrypoint = %q, want demo-holon", payload.Entrypoint)
+	if payload.Entrypoint != hostExecutableName("demo-holon") {
+		t.Fatalf("Entrypoint = %q, want %q", payload.Entrypoint, hostExecutableName("demo-holon"))
 	}
 	if !payload.Hardened {
 		t.Fatal("Hardened = false, want true")
@@ -185,7 +185,7 @@ artifacts:
 	if payload.Hardened {
 		t.Fatal("Hardened = true, want false for install metadata")
 	}
-	if payload.Entrypoint != "python-demo" {
-		t.Fatalf("Entrypoint = %q, want python-demo", payload.Entrypoint)
+	if payload.Entrypoint != hostExecutableName("python-demo") {
+		t.Fatalf("Entrypoint = %q, want %q", payload.Entrypoint, hostExecutableName("python-demo"))
 	}
 }

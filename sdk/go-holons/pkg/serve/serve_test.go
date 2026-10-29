@@ -186,6 +186,9 @@ func TestRunServesGRPCOnRandomPort(t *testing.T) {
 }
 
 func TestCurrentTransportTracksRunLifecycle(t *testing.T) {
+	if runIsolatedTransportLifecycle(t) {
+		return
+	}
 	if got := serve.CurrentTransport(); got != "" {
 		t.Fatalf("CurrentTransport before Run = %q, want empty", got)
 	}
@@ -208,7 +211,7 @@ func TestCurrentTransportTracksRunLifecycle(t *testing.T) {
 		t.Fatalf("CurrentTransport during Run = %q, want tcp", got)
 	}
 
-	if err := syscall.Kill(os.Getpid(), syscall.SIGTERM); err != nil {
+	if err := signalTransportLifecycle(); err != nil {
 		t.Fatalf("signal self: %v", err)
 	}
 	select {
@@ -217,7 +220,7 @@ func TestCurrentTransportTracksRunLifecycle(t *testing.T) {
 			t.Fatalf("RunWithOptions returned error: %v", err)
 		}
 	case <-time.After(5 * time.Second):
-		t.Fatal("RunWithOptions did not stop after SIGTERM")
+		t.Fatal("RunWithOptions did not stop after its native shutdown signal")
 	}
 	if got := serve.CurrentTransport(); got != "" {
 		t.Fatalf("CurrentTransport after Run = %q, want empty", got)
@@ -299,10 +302,60 @@ func TestRunServesGRPCAndHTTPConcurrently(t *testing.T) {
 	requireHTTPStreamEchoEventually(t, client, "serve-multi-stream")
 }
 
+func TestRunPrometheusDefaultAndExplicitBindings(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		address   string
+		alternate bool
+	}{
+		{name: "default-loopback"},
+		{name: "explicit-loopback", address: "127.0.0.1:0"},
+		{name: "explicit-wildcard", address: "0.0.0.0:0", alternate: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.alternate && runtime.GOOS == "windows" {
+				t.Skip("wildcard socket binding is skipped on Windows to avoid firewall authorization prompts; explicit configuration is tested without binding")
+			}
+			t.Setenv("OP_OBS", "metrics,prom")
+			t.Setenv("OP_PROM_ADDR", tc.address)
+			t.Setenv("OP_RUN_DIR", t.TempDir())
+			cmd, logs := startServeProcess(t, "run", "tcp://127.0.0.1:0", false)
+			defer stopServeProcess(t, cmd, logs)
+			metricsURL := waitForAdvertisedAddress(t, logs, "http://")
+			parsed, err := url.Parse(metricsURL)
+			if err != nil {
+				t.Fatal(err)
+			}
+			client := &http.Client{Transport: &http.Transport{Proxy: nil}, Timeout: 2 * time.Second}
+			defer client.CloseIdleConnections()
+			resp, err := client.Get("http://127.0.0.1:" + parsed.Port() + "/metrics")
+			if err != nil {
+				t.Fatalf("GET /metrics: %v\nlogs:\n%s", err, logs.String())
+			}
+			resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				t.Fatalf("GET /metrics status=%d", resp.StatusCode)
+			}
+			// Every 127/8 address is local. A connection to another loopback
+			// address succeeds only for the explicitly requested wildcard.
+			conn, err := net.DialTimeout("tcp", net.JoinHostPort("127.0.0.2", parsed.Port()), time.Second)
+			if conn != nil {
+				conn.Close()
+			}
+			if (err == nil) != tc.alternate {
+				t.Fatalf("alternate loopback connection error=%v, want reachable=%v", err, tc.alternate)
+			}
+		})
+	}
+}
+
 func TestRunPrometheusSharesHTTPListener(t *testing.T) {
 	runRoot := t.TempDir()
 	uid := "prom-http-uid"
 	rootSlug := filepath.Base(os.Args[0])
+	if runtime.GOOS == "windows" {
+		rootSlug = strings.TrimSuffix(rootSlug, ".exe")
+	}
 	t.Setenv("OP_OBS", "metrics,prom")
 	t.Setenv("OP_RUN_DIR", runRoot)
 	t.Setenv("OP_INSTANCE_UID", uid)
@@ -378,6 +431,9 @@ func TestRunWithServeOptionsStartsRelayAndMultilog(t *testing.T) {
 	runRoot := t.TempDir()
 	rootUID := "root-uid"
 	rootSlug := filepath.Base(os.Args[0])
+	if runtime.GOOS == "windows" {
+		rootSlug = strings.TrimSuffix(rootSlug, ".exe")
+	}
 	t.Setenv("OP_OBS", "logs,events")
 	t.Setenv("OP_RUN_DIR", runRoot)
 	t.Setenv("OP_INSTANCE_UID", rootUID)
@@ -837,6 +893,19 @@ func stopServeProcess(t *testing.T, cmd *exec.Cmd, logs *lockedBuffer) {
 	t.Helper()
 
 	if cmd == nil || cmd.Process == nil {
+		return
+	}
+	if runtime.GOOS == "windows" {
+		// These transport tests own only the helper process. Windows does not
+		// implement POSIX SIGTERM; process-tree shutdown has its own Job tests.
+		if err := cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
+			t.Fatalf("stop Windows serve helper: %v", err)
+		}
+		if err := waitProcessExit(cmd, 4*time.Second); err != nil {
+			if cmd.ProcessState == nil || !cmd.ProcessState.Exited() {
+				t.Fatalf("wait Windows serve helper: %v\nlogs:\n%s", err, logs.String())
+			}
+		}
 		return
 	}
 
