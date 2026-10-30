@@ -165,7 +165,11 @@ func TestActiveWindowsArtifactsRejectBeforeAnyCompositeMutation(t *testing.T) {
 				if err == nil {
 					t.Fatalf("%s accepted running process", op)
 				}
-				for _, want := range []string{"cannot " + string(op), "demo.exe", "PID " + strconv.Itoa(pid), path, "Close", "retry"} {
+				canonical, canonicalErr := canonicalArtifactPath(path)
+				if canonicalErr != nil {
+					t.Fatal(canonicalErr)
+				}
+				for _, want := range []string{"cannot " + string(op), "demo.exe", "PID " + strconv.Itoa(pid), canonical, "Close", "retry"} {
 					if !strings.Contains(err.Error(), want) {
 						t.Fatalf("%s error %q lacks %q", op, err, want)
 					}

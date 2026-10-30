@@ -3,157 +3,25 @@
 package holons
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
+	"syscall"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
 )
 
-type activeArtifactRoot struct {
-	path      string
-	directory bool
-}
+const supportsActiveArtifacts = true
 
-type activeArtifactProcess struct {
-	pid  uint32
-	path string
-}
+func describeActiveArtifactProcess(p ActiveArtifactProcess) ActiveArtifactProcess { return p }
 
-// Check the complete dependency graph before a runner can mutate any member.
-// Checking only immediately before RemoveAll would leave composites partly
-// cleaned when their application or one of their workers is still running.
-func guardActiveWindowsArtifacts(manifest *LoadedManifest, ctx BuildContext, op Operation) error {
-	if op != OperationClean && (op != OperationBuild || ctx.DryRun) {
-		return nil
-	}
-	roots, err := activeWindowsArtifactRoots(manifest, ctx)
-	if err != nil {
-		return fmt.Errorf("check running build artifacts: %w", err)
-	}
-	processes, err := activeWindowsProcesses()
-	if err != nil {
-		return fmt.Errorf("check running build artifacts: %w", err)
-	}
-	var active []activeArtifactProcess
-	for _, process := range processes {
-		canonical, err := canonicalWindowsArtifactPath(process.path)
-		if err != nil {
-			// A process may exit while the snapshot is being examined.
-			continue
-		}
-		for _, root := range roots {
-			if windowsArtifactContains(root, canonical) {
-				active = append(active, process)
-				break
-			}
-		}
-	}
-	if len(active) == 0 {
-		return nil
-	}
-	sort.Slice(active, func(i, j int) bool { return active[i].pid < active[j].pid })
-	var message strings.Builder
-	fmt.Fprintf(&message, "cannot %s holon %q: running processes are using its build artifacts:", op, manifestSlug(manifest))
-	for _, process := range active {
-		fmt.Fprintf(&message, "\n  %s (PID %d): %s", filepath.Base(process.path), process.pid, process.path)
-	}
-	message.WriteString("\nClose the listed application(s) and worker(s), then retry.")
-	return errors.New(message.String())
-}
-
-func activeWindowsArtifactRoots(manifest *LoadedManifest, ctx BuildContext) ([]activeArtifactRoot, error) {
-	manifests, err := activeWindowsArtifactManifests(manifest)
-	if err != nil {
-		return nil, err
-	}
-	var roots []activeArtifactRoot
-	seen := make(map[activeArtifactRoot]bool)
-	for _, current := range manifests {
-		if current == nil {
-			continue
-		}
-		paths := []string{current.OpRoot(), current.HolonPackageDir(), current.ArtifactPath(ctx)}
-		// Aggregate targets have no single ArtifactPath, but can still clean or
-		// replace a declared primary artifact while building individual targets.
-		if primary := strings.TrimSpace(current.Manifest.Artifacts.Primary); primary != "" {
-			paths = append(paths, current.mustResolveManifestPath(primary))
-		}
-		for _, path := range paths {
-			if path == "" {
-				continue
-			}
-			canonical, err := canonicalWindowsArtifactPath(path)
-			if err != nil {
-				return nil, fmt.Errorf("resolve artifact path %q: %w", path, err)
-			}
-			root := activeArtifactRoot{path: canonical, directory: true}
-			if info, err := os.Stat(path); err == nil {
-				root.directory = info.IsDir()
-			} else if !errors.Is(err, os.ErrNotExist) {
-				return nil, fmt.Errorf("inspect artifact path %q: %w", path, err)
-			}
-			if !seen[root] {
-				seen[root] = true
-				roots = append(roots, root)
-			}
-		}
-	}
-	return roots, nil
-}
-
-// Unlike dependency builds, clean visits distinct source directories even if
-// they have the same UUID. Also include hardened-excluded members: a build can
-// clean those when its persisted configuration changes.
-func activeWindowsArtifactManifests(manifest *LoadedManifest) ([]*LoadedManifest, error) {
-	var manifests []*LoadedManifest
-	visited := make(map[string]bool)
-	visiting := make(map[string]bool)
-	var visit func(*LoadedManifest) error
-	visit = func(current *LoadedManifest) error {
-		if current == nil {
-			return nil
-		}
-		key, err := canonicalWindowsArtifactPath(current.Dir)
-		if err != nil {
-			return err
-		}
-		if visiting[key] {
-			return fmt.Errorf("composite dependency cycle at %q", current.Dir)
-		}
-		if visited[key] {
-			return nil
-		}
-		visiting[key] = true
-		manifests = append(manifests, current)
-		for _, member := range current.Manifest.Build.Members {
-			if member.Type != "holon" {
-				continue
-			}
-			dir, err := current.ResolveManifestPath(member.Path)
-			if err != nil {
-				return fmt.Errorf("composite member %q path: %w", member.ID, err)
-			}
-			child, err := LoadManifest(dir)
-			if err != nil {
-				return err
-			}
-			if err := visit(child); err != nil {
-				return err
-			}
-		}
-		delete(visiting, key)
-		visited[key] = true
-		return nil
-	}
-	if err := visit(manifest); err != nil {
-		return nil, err
-	}
-	return manifests, nil
+func canonicalArtifactPath(path string) (string, error) { return canonicalWindowsArtifactPath(path) }
+func guardActiveWindowsArtifacts(m *LoadedManifest, ctx BuildContext, op Operation) error {
+	return CheckActiveArtifacts(m, ctx, op)
 }
 
 // Resolve existing ancestors as well: a clean checkout may not yet have an
@@ -197,7 +65,7 @@ func windowsArtifactContains(root activeArtifactRoot, path string) bool {
 	return root.directory && strings.HasPrefix(strings.ToLower(path), strings.TrimRight(strings.ToLower(root.path), `\`)+`\`)
 }
 
-func activeWindowsProcesses() ([]activeArtifactProcess, error) {
+func activeArtifactProcesses() ([]ActiveArtifactProcess, error) {
 	snapshot, err := windows.CreateToolhelp32Snapshot(windows.TH32CS_SNAPPROCESS, 0)
 	if err != nil {
 		return nil, err
@@ -205,7 +73,7 @@ func activeWindowsProcesses() ([]activeArtifactProcess, error) {
 	defer windows.CloseHandle(snapshot)
 	entry := windows.ProcessEntry32{Size: uint32(unsafe.Sizeof(windows.ProcessEntry32{}))}
 	err = windows.Process32First(snapshot, &entry)
-	var processes []activeArtifactProcess
+	var processes []ActiveArtifactProcess
 	for err == nil {
 		// Protected/system processes cannot be queried by an ordinary user;
 		// processes that exit after the snapshot also cannot be opened.
@@ -214,9 +82,11 @@ func activeWindowsProcesses() ([]activeArtifactProcess, error) {
 			buffer := make([]uint16, 32768)
 			size := uint32(len(buffer))
 			queryErr := windows.QueryFullProcessImageName(process, 0, &buffer[0], &size)
+			var created, exited, kernel, user windows.Filetime
+			timeErr := windows.GetProcessTimes(process, &created, &exited, &kernel, &user)
 			windows.CloseHandle(process)
-			if queryErr == nil {
-				processes = append(processes, activeArtifactProcess{pid: entry.ProcessID, path: windows.UTF16ToString(buffer[:size])})
+			if queryErr == nil && timeErr == nil {
+				processes = append(processes, ActiveArtifactProcess{PID: int(entry.ProcessID), Path: windows.UTF16ToString(buffer[:size]), Started: windowsProcessStart(created)})
 			}
 		}
 		err = windows.Process32Next(snapshot, &entry)
@@ -225,4 +95,81 @@ func activeWindowsProcesses() ([]activeArtifactProcess, error) {
 		return nil, err
 	}
 	return processes, nil
+}
+
+func windowsProcessStart(created windows.Filetime) string {
+	return fmt.Sprintf("%d:%d", created.HighDateTime, created.LowDateTime)
+}
+
+func stopActiveArtifactProcess(ctx context.Context, expected ActiveArtifactProcess, force bool) error {
+	access := uint32(windows.PROCESS_QUERY_LIMITED_INFORMATION)
+	if force {
+		access |= windows.PROCESS_TERMINATE
+	}
+	process, err := windows.OpenProcess(access, false, uint32(expected.PID))
+	if errors.Is(err, windows.ERROR_INVALID_PARAMETER) {
+		return nil // Already gone.
+	}
+	if err != nil {
+		return err
+	}
+	defer windows.CloseHandle(process)
+	buffer := make([]uint16, 32768)
+	size := uint32(len(buffer))
+	if err := windows.QueryFullProcessImageName(process, 0, &buffer[0], &size); err != nil {
+		return err
+	}
+	path, err := canonicalArtifactPath(windows.UTF16ToString(buffer[:size]))
+	if err != nil {
+		return err
+	}
+	var created, exited, kernel, user windows.Filetime
+	if err := windows.GetProcessTimes(process, &created, &exited, &kernel, &user); err != nil {
+		return err
+	}
+	if path != expected.Path || windowsProcessStart(created) != expected.Started {
+		return ErrActiveArtifactProcessChanged
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if force {
+		// The open handle pins the verified process, even if its PID is reused.
+		return windows.TerminateProcess(process, 1)
+	}
+	// WM_CLOSE asks only windows belonging to the verified PID to close. Console
+	// workers have no equivalent of SIGTERM; they remain for the separate force
+	// decision. Never send a console event to an unverified process group.
+	user32 := windows.NewLazySystemDLL("user32.dll")
+	enumWindows := user32.NewProc("EnumWindows")
+	getPID := user32.NewProc("GetWindowThreadProcessId")
+	postMessage := user32.NewProc("PostMessageW")
+	var requestErr error
+	callback := syscall.NewCallback(func(hwnd, _ uintptr) uintptr {
+		if ctx.Err() != nil {
+			requestErr = ctx.Err()
+			return 0
+		}
+		var pid uint32
+		getPID.Call(hwnd, uintptr(unsafe.Pointer(&pid)))
+		if pid == uint32(expected.PID) {
+			var code uint32
+			if err := windows.GetExitCodeProcess(process, &code); err != nil || code != 259 { // STILL_ACTIVE
+				return 0
+			}
+			if ok, _, err := postMessage.Call(hwnd, 0x0010, 0, 0); ok == 0 { // WM_CLOSE
+				requestErr = err
+				return 0
+			}
+		}
+		return 1
+	})
+	ok, _, callErr := enumWindows.Call(callback, 0)
+	if requestErr != nil {
+		return requestErr
+	}
+	if ok == 0 && callErr != syscall.Errno(0) {
+		return callErr
+	}
+	return nil
 }

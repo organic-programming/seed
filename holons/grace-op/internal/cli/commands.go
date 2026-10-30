@@ -188,6 +188,12 @@ type runOptions struct {
 
 // cmdRun builds a holon artifact if needed, then launches it in the foreground.
 func cmdRun(format Format, runtimeOpts commandRuntimeOptions, args []string) int {
+	return cmdRunWithArtifactPreflight(format, runtimeOpts, args, func(manifest *holons.LoadedManifest, ctx holons.BuildContext, operation holons.Operation) error {
+		return prepareRunArtifacts(format, manifest, ctx, operation)
+	})
+}
+
+func cmdRunWithArtifactPreflight(format Format, runtimeOpts commandRuntimeOptions, args []string, preflight func(*holons.LoadedManifest, holons.BuildContext, holons.Operation) error) int {
 	ui, args, _ := extractQuietFlag(args)
 	quiet := runtimeOpts.quiet || ui.Quiet
 
@@ -267,13 +273,6 @@ func cmdRun(format Format, runtimeOpts commandRuntimeOptions, args []string) int
 		return 1
 	}
 
-	if opts.Clean {
-		if _, err := runCleanWithProgress(printer, target.Dir); err != nil {
-			fmt.Fprintf(os.Stderr, "op run: %v\n", err)
-			return 1
-		}
-	}
-
 	ctx, err := holons.ResolveBuildContext(target.Manifest, holons.BuildOptions{
 		Target: opts.Target,
 		Mode:   opts.Mode,
@@ -325,6 +324,23 @@ func cmdRun(format Format, runtimeOpts commandRuntimeOptions, args []string) int
 	}
 
 	if needBuild {
+		// Resolve conflicts before clean can delete even one artifact. The
+		// lifecycle retains its own guard, including after this preflight.
+		operation := holons.OperationBuild
+		if opts.Clean {
+			operation = holons.OperationClean
+		}
+		printer.Keep()
+		if err := preflight(target.Manifest, ctx, operation); err != nil {
+			fmt.Fprintf(os.Stderr, "op run: %v\n", err)
+			return 1
+		}
+		if opts.Clean {
+			if _, err := runCleanWithProgress(printer, target.Dir); err != nil {
+				fmt.Fprintf(os.Stderr, "op run: %v\n", err)
+				return 1
+			}
+		}
 		if _, err := holons.ExecuteLifecycle(holons.OperationBuild, target.Dir, holons.BuildOptions{
 			Target:        opts.Target,
 			Mode:          opts.Mode,

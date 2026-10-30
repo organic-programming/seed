@@ -1,9 +1,20 @@
-//go:build !windows
+//go:build !windows && !darwin
 
 package holons
 
-// Windows prevents removal of loaded executable images. Other platforms retain
-// their existing lifecycle behavior, including any runner-specific checks.
-func guardActiveWindowsArtifacts(_ *LoadedManifest, _ BuildContext, _ Operation) error {
-	return nil
+import (
+	"context"
+	"fmt"
+)
+
+// Other platforms retain runner-specific checks until they have an OS-backed
+// executable identity provider. In particular, no process stopping is offered.
+const supportsActiveArtifacts = false
+
+func describeActiveArtifactProcess(p ActiveArtifactProcess) ActiveArtifactProcess { return p }
+
+func activeArtifactProcesses() ([]ActiveArtifactProcess, error) { return nil, nil }
+
+func stopActiveArtifactProcess(context.Context, ActiveArtifactProcess, bool) error {
+	return fmt.Errorf("stopping active artifacts is not supported on this platform")
 }

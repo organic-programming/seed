@@ -47,7 +47,8 @@ func (RPCHandler) Check(_ context.Context, req *opv1.LifecycleRequest) (*opv1.Li
 }
 
 func (RPCHandler) Build(_ context.Context, req *opv1.LifecycleRequest) (*opv1.LifecycleResponse, error) {
-	return Build(req)
+	response, err := Build(req)
+	return response, activeArtifactRPCError(err)
 }
 
 func (RPCHandler) Test(_ context.Context, req *opv1.LifecycleRequest) (*opv1.LifecycleResponse, error) {
@@ -55,11 +56,13 @@ func (RPCHandler) Test(_ context.Context, req *opv1.LifecycleRequest) (*opv1.Lif
 }
 
 func (RPCHandler) Clean(_ context.Context, req *opv1.LifecycleRequest) (*opv1.LifecycleResponse, error) {
-	return Clean(req)
+	response, err := Clean(req)
+	return response, activeArtifactRPCError(err)
 }
 
 func (RPCHandler) Install(_ context.Context, req *opv1.InstallRequest) (*opv1.InstallResponse, error) {
-	return Install(req)
+	response, err := Install(req)
+	return response, activeArtifactRPCError(err)
 }
 
 func (RPCHandler) Uninstall(_ context.Context, req *opv1.UninstallRequest) (*opv1.InstallResponse, error) {
@@ -67,7 +70,8 @@ func (RPCHandler) Uninstall(_ context.Context, req *opv1.UninstallRequest) (*opv
 }
 
 func (RPCHandler) Run(_ context.Context, req *opv1.RunRequest) (*opv1.RunResponse, error) {
-	return Run(req)
+	response, err := Run(req)
+	return response, activeArtifactRPCError(err)
 }
 
 func (RPCHandler) Inspect(_ context.Context, req *opv1.InspectRequest) (*opv1.InspectResponse, error) {
