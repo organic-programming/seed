@@ -1,7 +1,7 @@
 # holons_app
 
 `holons_app` is the reusable Flutter organism kit for COAX-enabled app holons.
-It owns the reusable COAX runtime and the reusable Shadcn COAX UI:
+It owns the reusable COAX runtime and the reusable Material COAX UI:
 
 - `CoaxManager`
 - `CoaxRpcService`
@@ -15,6 +15,26 @@ It owns the reusable COAX runtime and the reusable Shadcn COAX UI:
 
 `sdk/dart-holons` remains the pure Dart SDK. This kit is the Flutter layer on
 top of that SDK.
+
+## Flutter toolchain
+
+Use Flutter **3.50.0** (stable), which includes Dart **3.14.0**, or newer.
+The kit's widgets use `package:material_ui/material_ui.dart`, the standalone
+Material library. Import Material types from that package in consuming apps
+and widget tests as well.
+
+The Gabriel example and the `coax-flutter` scaffold use `shadcn_flutter` 0.0.55
+with `MaterialShadcnApp` from `shadcn_flutter_material`. This supplies the
+Material theme, ancestors, and localizations required by the COAX widgets.
+Apps built directly with `material_ui.MaterialApp` need no Shadcn dependency.
+
+From `organism_kits/flutter`, verify the kit with:
+
+```sh
+flutter pub get
+flutter analyze lib test
+flutter test
+```
 
 ## Fast Path: Henri Nobody
 

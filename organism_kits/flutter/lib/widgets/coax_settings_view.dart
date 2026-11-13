@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../src/coax_configuration.dart';
 import '../src/coax_controller.dart';
@@ -101,9 +101,8 @@ class CoaxSettingsView extends StatelessWidget {
                   Text(
                     coaxManager.serverStatus.endpoint ??
                         coaxManager.serverPreviewEndpoint,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.copyWith(fontFamily: 'monospace'),
+                    style: Theme.of(context).textTheme.bodyMedium
+                        ?.copyWith(fontFamily: 'monospace'),
                   ),
                 ],
               ),

@@ -5,7 +5,10 @@ import 'dart:ui' show AppExitResponse;
 import 'package:holons/gen/holons/v1/coax.pb.dart';
 import 'package:holons/gen/holons/v1/manifest.pb.dart';
 import 'package:holons_app/holons_app.dart';
+import 'package:material_ui/material_ui.dart' as material;
 import 'package:shadcn_flutter/shadcn_flutter.dart';
+import 'package:shadcn_flutter_material/shadcn_flutter_material.dart'
+    show MaterialShadcnApp;
 
 class {{ .PascalSlug }}App extends StatelessWidget {
   const {{ .PascalSlug }}App({
@@ -19,7 +22,7 @@ class {{ .PascalSlug }}App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ShadcnApp(
+    return MaterialShadcnApp(
       title: '{{ .GivenTitle }} {{ .FamilyTitle }}',
       debugShowCheckedModeBanner: false,
       theme: const ThemeData(
@@ -109,7 +112,7 @@ class _{{ .PascalSlug }}HomePageState extends State<{{ .PascalSlug }}HomePage> {
   }
 
   Future<void> _showCoaxSettings(BuildContext context) {
-    return showDialog<void>(
+    return material.showDialog<void>(
       context: context,
       builder: (_) => CoaxSettingsView(coaxManager: widget.coaxManager),
     );

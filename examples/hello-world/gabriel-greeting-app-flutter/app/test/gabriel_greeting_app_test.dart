@@ -2,12 +2,13 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:ui' show AppExitResponse;
 
-import 'package:flutter/material.dart' show SwitchListTile, Tab;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:grpc/grpc.dart';
 import 'package:holons/holons.dart' as holons;
 import 'package:holons_app/holons_app.dart';
+import 'package:material_ui/material_ui.dart'
+    show AlertDialog, SwitchListTile, Tab, Theme;
 
 import 'package:gabriel_greeting_app_flutter/src/app.dart';
 import 'package:gabriel_greeting_app_flutter/src/controller/greeting_controller.dart';
@@ -368,6 +369,70 @@ void main() {
     expect(completed, isTrue);
     expect(response, AppExitResponse.exit);
   });
+
+  for (final brightness in Brightness.values) {
+    testWidgets('COAX settings work with the ${brightness.name} theme', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1400, 1100);
+      tester.view.devicePixelRatio = 1.0;
+      tester.platformDispatcher.platformBrightnessTestValue = brightness;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+        tester.platformDispatcher.clearPlatformBrightnessTestValue();
+      });
+
+      final greetingController = GreetingController(
+        catalog: FakeHolonCatalog([holon('gabriel-greeting-swift')]),
+        connector: FakeHolonConnector(
+          factories: {
+            'gabriel-greeting-swift': (_) => FakeGreetingHolonConnection(
+              languages: [
+                language(code: 'en', name: 'English', native: 'English'),
+              ],
+              greetingBuilder: ({required name, required langCode}) =>
+                  'Hello $name',
+            ),
+          },
+        ),
+      );
+      final coaxManager = buildCoaxManager(
+        greetingController: greetingController,
+      );
+      final observabilityKit = buildObservabilityKit();
+      addTearDown(observabilityKit.dispose);
+
+      await tester.pumpWidget(
+        GabrielGreetingApp(
+          greetingController: greetingController,
+          coaxManager: coaxManager,
+          observabilityKit: observabilityKit,
+        ),
+      );
+      await _settleApp(tester);
+      await tester.tap(find.byTooltip('COAX settings'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(
+        Theme.of(tester.element(find.byType(AlertDialog))).brightness,
+        brightness,
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('coax-tcp-port')),
+        '61234',
+      );
+      await tester.pumpAndSettle();
+      expect(coaxManager.serverPort, 61234);
+
+      await tester.tap(find.text('Done'));
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(find.text('Hello World'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   testWidgets('observability panel opens and reads kit state', (tester) async {
     tester.view.physicalSize = const Size(1400, 1100);

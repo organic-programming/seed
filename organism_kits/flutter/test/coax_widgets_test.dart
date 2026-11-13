@@ -1,7 +1,7 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:grpc/grpc.dart';
 import 'package:holons_app/holons_app.dart';
+import 'package:material_ui/material_ui.dart';
 
 void main() {
   testWidgets('CoaxControlsView renders the saved preview endpoint', (

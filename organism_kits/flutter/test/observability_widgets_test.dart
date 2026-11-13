@@ -1,9 +1,9 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:holons/holons.dart' as holons;
 import 'package:holons_app/holons_app.dart';
+import 'package:material_ui/material_ui.dart';
 
 ObservabilityKit _kit(String slug, List<holons.Family> families) {
   return ObservabilityKit.standalone(

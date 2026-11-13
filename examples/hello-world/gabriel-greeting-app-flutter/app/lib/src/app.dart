@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:ui' show AppExitResponse;
 
-import 'package:flutter/material.dart' as material;
 import 'package:holons_app/holons_app.dart'
     show
         CoaxControlsView,
@@ -10,7 +9,10 @@ import 'package:holons_app/holons_app.dart'
         HolonTransportName,
         ObservabilityKit,
         ObservabilityPanel;
+import 'package:material_ui/material_ui.dart' as material;
 import 'package:shadcn_flutter/shadcn_flutter.dart';
+import 'package:shadcn_flutter_material/shadcn_flutter_material.dart'
+    show MaterialShadcnApp;
 
 import 'controller/greeting_controller.dart';
 import 'gen/v1/greeting.pb.dart';
@@ -31,7 +33,7 @@ class GabrielGreetingApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ShadcnApp(
+    return MaterialShadcnApp(
       title: 'Gabriel Greeting',
       debugShowCheckedModeBanner: false,
       theme: const ThemeData(
@@ -332,7 +334,7 @@ class _GabrielGreetingHomePageState extends State<GabrielGreetingHomePage> {
   }
 
   Future<void> _showCoaxSettings(BuildContext context) {
-    return showDialog<void>(
+    return material.showDialog<void>(
       context: context,
       builder: (context) => material.Theme(
         data: _materialThemeFor(Theme.of(context)),

@@ -27,7 +27,7 @@ checks:
     workdir: examples/hello-world/gabriel-greeting-app-flutter/app
     prereqs:
     - flutter
-    command: PATH="$HOME/.gem/ruby/2.6.0/bin:$PATH" flutter test -r expanded integration_test/greeting_smoke_test.dart
+    command: flutter test -d macos -r expanded integration_test/greeting_smoke_test.dart
     description: Flutter HostUI macOS desktop integration smoke for greeting flow and panel launch path
   integration-check-composite-flutter:
     workdir: ader/catalogues/grace-op/integration

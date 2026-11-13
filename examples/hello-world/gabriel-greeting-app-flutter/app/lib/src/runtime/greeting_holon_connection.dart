@@ -85,11 +85,8 @@ typedef DesktopGreetingHolonConnectionFactory =
     BundledGreetingHolonConnectionFactory;
 
 class DesktopGreetingHolonConnection implements GreetingHolonConnection {
-  DesktopGreetingHolonConnection(
-    this._channel, {
-    Future<void> Function()? onClose,
-  }) : _onClose = onClose,
-       _client = GreetingServiceClient(_channel);
+  DesktopGreetingHolonConnection(this._channel, {this._onClose})
+    : _client = GreetingServiceClient(_channel);
 
   final ClientChannel _channel;
   final Future<void> Function()? _onClose;

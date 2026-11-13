@@ -1271,6 +1271,20 @@ jobs:
         shell: bash
         run: op sdk install all
 
+      - name: Setup Flutter 3.50
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.50.0'
+
+      - name: Verify Flutter organism kit
+        working-directory: organism_kits/flutter
+        run: |
+          set -euo pipefail
+          flutter pub get
+          flutter analyze lib test
+          flutter test
+
       - name: Build Flutter composite
         run: |
           set -euo pipefail
